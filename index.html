@@ -2693,6 +2693,15 @@ function attachSliderEvents(parentContainer) {
                 if (paramIdx === '0') pData['fx'+padFxIdx+'p1'] = parseFloat(val);
                 if (paramIdx === '1') pData['fx'+padFxIdx+'p2'] = parseFloat(val);
                 if (paramIdx === '2') pData['fx'+padFxIdx+'p3'] = parseFloat(val);
+                
+                // ЖИВОЕ ОБНОВЛЕНИЕ ЗВУКА БЕЗ ПЕРЕСОЗДАНИЯ!
+                if (pData['liveUpdateFx'+padFxIdx]) {
+                    pData['liveUpdateFx'+padFxIdx](
+                        pData['fx'+padFxIdx+'p1'],
+                        pData['fx'+padFxIdx+'p2'],
+                        pData['fx'+padFxIdx+'p3']
+                    );
+                }
             }
         };
 
@@ -2708,7 +2717,7 @@ function attachSliderEvents(parentContainer) {
     });
 }
 
-function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
+function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode, pData, slotIdx) {
     let lastNode = inputNode;
     if (!type || type === 'None') {
         lastNode.connect(outNode);
@@ -2718,16 +2727,23 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
     p1 = p1 !== undefined ? p1 : 50;
     p2 = p2 !== undefined ? p2 : 50;
     p3 = p3 !== undefined ? p3 : 50;
+    
+    let liveUpdater = () => {};
 
     if (type === 'Filter') {
         const filter = ctx.createBiquadFilter(); filter.type = 'lowpass';
         filter.frequency.value = 20 * Math.pow(20000 / 20, p1 / 100);
         filter.Q.value = (p2 / 100) * 20;
         lastNode.connect(filter); filter.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            filter.frequency.setTargetAtTime(20 * Math.pow(20000 / 20, nP1 / 100), now, 0.02);
+            filter.Q.setTargetAtTime((nP2 / 100) * 20, now, 0.02);
+        };
     } 
     else if (type === 'Delay') {
-        let currentBpm = parseInt(typeof fxState !== 'undefined' ? fxState.bpm : 130) || 130;
-        if (isNaN(currentBpm)) currentBpm = 130;
+        let currentBpm = parseInt(typeof globalSettings !== 'undefined' ? globalSettings.bpm : 130) || 130;
         const delay = ctx.createDelay(5.0); 
         delay.delayTime.value = ((60000 / currentBpm) * ([4.0, 2.0, 1.0, 0.75, 0.5, 0.3333, 0.25, 0.125][p1 - 1] || 1.0)) / 1000.0;
         const fbGain = ctx.createGain(); fbGain.gain.value = (p3 / 100) * ([0.95, 0.94, 0.90, 0.85, 0.75, 0.60, 0.50, 0.40][p1 - 1] || 0.85);
@@ -2738,6 +2754,17 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = lpCut; lp.Q.value = 0.1;
 
         lastNode.connect(outNode); lastNode.connect(hp); hp.connect(lp); lp.connect(delay); delay.connect(fbGain); fbGain.connect(hp); delay.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            let cBpm = parseInt(typeof globalSettings !== 'undefined' ? globalSettings.bpm : 130) || 130;
+            delay.delayTime.setTargetAtTime(((60000 / cBpm) * ([4.0, 2.0, 1.0, 0.75, 0.5, 0.3333, 0.25, 0.125][nP1 - 1] || 1.0)) / 1000.0, now, 0.02);
+            fbGain.gain.setTargetAtTime((nP3 / 100) * ([0.95, 0.94, 0.90, 0.85, 0.75, 0.60, 0.50, 0.40][nP1 - 1] || 0.85), now, 0.02);
+            let hCut = 150, lCut = 20000;
+            if (nP2 < 50) lCut = 20000 * Math.pow(400 / 20000, (50 - nP2) / 50); else hCut = 150 * Math.pow(6000 / 150, (nP2 - 50) / 50);
+            hp.frequency.setTargetAtTime(hCut, now, 0.02);
+            lp.frequency.setTargetAtTime(lCut, now, 0.02);
+        };
     }
     else if (type === 'Chorus') {
         const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.025;
@@ -2746,6 +2773,12 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         const fb = ctx.createGain(); fb.gain.value = 0.2;
         lfo.connect(lfoGain); lfoGain.connect(delay.delayTime); lfo.start();
         lastNode.connect(outNode); lastNode.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            lfo.frequency.setTargetAtTime(0.1 + (nP1 / 100) * 5.0, now, 0.02);
+            lfoGain.gain.setTargetAtTime(0.005 + (nP2 / 100) * 0.015, now, 0.02);
+        };
     }
     else if (type === 'Reverb') {
         const convolver = ctx.createConvolver();
@@ -2769,11 +2802,21 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = lpFreq;
         const sizeGain = ctx.createGain(); sizeGain.gain.value = (p3 / 100) * 1.5;
         lastNode.connect(outNode); lastNode.connect(preDelay); preDelay.connect(hp); hp.connect(lp); lp.connect(convolver); convolver.connect(sizeGain); sizeGain.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            preDelay.delayTime.setTargetAtTime(nP2 / 1000.0, now, 0.02);
+            let hFreq = 150, lFreq = 8000;
+            if (nP1 <= 50) { hFreq = 20 + (nP1 / 50) * 130; lFreq = 400 * Math.pow(8000 / 400, nP1 / 50); }
+            else { hFreq = 150 * Math.pow(4000 / 150, (nP1 - 50) / 50); lFreq = 8000 * Math.pow(20000 / 8000, (nP1 - 50) / 50); }
+            hp.frequency.setTargetAtTime(hFreq, now, 0.02);
+            lp.frequency.setTargetAtTime(lFreq, now, 0.02);
+            sizeGain.gain.setTargetAtTime((nP3 / 100) * 1.5, now, 0.02);
+        };
     }
     else if (type === 'Flanger') {
         const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.004;
-        let currentBpm = parseInt(typeof fxState !== 'undefined' ? fxState.bpm : 130) || 130;
-        if (isNaN(currentBpm)) currentBpm = 130;
+        let currentBpm = parseInt(typeof globalSettings !== 'undefined' ? globalSettings.bpm : 130) || 130;
         const syncMults = [64.0, 32.0, 16.0, 8.0, 4.0, 2.0, 1.0, 0.5];
         const lfoHz = 1000.0 / ((60000 / currentBpm) * (syncMults[p1 - 1] || 8.0));
         
@@ -2786,6 +2829,15 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         
         lastNode.connect(hp); hp.connect(delay); delay.connect(fb); fb.connect(hp); delay.connect(outNode);
         lastNode.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            let cBpm = parseInt(typeof globalSettings !== 'undefined' ? globalSettings.bpm : 130) || 130;
+            const lHz = 1000.0 / ((60000 / cBpm) * (syncMults[nP1 - 1] || 8.0));
+            lfo.frequency.setTargetAtTime(lHz, now, 0.02);
+            lfoGain.gain.setTargetAtTime(0.003 * (nP2 / 100), now, 0.02);
+            hp.frequency.setTargetAtTime(20 + (nP3 * 5.0), now, 0.02);
+        };
     }
     else if (type === 'Phaser') {
         const ap1 = ctx.createBiquadFilter(); ap1.type = 'allpass'; ap1.frequency.value = 1000;
@@ -2795,6 +2847,12 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         lfo.connect(lfoGain); lfoGain.connect(ap1.frequency); lfoGain.connect(ap2.frequency); lfo.start();
         const fb = ctx.createGain(); fb.gain.value = (p2 / 100) * 0.8;
         lastNode.connect(outNode); lastNode.connect(ap1); ap1.connect(ap2); ap2.connect(outNode); ap2.connect(fb); fb.connect(ap1);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            lfo.frequency.setTargetAtTime(0.1 + (nP1 / 100) * 8.0, now, 0.02);
+            fb.gain.setTargetAtTime((nP2 / 100) * 0.8, now, 0.02);
+        };
     }
     else if (type === 'Orbit') {
         const panner = ctx.createStereoPanner();
@@ -2802,17 +2860,28 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         const lfoGain = ctx.createGain(); lfoGain.gain.value = p2 / 100;
         lfo.connect(lfoGain); lfoGain.connect(panner.pan); lfo.start();
         lastNode.connect(panner); panner.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            lfo.frequency.setTargetAtTime(nP1 / 100, now, 0.02);
+            lfoGain.gain.setTargetAtTime(nP2 / 100, now, 0.02);
+        };
     }
     else if (type === 'TranceGate') {
         const gate = ctx.createGain();
         const lfo = ctx.createOscillator(); lfo.type = 'square'; 
-        let currentBpm = parseInt(typeof fxState !== 'undefined' ? fxState.bpm : 130) || 130;
-        if (isNaN(currentBpm)) currentBpm = 130;
+        let currentBpm = parseInt(typeof globalSettings !== 'undefined' ? globalSettings.bpm : 130) || 130;
         const rateMults = [1, 2, 4, 8]; 
         lfo.frequency.value = (currentBpm / 60) * (rateMults[p1-1] || 4);
         const lfoGain = ctx.createGain(); lfoGain.gain.value = 1.0;
         lfo.connect(lfoGain); lfoGain.connect(gate.gain); lfo.start();
         lastNode.connect(gate); gate.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            let cBpm = parseInt(typeof globalSettings !== 'undefined' ? globalSettings.bpm : 130) || 130;
+            lfo.frequency.setTargetAtTime((cBpm / 60) * (rateMults[nP1-1] || 4), now, 0.02);
+        };
     }
     else if (type === 'NoiseSweep') {
         const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.Q.value = 3;
@@ -2824,6 +2893,11 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         const noiseGain = ctx.createGain(); noiseGain.gain.value = p1 / 100;
         noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(outNode); noiseSrc.start();
         lastNode.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            noiseGain.gain.setTargetAtTime(nP1 / 100, now, 0.02);
+        };
     }
     else if (type === 'LoopRoll') {
         const delay = ctx.createDelay(1.0); 
@@ -2832,6 +2906,11 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         const fb = ctx.createGain(); fb.gain.value = 0.95; 
         lastNode.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(outNode);
         lastNode.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const now = ctx.currentTime;
+            delay.delayTime.setTargetAtTime(times[nP1-1] || 0.117, now, 0.02);
+        };
     }
     else if (type === 'VinylBrake') {
         const delay = ctx.createDelay(3.0); delay.delayTime.value = 0.5; 
@@ -2851,7 +2930,19 @@ function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
         for(let i=0; i<44100; i++) curve[i] = Math.round((i * 2 / 44100 - 1) * steps) / steps;
         shaper.curve = curve;
         lastNode.connect(shaper); shaper.connect(outNode);
+        
+        liveUpdater = (nP1, nP2, nP3) => {
+            const st = Math.pow(2, nP1); const c = new Float32Array(44100);
+            for(let i=0; i<44100; i++) c[i] = Math.round((i * 2 / 44100 - 1) * st) / st;
+            shaper.curve = c;
+        };
     }
+    
+    // ПРЯМОЕ ПОДКЛЮЧЕНИЕ ПУЛЬТА УПРАВЛЕНИЯ В ПАМЯТЬ ПЭДА
+    if (pData && slotIdx) {
+        pData['liveUpdateFx'+slotIdx] = liveUpdater;
+    }
+
     return outNode;
 }
 
@@ -2886,7 +2977,8 @@ function buildPadInsertFx(ctx, pData, inputNode) {
 
             dryGain.connect(fxOutNode);
             
-            let effectEndNode = buildSinglePadFx(ctx, type, pData['fx'+i+'p1'], pData['fx'+i+'p2'], pData['fx'+i+'p3'], wetGain, ctx.createGain());
+            // ПРОБРОСИЛИ ИНДЕКС pData И i, ЧТОБЫ buildSinglePadFx МОГ ИМИ УПРАВЛЯТЬ
+            let effectEndNode = buildSinglePadFx(ctx, type, pData['fx'+i+'p1'], pData['fx'+i+'p2'], pData['fx'+i+'p3'], wetGain, ctx.createGain(), pData, i);
             effectEndNode.connect(fxOutNode);
 
             lastNode = fxOutNode;
@@ -4241,9 +4333,10 @@ if (btnMainTap) {
         }
 
         const fxMix = Number(pData.send !== undefined ? pData.send : 100) / 100;
-        const currentParams = [1,2,3,4].map(i => `${pData['fx'+i]}_${pData['fx'+i+'p1']}_${pData['fx'+i+'p2']}_${pData['fx'+i+'p3']}`).join('|');
+        // Теперь отслеживаем только смену самого ЭФФЕКТА или кнопки ON/OFF
+        const currentFxTypes = [1,2,3,4].map(i => `${pData['fx'+i]}_${pData['fx'+i+'On']}`).join('|');
 
-        if (!pData.fxBus || pData.lastParams !== currentParams) {
+        if (!pData.fxBus || pData.lastFxTypes !== currentFxTypes) {
             if (pData.fxBus) {
                 try { pData.fxBus.disconnect(); pData.fxDry.disconnect(); pData.fxWet.disconnect(); } catch(e){}
             }
@@ -4262,7 +4355,7 @@ if (btnMainTap) {
             for(let i=1; i<=4; i++) {
                 // buildPadInsertFx сам всё подключил, мы просто обновляем подпись параметров
             }
-            pData.lastParams = currentParams;
+            pData.lastFxTypes = currentFxTypes;
         }
 
         pData.fxDry.gain.setValueAtTime(1.0 - fxMix, now);
