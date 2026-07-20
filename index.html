@@ -28,6 +28,14 @@
     font-style: italic;
     font-display: swap;
 }
+#pad-screen { 
+    font-family: 'MatrixType Display', monospace; 
+    color: #ffffff; 
+    text-shadow: 0 0 5px rgba(255,255,255,0.5); 
+    line-height: 1.4; 
+    font-size: 10px; 
+    letter-spacing: -0.5px;
+}
         :root {
             --header-bg: #000000; --header-border-color: #111111;
             --drawer-bg: #1a1a1a; --bg: #050505; --accent: #ff0000; --text: #ffffff; --digital: #ff8c00;
@@ -87,7 +95,7 @@
         .screen-text-inner { white-space: nowrap; line-height: 1.4; text-align: center; }
 
         /* Стили для новых больших крутилок */
-        .main-knobs-row { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; padding: 10px; background: #0a0a0a; border-radius: 10px; border: 1px solid #222; }
+        .main-knobs-row { display: flex; justify-content: space-around; align-items: center; margin: 8px 0; padding: 6px; background: #0a0a0a; border-radius: 10px; border: 1px solid #222; }
         .main-knob-container { display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .main-knob { width: 36px; height: 36px; border-radius: 50%; background-color: #1c1c1c; border: 2px solid #333; box-shadow: inset 0 -1px 4px rgba(0,0,0,0.8), 0 3px 5px rgba(0,0,0,0.6); position: relative; cursor: pointer; touch-action: none; }
         .main-knob-line { position: absolute; width: 3px; height: 14px; background-color: #ff6600; border-radius: 1.5px; bottom: 50%; left: calc(50% - 1.5px); transform-origin: bottom center; }
@@ -733,9 +741,199 @@ top: 2px; }
                     <div class="fx-container">
                         <div class="fx-header">Settings</div>
                         <div class="display-screen settings-screen">
-                            <div class="screen-text-inner" id="set-global-screen">METRONOME: OFF &ensp; QUANTIZE: 1/16<br>STORAGE USED: 2.4 MB / 100 MB</div>
+                            <div class="screen-text-inner" id="set-global-screen">BPM: 130 &ensp; METRO: OFF<br>QUANTIZE: 1/16 &ensp; PRE-ROLL: ON</div>
                         </div>
                         <div class="settings-scroll-area" id="settings-scroll">
+                            <!-- === НАСТРОЙКИ СКОРОСТИ И СИНХРОНИЗАЦИИ === -->
+
+                            <div class="set-section open">
+    <div class="set-header" onclick="toggleSetSection(this)">Tempo & Sync</div>
+    <div class="set-content">
+        <div class="set-row">
+            <label style="color: #ff6600;">Global Speed (BPM)</label>
+            <div class="set-range-group">
+                <input type="range" class="set-range" id="global-bpm-slider" min="60" max="200" value="130" step="1" oninput="updateSetRangeLabel(this, ' BPM')">
+                <span class="set-range-val" id="global-bpm-val" style="width: 70px;">130 BPM</span>
+            </div>
+        </div>
+        <div class="set-row" style="margin-top: 10px;">
+            <label>Quantize & Grid</label>
+            <div style="display: flex; gap: 10px;">
+                <button class="pad-action-btn" id="btn-quantize-toggle" style="height:32px; border-radius:6px; flex: 1;" onclick="vibrate(30); this.classList.toggle('active-mode'); this.textContent = this.classList.contains('active-mode') ? 'QUANTIZE: ON' : 'QUANTIZE: OFF';">QUANTIZE: OFF</button>
+                <select class="set-control" id="set-quantize-grid" style="flex: 1;">
+                    <option>1/4</option>
+                    <option>1/8</option>
+                    <option selected>1/16</option>
+                    <option>1/32</option>
+                </select>
+            </div>
+        </div>
+        <div class="set-row" style="margin-top: 10px;">
+            <label>Metronome</label>
+            <div style="display: flex; gap: 10px;">
+                <button class="pad-action-btn" id="btn-metro-toggle" style="height:32px; border-radius:6px; flex: 1;" onclick="vibrate(30); this.classList.toggle('active-mode'); this.textContent = this.classList.contains('active-mode') ? 'METRO: ON' : 'METRO: OFF';">METRO: OFF</button>
+                <button class="pad-action-btn active-mode" id="btn-preroll-toggle" style="height:32px; border-radius:6px; flex: 1;" onclick="vibrate(30); this.classList.toggle('active-mode'); this.textContent = this.classList.contains('active-mode') ? 'PRE-ROLL: ON' : 'PRE-ROLL: OFF';">PRE-ROLL: ON</button>
+            </div>
+        </div>
+        <div class="set-row" style="margin-top: 10px;">
+            <label>Loop Length</label>
+            <select class="set-control" id="set-loop-length">
+                <option value="auto">Auto (Smart Stop)</option>
+                <option value="1">1 Bar</option>
+                <option value="2">2 Bars</option>
+                <option value="4" selected>4 Bars</option>
+            </select>
+        </div>
+    </div>
+</div>
+<div class="set-section">
+                                <div class="set-header" onclick="toggleSetSection(this)">Pads Workshop</div>
+                                <div class="set-content">
+                                    <div class="set-tabs"><button class="set-tab-btn active-blue" id="set-pad-bank-a" onclick="switchPadBank('A')">A</button><button class="set-tab-btn" id="set-pad-bank-b" onclick="switchPadBank('B')">B</button><button class="set-tab-btn" id="set-pad-bank-c" onclick="switchPadBank('C')">C</button><button class="set-tab-btn" id="set-pad-bank-d" onclick="switchPadBank('D')">D</button></div>
+                                    <label style="font-size: 11px; color: #777; font-weight: bold; display: block; margin-bottom: 5px; text-transform: uppercase;">Select Pad to Edit</label>
+                                    <div class="set-pad-selector bank-A">
+    <div class="set-pad-mini active">P1</div><div class="set-pad-mini">P2</div><div class="set-pad-mini">P3</div><div class="set-pad-mini">P4</div><div class="set-pad-mini">P5</div><div class="set-pad-mini">P6</div><div class="set-pad-mini">P7</div><div class="set-pad-mini">P8</div><div class="set-pad-mini">P9</div><div class="set-pad-mini">P10</div><div class="set-pad-mini">P11</div><div class="set-pad-mini">P12</div>
+</div>
+
+<!-- КОНТЕКСТНОЕ МЕНЮ ПЭДОВ (Скрыто по умолчанию) -->
+<div id="pad-context-menu" class="history-dropdown" style="width: 110px; z-index: 999999;">
+    <button class="history-dropdown-btn" onclick="contextCopyPad()">📋 COPY PAD</button>
+    <button class="history-dropdown-btn" onclick="contextPastePad()" id="ctx-paste-btn" style="opacity: 0.3; pointer-events: none;">📋 PASTE PAD</button>
+    <button class="history-dropdown-btn delete" onclick="contextClearPad()">🗑️ CLEAR PAD</button>
+</div>
+                                    <div id="pad-editor-card" style="border-top: 1px dashed #222; padding-top: 10px; margin-top: 5px;">
+    
+    <div class="set-row" style="background: #111; padding: 6px 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; width: 100%;">
+            <div id="pad-editor-title" style="color: #fff; font-size: 11px; font-weight: bold;">Editing: P1 (Bank A)</div>
+            <div id="pad-editor-filename" style="color: #666; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%;">[Empty]</div>
+        </div>
+        <div style="display:flex; gap:8px; position: relative;">
+            <button class="pad-action-btn active-mode" id="btn-assign-device" style="flex:1; height: 30px; border-radius: 6px; font-size: 11px;" onclick="clickDeviceBtn()">📂 DEVICE</button>
+            <button class="pad-action-btn" id="btn-assign-records" style="flex:1; height: 30px; border-radius: 6px; font-size: 11px;" onclick="clickRecordsBtn()">🎙️ RECORDS</button>
+            <div id="history-load-list" style="display:none; flex-direction:column; gap:5px; position:absolute; top:36px; right:0; width:calc(50% - 4px); max-height:180px; overflow-y:auto; border:1px solid #444; padding:5px; border-radius:6px; background:#1a1a1a; z-index:100; box-shadow:0 15px 40px rgba(0,0,0,0.95);"></div>
+        </div>
+    </div>
+<input type="file" id="editor-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
+
+<div class="set-row" style="margin-bottom: 8px;">
+    <label>Playback Mode</label>
+    <select class="set-control" id="pad-mode-select" onchange="savePadData('mode', this.value)">
+        <option value="One-Shot" selected>One-Shot</option>
+        <option value="Gate">Gate (Hold to play)</option>
+        <option value="Loop">Loop (Repeat)</option>
+    </select>
+</div>
+
+                                        <div class="set-row" style="margin: 8px 0;">
+                                            <div style="display: flex; gap: 8px; align-items: stretch; height: 70px;">
+                                                <div style="flex: 1; position: relative; background: #0a0a0a; border: 1px solid #333; border-radius: 6px; overflow: hidden;">
+                                                    <canvas id="waveform-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+                                                </div>
+                                                <button class="pad-action-btn" id="btn-preview-pad" style="width: 45px; height: 100%; border-radius: 6px; background-color: #002200; border-color: #00aa00; color: #55ff55; font-size: 16px; padding: 0;">▶</button>
+                                            </div>
+                                            <div style="display: flex; margin-top: 5px;">
+                                                <input type="range" class="set-range" id="waveform-zoom" min="1" max="10" value="1" step="0.1" style="flex: 1; height: 6px; border-radius: 3px;">
+                                            </div>
+                                        </div>
+
+<div class="main-knobs-row">
+    <div class="main-knob-container">
+        <div class="main-knob-label">Volume</div>
+        <div class="main-knob pad-macro-knob" id="knob-vol" data-param="volume" data-min="0" data-max="150" data-def="100" data-unit="%"><div class="main-knob-line"></div></div>
+        <div class="fx-val-text" id="val-vol">100%</div>
+    </div>
+    <div class="main-knob-container">
+        <div class="main-knob-label">Pitch</div>
+        <div class="main-knob pad-macro-knob" id="knob-pitch" data-param="pitch" data-min="-12" data-max="12" data-def="0" data-unit=" ST"><div class="main-knob-line"></div></div>
+        <div class="fx-val-text" id="val-pitch">0 ST</div>
+    </div>
+    <div class="main-knob-container">
+        <div class="main-knob-label">Global FX</div>
+        <div class="main-knob pad-macro-knob" id="knob-send" data-param="send" data-min="0" data-max="100" data-def="100" data-unit="%"><div class="main-knob-line"></div></div>
+        <div class="fx-val-text" id="val-send">100%</div>
+    </div>
+</div>
+
+<!-- НОВАЯ ПАНЕЛЬ ИНСЕРТ-ЭФФЕКТОВ ПЭДА -->
+<div class="fx-chain" style="margin-top: 2px; margin-bottom: 8px; background: #0a0a0a; padding: 5px; border-radius: 10px; border: 1px solid #222;">
+    <div class="fx-unit"><button class="fx-mini-btn active" id="pad-fx-btn-1" onclick="togglePadFx(1)">FX 1</button><div class="fx-mini-knob pad-fx-mix-knob" data-slot="1"><div class="fx-mini-knob-line"></div></div><div class="fx-val-text" id="pad-fx-val-1">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
+    <div class="fx-unit"><button class="fx-mini-btn active" id="pad-fx-btn-2" onclick="togglePadFx(2)">FX 2</button><div class="fx-mini-knob pad-fx-mix-knob" data-slot="2"><div class="fx-mini-knob-line"></div></div><div class="fx-val-text" id="pad-fx-val-2">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
+    <div class="fx-unit"><button class="fx-mini-btn active" id="pad-fx-btn-3" onclick="togglePadFx(3)">FX 3</button><div class="fx-mini-knob pad-fx-mix-knob" data-slot="3"><div class="fx-mini-knob-line"></div></div><div class="fx-val-text" id="pad-fx-val-3">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
+    <div class="fx-unit"><button class="fx-mini-btn active" id="pad-fx-btn-4" onclick="togglePadFx(4)">FX 4</button><div class="fx-mini-knob pad-fx-mix-knob" data-slot="4"><div class="fx-mini-knob-line"></div></div><div class="fx-val-text" id="pad-fx-val-4">100%</div><div class="fx-dw-label">D/W</div></div>
+</div>
+                                        <div class="set-row"><label>Trim Start</label><div class="set-range-group"><input type="range" class="set-range" id="pad-trim-start-slider" min="0" max="100" value="0" step="0.1" oninput="updateSetRangeLabel(this, '%'); savePadData('trimStart', this.value)"><span class="set-range-val" id="pad-trim-start-val">0.0%</span></div></div>
+                                        <div class="set-row" style="margin-top: -5px;"><label style="color: #6699ff;">Fade In</label><div class="set-range-group"><input type="range" class="set-range" id="pad-fade-in-slider" min="0" max="500" value="0" step="1" oninput="updateSetRangeLabel(this, 'ms'); savePadData('fadeIn', this.value)"><span class="set-range-val" id="pad-fade-in-val" style="color: #6699ff;">0ms</span></div></div>
+                                        <div class="set-row" style="margin-top: 10px;"><label>Trim End</label><div class="set-range-group"><input type="range" class="set-range" id="pad-trim-end-slider" min="0" max="100" value="100" step="0.1" oninput="updateSetRangeLabel(this, '%'); savePadData('trimEnd', this.value)"><span class="set-range-val" id="pad-trim-end-val">100.0%</span></div></div>
+                                        <div class="set-row" style="margin-top: -5px;"><label style="color: #6699ff;">Fade Out</label><div class="set-range-group"><input type="range" class="set-range" id="pad-fade-out-slider" min="0" max="2000" value="0" step="1" oninput="updateSetRangeLabel(this, 'ms'); savePadData('fadeOut', this.value)"><span class="set-range-val" id="pad-fade-out-val" style="color: #6699ff;">0ms</span></div></div>
+
+<div class="set-row" style="margin-bottom: 6px;">
+    <div style="position: relative;">
+        <select class="set-control" id="pad-fx-select-1" onchange="renderFxParams(this, 'pad-insert-fx-1'); savePadData('fx1', this.value)" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+            <option value="None" selected>None</option>
+            <option value="Filter">Filter (LP/HP)</option>
+            <option value="Delay">Delay / Echo</option>
+            <option value="Flanger">Flanger (Jet Sweep)</option>
+            <option value="Reverb">Reverb (Arena)</option>
+        </select>
+        <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">INSERT FX 1</div>
+        <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+    </div>
+    <div id="pad-insert-fx-1" class="dynamic-params-container"></div>
+</div>
+
+<div class="set-row" style="margin-bottom: 6px;">
+    <div style="position: relative;">
+        <select class="set-control" id="pad-fx-select-2" onchange="renderFxParams(this, 'pad-insert-fx-2'); savePadData('fx2', this.value)" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+            <option value="None" selected>None</option>
+            <option value="Filter">Filter (LP/HP)</option>
+            <option value="Delay">Delay / Echo</option>
+            <option value="Flanger">Flanger (Jet Sweep)</option>
+            <option value="Reverb">Reverb (Arena)</option>
+        </select>
+        <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">INSERT FX 2</div>
+        <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+    </div>
+    <div id="pad-insert-fx-2" class="dynamic-params-container"></div>
+</div>
+
+<div class="set-row" style="margin-bottom: 6px;">
+    <div style="position: relative;">
+        <select class="set-control" id="pad-fx-select-3" onchange="renderFxParams(this, 'pad-insert-fx-3'); savePadData('fx3', this.value)" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+            <option value="None" selected>None</option>
+            <option value="Filter">Filter (LP/HP)</option>
+            <option value="Delay">Delay / Echo</option>
+            <option value="Flanger">Flanger (Jet Sweep)</option>
+            <option value="Reverb">Reverb (Arena)</option>
+        </select>
+        <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">INSERT FX 3</div>
+        <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+    </div>
+    <div id="pad-insert-fx-3" class="dynamic-params-container"></div>
+</div>
+
+<div class="set-row" style="margin-bottom: 6px;">
+    <div style="position: relative;">
+        <select class="set-control" id="pad-fx-select-4" onchange="renderFxParams(this, 'pad-insert-fx-4'); savePadData('fx4', this.value)" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+            <option value="None" selected>None</option>
+            <option value="Filter">Filter (LP/HP)</option>
+            <option value="Delay">Delay / Echo</option>
+            <option value="Flanger">Flanger (Jet Sweep)</option>
+            <option value="Reverb">Reverb (Arena)</option>
+        </select>
+        <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">INSERT FX 4</div>
+        <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+    </div>
+    <div id="pad-insert-fx-4" class="dynamic-params-container"></div>
+</div>
+
+
+                                    </div>
+                                    <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 15px 0;">
+                                    <button class="pad-action-btn red-mode" style="width:100%; height: 32px; border-radius: 6px;" onclick="confirmResetPadBank(this)">Reset Pad Bank</button>
+                                </div>
+                            </div>
+<!-- ============================================== -->
                           <!-- === НАСТРОЙКИ ГЛОБАЛЬНЫХ ЭФФЕКТОВ === -->
                                 <div class="set-section">
                                     <div class="set-header" onclick="toggleSetSection(this)">FX Banks Setup</div>
@@ -817,100 +1015,7 @@ top: 2px; }
                                     </div>
                                 </div>
                                 <!-- ========================================= -->  
-                                <div class="set-section">
-                                <div class="set-header" onclick="toggleSetSection(this)">Pads Workshop</div>
-                                <div class="set-content">
-                                    <div class="set-tabs"><button class="set-tab-btn active-blue" id="set-pad-bank-a" onclick="switchPadBank('A')">A</button><button class="set-tab-btn" id="set-pad-bank-b" onclick="switchPadBank('B')">B</button><button class="set-tab-btn" id="set-pad-bank-c" onclick="switchPadBank('C')">C</button><button class="set-tab-btn" id="set-pad-bank-d" onclick="switchPadBank('D')">D</button></div>
-                                    <label style="font-size: 11px; color: #777; font-weight: bold; display: block; margin-bottom: 5px; text-transform: uppercase;">Select Pad to Edit</label>
-                                    <div class="set-pad-selector bank-A">
-    <div class="set-pad-mini active">P1</div><div class="set-pad-mini">P2</div><div class="set-pad-mini">P3</div><div class="set-pad-mini">P4</div><div class="set-pad-mini">P5</div><div class="set-pad-mini">P6</div><div class="set-pad-mini">P7</div><div class="set-pad-mini">P8</div><div class="set-pad-mini">P9</div><div class="set-pad-mini">P10</div><div class="set-pad-mini">P11</div><div class="set-pad-mini">P12</div>
-</div>
-
-<!-- КОНТЕКСТНОЕ МЕНЮ ПЭДОВ (Скрыто по умолчанию) -->
-<div id="pad-context-menu" class="history-dropdown" style="width: 110px; z-index: 999999;">
-    <button class="history-dropdown-btn" onclick="contextCopyPad()">📋 COPY PAD</button>
-    <button class="history-dropdown-btn" onclick="contextPastePad()" id="ctx-paste-btn" style="opacity: 0.3; pointer-events: none;">📋 PASTE PAD</button>
-    <button class="history-dropdown-btn delete" onclick="contextClearPad()">🗑️ CLEAR PAD</button>
-</div>
-                                    <div id="pad-editor-card" style="border-top: 1px dashed #222; padding-top: 10px; margin-top: 5px;">
-    
-    <div class="set-row" style="background: #111; padding: 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 15px;">
-        
-        <div style="height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 10px; overflow: hidden; width: 100%;">
-            <div id="pad-editor-title" style="color: #fff; font-size: 12px; font-weight: bold;">Editing Pad: P1 (Bank A)</div>
-            <div id="pad-editor-filename" style="color: #666; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-top: 2px;">[Empty]</div>
-        </div>
-        
-        <label style="text-align: center; color: #888; font-size: 10px; margin-bottom: 6px; display: block;">ASSIGN SAMPLE FROM:</label>
-        <div style="display:flex; gap:8px; position: relative; margin-top: 6px;">
-            <button class="pad-action-btn active-mode" id="btn-assign-device" style="flex:1; height: 34px; border-radius: 6px; font-size: 11px;" onclick="clickDeviceBtn()">📂 DEVICE</button>
-            
-            <button class="pad-action-btn" id="btn-assign-records" style="flex:1; height: 34px; border-radius: 6px; font-size: 11px;" onclick="clickRecordsBtn()">🎙️ MY RECORDS</button>
-            
-            <div id="history-load-list" style="display:none; flex-direction:column; gap:5px; position:absolute; top:40px; right:0; width:calc(50% - 4px); max-height:180px; overflow-y:auto; border:1px solid #444; padding:5px; border-radius:6px; background:#1a1a1a; z-index:100; box-shadow:0 15px 40px rgba(0,0,0,0.95);"></div>
-        </div>
-    </div>
-<input type="file" id="editor-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
-
-<div class="set-row">
-    <label>Playback Mode</label>
-    <select class="set-control" id="pad-mode-select" onchange="savePadData('mode', this.value)">
-        <option value="One-Shot" selected>One-Shot</option>
-        <option value="Gate">Gate (Hold to play)</option>
-        <option value="Loop">Loop (Repeat)</option>
-    </select>
-</div>
-
-                                        <div class="set-row" style="margin-bottom: 15px; margin-top: 15px;">
-                                            <div style="display: flex; gap: 8px; align-items: stretch; height: 70px;">
-                                                <div style="flex: 1; position: relative; background: #0a0a0a; border: 1px solid #333; border-radius: 6px; overflow: hidden;">
-                                                    <canvas id="waveform-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
-                                                </div>
-                                                <button class="pad-action-btn" id="btn-preview-pad" style="width: 45px; height: 100%; border-radius: 6px; background-color: #002200; border-color: #00aa00; color: #55ff55; font-size: 16px; padding: 0;">▶</button>
-                                            </div>
-                                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
-                                                <span style="font-size: 9px; color: #666; font-weight: bold;">ZOOM</span>
-                                                <input type="range" class="set-range" id="waveform-zoom" min="1" max="10" value="1" step="0.1" style="flex: 1; height: 4px;">
-                                            </div>
-                                        </div>
-
-<div class="main-knobs-row">
-    <div class="main-knob-container">
-        <div class="main-knob-label">Volume</div>
-        <div class="main-knob pad-macro-knob" id="knob-vol" data-param="volume" data-min="0" data-max="150" data-def="100" data-unit="%"><div class="main-knob-line"></div></div>
-    </div>
-    <div class="main-knob-container">
-        <div class="main-knob-label">Pitch</div>
-        <div class="main-knob pad-macro-knob" id="knob-pitch" data-param="pitch" data-min="-12" data-max="12" data-def="0" data-unit=" ST"><div class="main-knob-line"></div></div>
-    </div>
-    <div class="main-knob-container">
-        <div class="main-knob-label">FX Mix</div>
-        <div class="main-knob pad-macro-knob" id="knob-send" data-param="send" data-min="0" data-max="100" data-def="100" data-unit="%"><div class="main-knob-line"></div></div>
-    </div>
-</div>
-                                        <div class="set-row"><label>Trim Start</label><div class="set-range-group"><input type="range" class="set-range" id="pad-trim-start-slider" min="0" max="100" value="0" step="0.1" oninput="updateSetRangeLabel(this, '%'); savePadData('trimStart', this.value)"><span class="set-range-val" id="pad-trim-start-val">0.0%</span></div></div>
-                                        <div class="set-row" style="margin-top: -5px;"><label style="color: #6699ff;">Fade In</label><div class="set-range-group"><input type="range" class="set-range" id="pad-fade-in-slider" min="0" max="500" value="0" step="1" oninput="updateSetRangeLabel(this, 'ms'); savePadData('fadeIn', this.value)"><span class="set-range-val" id="pad-fade-in-val" style="color: #6699ff;">0ms</span></div></div>
-                                        <div class="set-row" style="margin-top: 10px;"><label>Trim End</label><div class="set-range-group"><input type="range" class="set-range" id="pad-trim-end-slider" min="0" max="100" value="100" step="0.1" oninput="updateSetRangeLabel(this, '%'); savePadData('trimEnd', this.value)"><span class="set-range-val" id="pad-trim-end-val">100.0%</span></div></div>
-                                        <div class="set-row" style="margin-top: -5px;"><label style="color: #6699ff;">Fade Out</label><div class="set-range-group"><input type="range" class="set-range" id="pad-fade-out-slider" min="0" max="2000" value="0" step="1" oninput="updateSetRangeLabel(this, 'ms'); savePadData('fadeOut', this.value)"><span class="set-range-val" id="pad-fade-out-val" style="color: #6699ff;">0ms</span></div></div>
-
-<div class="set-row" style="margin-top: 10px;">
-    <label>Insert FX</label>
-    <select class="set-control" id="pad-fx-select" onchange="renderFxParams(this, 'pad-insert-fx'); savePadData('fx', this.value)">
-        <option value="None" selected>None</option>
-        <option value="Filter">Filter (LP/HP)</option>
-        <option value="Delay">Delay / Echo</option>
-        <option value="Flanger">Flanger (Jet Sweep)</option>
-        <option value="Reverb">Reverb (Arena)</option>
-    </select>
-    <div id="pad-insert-fx" class="dynamic-params-container"></div>
-</div>
-
-
-                                    </div>
-                                    <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 15px 0;">
-                                    <button class="pad-action-btn red-mode" style="width:100%; height: 32px; border-radius: 6px;" onclick="confirmResetPadBank(this)">Reset Pad Bank</button>
-                                </div>
-                            </div>
+                                
                             <div class="set-section">
                                 <div class="set-header" onclick="toggleSetSection(this)">Mic & Records</div>
                                 <div class="set-content">
@@ -921,13 +1026,16 @@ top: 2px; }
                                 </div>
                             </div>
                             <div class="set-section" style="margin-bottom: 20px;">
-                                <div class="set-header" onclick="toggleSetSection(this)">System & Info</div>
-                                <div class="set-content">
-                                    <div class="set-row"><label>Metronome</label><button class="pad-action-btn" id="set-metro-toggle" style="height:32px; border-radius:6px;" onclick="toggleSetMetro()">Enable Metronome</button></div>
-                                    <div class="set-row"><label>Quantize Grid</label><select class="set-control" onchange="updateSetQuantize(this)"><option>1/4</option><option>1/8</option><option selected>1/16</option><option>1/32</option></select></div>
-                                    <div style="font-size: 10px; color: #444; text-align: center; margin-top: 15px; line-height: 1.4;">DSRADIO.LV ENGINE PRO v1.0<br>Designed for Standalone Mobile Performance</div>
-                                </div>
-                            </div>
+    <div class="set-header" onclick="toggleSetSection(this)">About</div>
+    <div class="set-content">
+        <div style="font-size: 11px; color: #aaa; text-align: center; line-height: 1.6; padding: 10px 0;">
+            <strong style="color: #ff6600; font-size: 13px;">DSR Apex System</strong><br>
+            Engine Pro v1.0.0<br>
+            Designed for Standalone Mobile Performance<br><br>
+            © Dance Station Radio (DSRadio.lv)
+        </div>
+    </div>
+</div>
                         </div>
                     </div>
                 </div>
@@ -947,7 +1055,7 @@ top: 2px; }
                                     <button class="pad-action-btn" id="btn-load">LOAD</button>
                                     <input type="file" id="hidden-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
                                 </div>
-                            <div class="display-screen"><div class="screen-text-inner" id="pad-screen">SEQ: IDLE<br>LOOP: 4 BARS<br>MIC: READY</div></div>
+                            <div class="display-screen"><div class="screen-text-inner" id="pad-screen">BPM: 130 | Q: OFF<br>BANK: A | METRO: OFF<br>LOOPER: STOP<br>STATUS: READY</div></div>
                             <div class="rec-btn-group">
                                 <button class="pad-action-btn red-mode" id="btn-rec-loop">REC LOOP</button>
                                 <button class="pad-action-btn" id="btn-play-loop">PLAY LOOP</button>
@@ -2453,7 +2561,7 @@ top: 2px; }
     const padData = {};
     ['A','B','C','D'].forEach(bank => {
         padData[bank] = {};
-        for(let i=1; i<=12; i++) padData[bank][i] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, fx: 'None', send: 100, buffer: null, fileName: '' };
+        for(let i=1; i<=12; i++) padData[bank][i] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, send: 100, buffer: null, fileName: '', fx1: 'None', fx1On: true, fx1Mix: 100, fx1p1: 50, fx1p2: 50, fx1p3: 50, fx2: 'None', fx2On: true, fx2Mix: 100, fx2p1: 50, fx2p2: 50, fx2p3: 50, fx3: 'None', fx3On: true, fx3Mix: 100, fx3p1: 50, fx3p2: 50, fx3p3: 50, fx4: 'None', fx4On: true, fx4Mix: 100, fx4p1: 50, fx4p2: 50, fx4p3: 50 };
     });
     let currentEditingPad = 1;
 
@@ -2471,13 +2579,12 @@ top: 2px; }
         valText.textContent = val + (unit === 'semitones' ? ' ST' : unit);
     }
 
-       // === 🔻 НАЧАЛО ВСТАВКИ JS:Генератор Про-Параметров 🔻 ===
+       // === 🔻 НАЧАЛО ВСТАВКИ JS:Генератор Про-Параметров (4 СЛОТА) 🔻 ===
 function renderFxParams(selectEl, containerId) {
     const type = selectEl.value;
     const container = document.getElementById(containerId);
     let html = '';
 
-    // --- ЕДИНАЯ БАЗА ЭФФЕКТОВ ДЛЯ МАСТЕР-ДВИЖКА И ПЭДОВ ---
     const fxDatabase = {
         'Filter': [ { name: 'Cutoff Frequency', min: 0, max: 100, def: 50, unit: '%' }, { name: 'Resonance (Q)', min: 0, max: 100, def: 20, unit: '%' } ],
         'Delay': [ { name: 'Delay Sync', min: 1, max: 8, def: 3, unit: 'sync' }, { name: 'Filter (Color)', min: 0, max: 100, def: 50, unit: '%' }, { name: 'Tail (Feedback)', min: 0, max: 100, def: 75, unit: '%' } ],
@@ -2495,14 +2602,25 @@ function renderFxParams(selectEl, containerId) {
     };
 
     let pData = null;
-    if (containerId === 'pad-insert-fx') {
+    let isPadSlot = containerId.startsWith('pad-insert-fx-');
+    let padFxIndex = isPadSlot ? containerId.replace('pad-insert-fx-', '') : null;
+
+    if (isPadSlot) {
         pData = padData[globalSettings.padBank][currentEditingPad];
-        // Если тип эффекта изменился — сбрасываем параметры на дефолт
-        if (pData.fx !== type && type !== 'None') {
+        let fxKey = 'fx' + padFxIndex;
+        
+        // НОВОЕ: Меняем аббревиатуру сразу при выборе из выпадающего списка
+        const btn = document.getElementById('pad-fx-btn-' + padFxIndex);
+        if (btn) {
+            const fxNames = { 'None': `FX ${padFxIndex}`, 'Filter': 'FLTR', 'Delay': 'ECHO', 'Chorus': 'CHOR', 'Flanger': 'FLNG', 'Phaser': 'PHAS', 'Reverb': 'RVRB', 'Orbit': 'ORBT', 'TranceGate': 'GATE', 'NoiseSweep': 'NOIS', 'LoopRoll': 'ROLL', 'VinylBrake': 'STOP', 'Backspin': 'SPIN', 'Bitcrusher': '8BIT' };
+            btn.textContent = fxNames[type] || `FX ${padFxIndex}`;
+        }
+
+        if (pData[fxKey] !== type && type !== 'None') {
             if (fxDatabase[type]) {
-                pData.fxParam1 = fxDatabase[type][0] ? fxDatabase[type][0].def : undefined;
-                pData.fxParam2 = fxDatabase[type][1] ? fxDatabase[type][1].def : undefined;
-                pData.fxParam3 = fxDatabase[type][2] ? fxDatabase[type][2].def : undefined;
+                pData[fxKey+'p1'] = fxDatabase[type][0] ? fxDatabase[type][0].def : undefined;
+                pData[fxKey+'p2'] = fxDatabase[type][1] ? fxDatabase[type][1].def : undefined;
+                pData[fxKey+'p3'] = fxDatabase[type][2] ? fxDatabase[type][2].def : undefined;
             }
         }
     }
@@ -2510,10 +2628,10 @@ function renderFxParams(selectEl, containerId) {
     if (fxDatabase[type]) {
         fxDatabase[type].forEach((p, idx) => {
             let currentVal = p.def;
-            if (pData) {
-                if (idx === 0 && pData.fxParam1 !== undefined) currentVal = pData.fxParam1;
-                if (idx === 1 && pData.fxParam2 !== undefined) currentVal = pData.fxParam2;
-                if (idx === 2 && pData.fxParam3 !== undefined) currentVal = pData.fxParam3;
+            if (pData && isPadSlot) {
+                if (idx === 0 && pData['fx'+padFxIndex+'p1'] !== undefined) currentVal = pData['fx'+padFxIndex+'p1'];
+                if (idx === 1 && pData['fx'+padFxIndex+'p2'] !== undefined) currentVal = pData['fx'+padFxIndex+'p2'];
+                if (idx === 2 && pData['fx'+padFxIndex+'p3'] !== undefined) currentVal = pData['fx'+padFxIndex+'p3'];
             }
 
             let displayVal = currentVal;
@@ -2569,11 +2687,12 @@ function attachSliderEvents(parentContainer) {
 
         const updateValue = (val) => {
             valSpan.textContent = formatDisplay(val);
-            if (slotId === 'pad-insert-fx') {
+            if (slotId.startsWith('pad-insert-fx-')) {
+                let padFxIdx = slotId.replace('pad-insert-fx-', '');
                 let pData = padData[globalSettings.padBank][currentEditingPad];
-                if (paramIdx === '0') pData.fxParam1 = parseFloat(val);
-                if (paramIdx === '1') pData.fxParam2 = parseFloat(val);
-                if (paramIdx === '2') pData.fxParam3 = parseFloat(val);
+                if (paramIdx === '0') pData['fx'+padFxIdx+'p1'] = parseFloat(val);
+                if (paramIdx === '1') pData['fx'+padFxIdx+'p2'] = parseFloat(val);
+                if (paramIdx === '2') pData['fx'+padFxIdx+'p3'] = parseFloat(val);
             }
         };
 
@@ -2589,23 +2708,24 @@ function attachSliderEvents(parentContainer) {
     });
 }
 
-// --- ФАБРИКА ЭФФЕКТОВ ДЛЯ ПЭДОВ ---
-function buildPadInsertFx(ctx, pData, inputNode) {
+function buildSinglePadFx(ctx, type, p1, p2, p3, inputNode, outNode) {
     let lastNode = inputNode;
-    if (!pData.fx || pData.fx === 'None') return lastNode;
+    if (!type || type === 'None') {
+        lastNode.connect(outNode);
+        return outNode;
+    }
 
-    const p1 = pData.fxParam1 !== undefined ? pData.fxParam1 : 50;
-    const p2 = pData.fxParam2 !== undefined ? pData.fxParam2 : 50;
-    const p3 = pData.fxParam3 !== undefined ? pData.fxParam3 : 50;
-    const outNode = ctx.createGain();
+    p1 = p1 !== undefined ? p1 : 50;
+    p2 = p2 !== undefined ? p2 : 50;
+    p3 = p3 !== undefined ? p3 : 50;
 
-    if (pData.fx === 'Filter') {
+    if (type === 'Filter') {
         const filter = ctx.createBiquadFilter(); filter.type = 'lowpass';
         filter.frequency.value = 20 * Math.pow(20000 / 20, p1 / 100);
         filter.Q.value = (p2 / 100) * 20;
-        lastNode.connect(filter); lastNode = filter;
+        lastNode.connect(filter); filter.connect(outNode);
     } 
-    else if (pData.fx === 'Delay') {
+    else if (type === 'Delay') {
         let currentBpm = parseInt(typeof fxState !== 'undefined' ? fxState.bpm : 130) || 130;
         if (isNaN(currentBpm)) currentBpm = 130;
         const delay = ctx.createDelay(5.0); 
@@ -2618,18 +2738,16 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = lpCut; lp.Q.value = 0.1;
 
         lastNode.connect(outNode); lastNode.connect(hp); hp.connect(lp); lp.connect(delay); delay.connect(fbGain); fbGain.connect(hp); delay.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Chorus') {
+    else if (type === 'Chorus') {
         const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.025;
         const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.1 + (p1 / 100) * 5.0;
         const lfoGain = ctx.createGain(); lfoGain.gain.value = 0.005 + (p2 / 100) * 0.015;
         const fb = ctx.createGain(); fb.gain.value = 0.2;
         lfo.connect(lfoGain); lfoGain.connect(delay.delayTime); lfo.start();
         lastNode.connect(outNode); lastNode.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Reverb') {
+    else if (type === 'Reverb') {
         const convolver = ctx.createConvolver();
         if (!window.cachedPadReverb) {
             const length = ctx.sampleRate * 2.0; 
@@ -2651,9 +2769,8 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = lpFreq;
         const sizeGain = ctx.createGain(); sizeGain.gain.value = (p3 / 100) * 1.5;
         lastNode.connect(outNode); lastNode.connect(preDelay); preDelay.connect(hp); hp.connect(lp); lp.connect(convolver); convolver.connect(sizeGain); sizeGain.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Flanger') {
+    else if (type === 'Flanger') {
         const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.004;
         let currentBpm = parseInt(typeof fxState !== 'undefined' ? fxState.bpm : 130) || 130;
         if (isNaN(currentBpm)) currentBpm = 130;
@@ -2669,9 +2786,8 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         
         lastNode.connect(hp); hp.connect(delay); delay.connect(fb); fb.connect(hp); delay.connect(outNode);
         lastNode.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Phaser') {
+    else if (type === 'Phaser') {
         const ap1 = ctx.createBiquadFilter(); ap1.type = 'allpass'; ap1.frequency.value = 1000;
         const ap2 = ctx.createBiquadFilter(); ap2.type = 'allpass'; ap2.frequency.value = 1000;
         const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.1 + (p1 / 100) * 8.0;
@@ -2679,17 +2795,15 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         lfo.connect(lfoGain); lfoGain.connect(ap1.frequency); lfoGain.connect(ap2.frequency); lfo.start();
         const fb = ctx.createGain(); fb.gain.value = (p2 / 100) * 0.8;
         lastNode.connect(outNode); lastNode.connect(ap1); ap1.connect(ap2); ap2.connect(outNode); ap2.connect(fb); fb.connect(ap1);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Orbit') {
+    else if (type === 'Orbit') {
         const panner = ctx.createStereoPanner();
         const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = p1 / 100;
         const lfoGain = ctx.createGain(); lfoGain.gain.value = p2 / 100;
         lfo.connect(lfoGain); lfoGain.connect(panner.pan); lfo.start();
         lastNode.connect(panner); panner.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'TranceGate') {
+    else if (type === 'TranceGate') {
         const gate = ctx.createGain();
         const lfo = ctx.createOscillator(); lfo.type = 'square'; 
         let currentBpm = parseInt(typeof fxState !== 'undefined' ? fxState.bpm : 130) || 130;
@@ -2699,9 +2813,8 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         const lfoGain = ctx.createGain(); lfoGain.gain.value = 1.0;
         lfo.connect(lfoGain); lfoGain.connect(gate.gain); lfo.start();
         lastNode.connect(gate); gate.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'NoiseSweep') {
+    else if (type === 'NoiseSweep') {
         const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.Q.value = 3;
         filter.frequency.value = 1000;
         const noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -2711,42 +2824,87 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         const noiseGain = ctx.createGain(); noiseGain.gain.value = p1 / 100;
         noiseSrc.connect(filter); filter.connect(noiseGain); noiseGain.connect(outNode); noiseSrc.start();
         lastNode.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'LoopRoll') {
+    else if (type === 'LoopRoll') {
         const delay = ctx.createDelay(1.0); 
         const times = [0.468, 0.234, 0.117, 0.058]; 
         delay.delayTime.value = times[p1-1] || 0.117;
         const fb = ctx.createGain(); fb.gain.value = 0.95; 
         lastNode.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(outNode);
         lastNode.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'VinylBrake') {
+    else if (type === 'VinylBrake') {
         const delay = ctx.createDelay(3.0); delay.delayTime.value = 0.5; 
         lastNode.connect(delay); delay.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Backspin') {
+    else if (type === 'Backspin') {
         const delay = ctx.createDelay(1.0); delay.delayTime.value = 0.1;
         const lfo = ctx.createOscillator(); lfo.type = 'sawtooth'; lfo.frequency.value = 15;
         const lfoGain = ctx.createGain(); lfoGain.gain.value = 0.05;
         const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 800; 
         lfo.connect(lfoGain); lfoGain.connect(delay.delayTime); lfo.start();
         lastNode.connect(hp); hp.connect(delay); delay.connect(outNode);
-        lastNode = outNode;
     }
-    else if (pData.fx === 'Bitcrusher') {
+    else if (type === 'Bitcrusher') {
         const shaper = ctx.createWaveShaper(); 
         const steps = Math.pow(2, p1); const curve = new Float32Array(44100);
         for(let i=0; i<44100; i++) curve[i] = Math.round((i * 2 / 44100 - 1) * steps) / steps;
         shaper.curve = curve;
         lastNode.connect(shaper); shaper.connect(outNode);
-        lastNode = outNode;
     }
-    return lastNode;
+    return outNode;
 }
-// === 🔺 КОНЕЦ ВСТАВКИ JS:Генератор Про-Параметров 🔺 ===
+
+function buildPadInsertFx(ctx, pData, inputNode) {
+    let lastNode = inputNode;
+    
+    // Прогоняем звук через все 4 слота по очереди с учетом D/W и Bypass
+    for(let i=1; i<=4; i++) {
+        let type = pData['fx'+i];
+        let isOn = pData['fx'+i+'On'] !== false; // По умолчанию включено
+        let mix = (pData['fx'+i+'Mix'] !== undefined ? pData['fx'+i+'Mix'] : 100) / 100;
+
+        if (type && type !== 'None') {
+            const dryGain = ctx.createGain();
+            const wetGain = ctx.createGain();
+            const fxOutNode = ctx.createGain();
+
+            // СОХРАНЯЕМ В ПАМЯТЬ ПЭДА ПРОВОДА, ЧТОБЫ КРУТИТЬ ИХ НА ЛЕТУ
+            pData['activeFx'+i+'Dry'] = dryGain;
+            pData['activeFx'+i+'Wet'] = wetGain;
+
+            lastNode.connect(dryGain);
+            lastNode.connect(wetGain);
+
+            if (isOn) {
+                dryGain.gain.value = 1.0 - mix;
+                wetGain.gain.value = mix;
+            } else {
+                dryGain.gain.value = 1.0;
+                wetGain.gain.value = 0.0; // Bypass
+            }
+
+            dryGain.connect(fxOutNode);
+            
+            let effectEndNode = buildSinglePadFx(ctx, type, pData['fx'+i+'p1'], pData['fx'+i+'p2'], pData['fx'+i+'p3'], wetGain, ctx.createGain());
+            effectEndNode.connect(fxOutNode);
+
+            lastNode = fxOutNode;
+        }
+    }
+
+    // --- МАСТЕР-ЛИМИТЕР ПЭДА (СПАСАЕТ ОТ ПЕРЕГРУЗА И ХРИПОВ) ---
+    const padLimiter = ctx.createDynamicsCompressor();
+    padLimiter.threshold.value = -1.0;
+    padLimiter.knee.value = 0.0;
+    padLimiter.ratio.value = 20.0;
+    padLimiter.attack.value = 0.005;
+    padLimiter.release.value = 0.05;
+
+    lastNode.connect(padLimiter);
+    return padLimiter;
+}
+// === 🔺 КОНЕЦ ВСТАВКИ JS:Генератор Про-Параметров (4 СЛОТА) 🔺 ===
 
 
     function switchSetTab(type, bank) { 
@@ -2825,7 +2983,7 @@ function buildPadInsertFx(ctx, pData, inputNode) {
        }
 
        // Обновляем визуальное положение новых крутилок
-       const updateKnob = (id, paramKey) => {
+       const updateKnob = (id, paramKey, valId, unit) => {
            const knob = document.getElementById(id);
            if (!knob) return;
            const min = parseFloat(knob.dataset.min);
@@ -2834,11 +2992,35 @@ function buildPadInsertFx(ctx, pData, inputNode) {
            const percent = (val - min) / (max - min);
            const angle = -130 + (percent * 260);
            knob.querySelector('.main-knob-line').style.transform = `rotate(${angle}deg)`;
+           const textEl = document.getElementById(valId);
+           if(textEl) textEl.textContent = Math.round(val) + unit;
        };
 
-       updateKnob('knob-vol', 'volume');
-       updateKnob('knob-pitch', 'pitch');
-       updateKnob('knob-send', 'send');
+       updateKnob('knob-vol', 'volume', 'val-vol', '%');
+       updateKnob('knob-pitch', 'pitch', 'val-pitch', ' ST');
+       updateKnob('knob-send', 'send', 'val-send', '%');
+
+       // Загружаем состояние 4 мини-эффектов пэда
+       for(let i=1; i<=4; i++) {
+           const btn = document.getElementById('pad-fx-btn-' + i);
+           const knobLine = document.querySelector(`.pad-fx-mix-knob[data-slot="${i}"] .fx-mini-knob-line`);
+           const valText = document.getElementById('pad-fx-val-' + i);
+           
+           if(btn) {
+               const isOn = data['fx'+i+'On'] !== false;
+               if(isOn) btn.classList.add('active'); else btn.classList.remove('active');
+               
+               // НОВОЕ: Пишем аббревиатуры на кнопках
+               const type = data['fx'+i];
+               const fxNames = { 'None': `FX ${i}`, 'Filter': 'FLTR', 'Delay': 'ECHO', 'Chorus': 'CHOR', 'Flanger': 'FLNG', 'Phaser': 'PHAS', 'Reverb': 'RVRB', 'Orbit': 'ORBT', 'TranceGate': 'GATE', 'NoiseSweep': 'NOIS', 'LoopRoll': 'ROLL', 'VinylBrake': 'STOP', 'Backspin': 'SPIN', 'Bitcrusher': '8BIT' };
+               btn.textContent = fxNames[type] || `FX ${i}`;
+           }
+           if(knobLine && valText) {
+               const mixVal = data['fx'+i+'Mix'] !== undefined ? data['fx'+i+'Mix'] : 100;
+               knobLine.style.transform = `rotate(${-130 + (mixVal / 100) * 260}deg)`;
+               valText.textContent = Math.round(mixVal) + '%';
+           }
+       }
        
        const trimStartSlider = document.getElementById('pad-trim-start-slider');
        trimStartSlider.value = data.trimStart; updateSetRangeLabel(trimStartSlider, '%');
@@ -2848,8 +3030,10 @@ function buildPadInsertFx(ctx, pData, inputNode) {
        trimEndSlider.value = data.trimEnd; updateSetRangeLabel(trimEndSlider, '%');
        const fadeOutSlider = document.getElementById('pad-fade-out-slider');
        fadeOutSlider.value = data.fadeOut; updateSetRangeLabel(fadeOutSlider, 'ms');
-       const fxSelect = document.getElementById('pad-fx-select');
-       fxSelect.value = data.fx; renderFxParams(fxSelect, 'pad-insert-fx');
+       for(let i=1; i<=4; i++) {
+           const fxSel = document.getElementById('pad-fx-select-' + i);
+           if (fxSel) { fxSel.value = data['fx'+i] || 'None'; renderFxParams(fxSel, 'pad-insert-fx-' + i); }
+       }
               
        updateMiniPadsVisuals();
        drawWaveform();
@@ -2885,7 +3069,7 @@ function buildPadInsertFx(ctx, pData, inputNode) {
             resetPadTimeout = setTimeout(() => { resetPadState = false; btn.textContent = "Reset Pad Bank"; btn.style.backgroundColor = ""; btn.style.color = ""; }, 3000);
         } else {
             vibrate([50, 50]); clearTimeout(resetPadTimeout); resetPadState = false;
-            for(let i=1; i<=12; i++) padData[globalSettings.padBank][i] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, fx: 'None', send: 100, buffer: null, fileName: '' };
+            for(let i=1; i<=12; i++) padData[globalSettings.padBank][i] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, send: 100, buffer: null, fileName: '', fx1: 'None', fx1On: true, fx1Mix: 100, fx1p1: 50, fx1p2: 50, fx1p3: 50, fx2: 'None', fx2On: true, fx2Mix: 100, fx2p1: 50, fx2p2: 50, fx2p3: 50, fx3: 'None', fx3On: true, fx3Mix: 100, fx3p1: 50, fx3p2: 50, fx3p3: 50, fx4: 'None', fx4On: true, fx4Mix: 100, fx4p1: 50, fx4p2: 50, fx4p3: 50 };
             loadPadData(); 
             updateMainPadsVisuals();
             btn.textContent = "BANK CLEARED!"; btn.style.backgroundColor = "#00ff00"; btn.style.color = "#003300";
@@ -2994,7 +3178,7 @@ function buildPadInsertFx(ctx, pData, inputNode) {
                }
 
                const fxMixPreview = Number(pData.send !== undefined ? pData.send : 100) / 100;
-               const currentParams = `${pData.fx}_${pData.fxParam1}_${pData.fxParam2}_${pData.fxParam3}`;
+               const currentParams = [1,2,3,4].map(i => `${pData['fx'+i]}_${pData['fx'+i+'p1']}_${pData['fx'+i+'p2']}_${pData['fx'+i+'p3']}`).join('|');
 
                if (!pData.fxBus || pData.lastParams !== currentParams) {
                    if (pData.fxBus) {
@@ -3202,7 +3386,7 @@ function clickDeviceBtn() {
         if (padScreen) {
             padScreen.innerHTML = `REC LOADED<br>TO PAD ${currentEditingPad}`;
             setTimeout(() => { 
-                if (padState === 'IDLE' && seqState === 'IDLE') padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS<br>MIC: READY'; 
+                if (padState === 'IDLE' && seqState === 'IDLE') updatePadScreen('READY'); 
             }, 2000);
         }
     }
@@ -3895,34 +4079,67 @@ function clickDeviceBtn() {
                 // Плавно возвращаем экран в рабочее состояние через 1.5 секунды
                 smartScreenTimeout = setTimeout(() => {
                     smartScreenContainer.classList.remove('active-val');
-                    smartScreen.innerHTML = `METRONOME: ${globalSettings.metronome ? 'ON' : 'OFF'} &ensp; QUANTIZE: ${globalSettings.quantize}<br>PAD WORKSHOP READY`;
+                    updateGlobalScreen();
                 }, 1500);
             }
         });
     }
 
-    // --- ЛОГИКА ФРОНТАЛЬНОЙ КНОПКИ TAP TEMPO ---
-    if (btnMainTap) {
-        btnMainTap.addEventListener('click', () => {
-            vibrate(30);
-            const now = Date.now();
-            tapTimes.push(now);
-            if (tapTimes.length > 4) tapTimes.shift();
-            if (tapTimes.length > 1) {
-                let sum = 0;
-                for (let i = 1; i < tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i-1]);
-                fxState.bpm = Math.round(60000 / (sum / (tapTimes.length - 1)));
-                renderFxScreen(); // Синхронизируем BPM с экраном эффектов
-                showOnSmartScreen("TAP TEMPO", fxState.bpm + " BPM");
-                clearTimeout(tapTimeout);
-                tapTimeout = setTimeout(() => { tapTimes = []; }, 2000);
-            }
-        });
+    // === ОБНОВЛЕНИЕ ЭКРАНА ПЭДОВ ===
+function updatePadScreen(statusText) {
+    const screen = document.getElementById('pad-screen');
+    if (!screen) return;
+    
+    let looperDisplay = 'STOP';
+    if (seqState === 'RECORDING' || seqState === 'WAITING') looperDisplay = 'RECORD';
+    else if (seqState === 'PLAYING') looperDisplay = 'PLAY';
+    
+    let qDisplay = 'OFF';
+    const btnQuantize = document.getElementById('btn-quantize-toggle');
+    if (btnQuantize && btnQuantize.classList.contains('active-mode')) {
+        qDisplay = globalSettings.quantize;
     }
+    const metroDisplay = globalSettings.metronome ? 'ON' : 'OFF';
+
+    screen.innerHTML = `BPM: ${globalSettings.bpm} | Q: ${qDisplay}<br>BANK: ${globalSettings.padBank} | METRO: ${metroDisplay}<br>LOOPER: ${looperDisplay}<br>STATUS: ${statusText || 'READY'}`;
+}
+
+// --- ЛОГИКА ФРОНТАЛЬНОЙ КНОПКИ TAP TEMPO (ДЛЯ ПЭДОВ) ---
+let padTapTimes = [];
+let padTapTimeout;
+if (btnMainTap) {
+    btnMainTap.addEventListener('click', () => {
+        vibrate(30);
+        btnMainTap.style.borderColor = '#ff0000';
+        btnMainTap.style.color = '#ff3333';
+        setTimeout(() => { btnMainTap.style.borderColor = ''; btnMainTap.style.color = ''; }, 100);
+
+        const now = Date.now();
+        padTapTimes.push(now);
+        if (padTapTimes.length > 4) padTapTimes.shift();
+        if (padTapTimes.length > 1) {
+            let sum = 0;
+            for (let i = 1; i < padTapTimes.length; i++) sum += (padTapTimes[i] - padTapTimes[i-1]);
+            let newBpm = Math.round(60000 / (sum / (padTapTimes.length - 1)));
+            if (newBpm < 60) newBpm = 60;
+            if (newBpm > 200) newBpm = 200;
+            
+            globalSettings.bpm = newBpm;
+            const slider = document.getElementById('global-bpm-slider');
+            if (slider) { slider.value = newBpm; updateSetRangeLabel(slider, ' BPM'); }
+            
+            updateGlobalScreen();
+            updatePadScreen('TEMPO SET: ' + newBpm);
+            
+            clearTimeout(padTapTimeout);
+            padTapTimeout = setTimeout(() => { padTapTimes = []; }, 2000);
+        }
+    });
+}
 
     btnLoad.addEventListener('click', () => { 
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        if (padState !== 'IDLE') { if (padState === 'LOAD_WAIT_PAD') { clearMicLoadStates(); padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; } return; } 
+        if (padState !== 'IDLE') { if (padState === 'LOAD_WAIT_PAD') { clearMicLoadStates(); updatePadScreen('READY'); } return; } 
         vibrate(50); fileInput.click(); 
     });
 
@@ -3941,7 +4158,7 @@ function clickDeviceBtn() {
                     padScreen.innerHTML = 'SELECT PAD<br>FOR FILE';
                     allPads.forEach(p => { if (!p.classList.contains('has-sample')) p.classList.add('blinking'); });
                 } catch (err) {
-                    padScreen.innerHTML = 'FORMAT<br>ERROR'; setTimeout(() => { padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 2000);
+                    padScreen.innerHTML = 'FORMAT<br>ERROR'; setTimeout(() => { updatePadScreen('READY'); }, 2000);
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -3949,127 +4166,276 @@ function clickDeviceBtn() {
         fileInput.value = '';
     });
 
-    // --- ЛОГИКА ФОНОВОГО РЕНДЕРА ЛУПОВ ---
+    // ============================================
+    // ЖИВОЙ MIDI-СЕКВЕНСОР (OVERDUB LOOPER) И ПЭДЫ
+    // ============================================
+    
+    function playMetroClick(time, isHigh) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = isHigh ? 880 : 440;
+        gain.gain.setValueAtTime(0.5, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(time);
+        osc.stop(time + 0.1);
+    }
+
+    // 1. ВЫНОСИМ ЗВУК ПЭДА В ОТДЕЛЬНУЮ ФУНКЦИЮ (Её вызывает и твой палец, и таймер секвенсора)
+    function playPadAudio(padId, bank, scheduledTime = 0) {
+        const pData = padData[bank][padId];
+        if (!pData || !pData.buffer) return;
+
+        const now = scheduledTime === 0 ? audioCtx.currentTime : scheduledTime;
+        
+        if (pData.activeSource && pData.activeGain) {
+            try {
+                pData.activeGain.gain.cancelScheduledValues(now);
+                pData.activeGain.gain.setValueAtTime(pData.activeGain.gain.value, now);
+                pData.activeGain.gain.linearRampToValueAtTime(0, now + 0.015);
+                pData.activeSource.stop(now + 0.02);
+            } catch(e) {}
+        }
+        
+        const source = audioCtx.createBufferSource();
+        source.buffer = pData.buffer;
+        
+        const pitchVal = Number(pData.pitch || 0);
+        const trimStartVal = Number(pData.trimStart || 0);
+        const trimEndVal = Number(pData.trimEnd || 100);
+        const volVal = Number(pData.volume !== undefined ? pData.volume : 100);
+        const fadeInVal = Number(pData.fadeIn || 0);
+        const fadeOutVal = Number(pData.fadeOut || 0);
+        
+        const playbackRate = Math.pow(2, pitchVal / 12);
+        source.playbackRate.value = playbackRate;
+
+        const totalDuration = pData.buffer.duration;
+        let startOffset = totalDuration * (trimStartVal / 100);
+        let endOffset = totalDuration * (trimEndVal / 100);
+        if (startOffset >= endOffset) endOffset = startOffset + 0.1;
+        
+        const playDurationSource = endOffset - startOffset;
+        const actualPlayDuration = playDurationSource / playbackRate;
+        
+        if (pData.mode === 'Loop') {
+            source.loop = true;
+            source.loopStart = startOffset;
+            source.loopEnd = endOffset;
+        }
+
+        const padGain = audioCtx.createGain();
+        const padVol = volVal / 100;
+        const fadeInSec = Math.max(0.01, fadeInVal / 1000);
+        const fadeOutSec = Math.max(0.01, fadeOutVal / 1000);
+
+        padGain.gain.setValueAtTime(0, now);
+        padGain.gain.linearRampToValueAtTime(padVol, now + fadeInSec / 3);
+        
+        if (fadeOutSec > 0.01 && pData.mode !== 'Loop') {
+            const fadeOutStart = now + actualPlayDuration - fadeOutSec;
+            padGain.gain.setValueAtTime(padVol, fadeOutStart);
+            padGain.gain.linearRampToValueAtTime(0, Math.max(now, fadeOutStart) + fadeOutSec / 3);
+        }
+
+        const fxMix = Number(pData.send !== undefined ? pData.send : 100) / 100;
+        const currentParams = [1,2,3,4].map(i => `${pData['fx'+i]}_${pData['fx'+i+'p1']}_${pData['fx'+i+'p2']}_${pData['fx'+i+'p3']}`).join('|');
+
+        if (!pData.fxBus || pData.lastParams !== currentParams) {
+            if (pData.fxBus) {
+                try { pData.fxBus.disconnect(); pData.fxDry.disconnect(); pData.fxWet.disconnect(); } catch(e){}
+            }
+            pData.fxBus = audioCtx.createGain();
+            pData.fxDry = audioCtx.createGain();
+            pData.fxWet = audioCtx.createGain();
+            
+            pData.fxBus.connect(pData.fxDry);
+            pData.fxDry.connect(masterFilter);
+            
+            let lastNode = buildPadInsertFx(audioCtx, pData, pData.fxBus);
+            lastNode.connect(pData.fxWet);
+            pData.fxWet.connect(masterFilter);
+            
+            // Запоминаем провода для живого кручения мини-ручек D/W
+            for(let i=1; i<=4; i++) {
+                // buildPadInsertFx сам всё подключил, мы просто обновляем подпись параметров
+            }
+            pData.lastParams = currentParams;
+        }
+
+        pData.fxDry.gain.setValueAtTime(1.0 - fxMix, now);
+        pData.fxWet.gain.setValueAtTime(fxMix, now);
+
+        source.connect(padGain);
+        padGain.connect(pData.fxBus);
+        
+        pData.activeSource = source;
+        pData.activeGain = padGain;
+        
+        if (pData.mode === 'Loop') {
+            source.start(now, startOffset);
+        } else {
+            source.start(now, startOffset, playDurationSource);
+        }
+    }
+
+    // 2. ЖИВОЙ ТАЙМЕР СЕКВЕНСОРА (PLAYHEAD)
+    let seqTimerID = null;
+    let nextNoteTime = 0.0;
+    let currentBeat = 0;
+    let loopDurationSec = 0;
+    let loopStartCtxTime = 0;
+    
+    function calculateLoopDuration() {
+        const beatSec = 60.0 / globalSettings.bpm;
+        let bars = 4;
+        if (globalSettings.loopLength !== 'auto') bars = parseInt(globalSettings.loopLength);
+        return beatSec * 4 * bars; // 4 такта по 4 удара
+    }
+
+    function scheduler() {
+        if (seqState !== 'PLAYING' && seqState !== 'RECORDING') return;
+
+        const now = audioCtx.currentTime;
+        const lookahead = 0.1; // 100ms опережение
+        
+        // Перемотка кольца лупера
+        if (now >= loopStartCtxTime + loopDurationSec) {
+            loopStartCtxTime += loopDurationSec;
+            seqEvents.forEach(ev => ev.played = false); // Перезаряжаем ноты
+        }
+
+        // Читаем массив MIDI-событий
+        seqEvents.forEach(ev => {
+            const absoluteNoteTime = loopStartCtxTime + ev.time;
+            
+            // НОВОЕ УСЛОВИЕ: Прощаем браузеру небольшие опоздания (now - 0.05)
+            // Если нота должна сыграть в ближайшие 100мс ИЛИ должна была сыграть только что
+            if (absoluteNoteTime >= (now - 0.05) && absoluteNoteTime < (now + lookahead) && !ev.played) {
+                // Если мы чуть-чуть опоздали, играем прямо сейчас (0), иначе точно по расписанию
+                const playTime = absoluteNoteTime < now ? 0 : absoluteNoteTime;
+                playPadAudio(ev.padId, globalSettings.padBank, playTime);
+                
+                // Визуальное моргание пэда строго в такт
+                const uiPad = document.querySelector(`.pad[data-id="${ev.padId}"]`);
+                if (uiPad) {
+                    setTimeout(() => {
+                        uiPad.style.transform = 'scale(0.9)';
+                        uiPad.style.borderColor = '#00ffcc';
+                        setTimeout(() => {
+                            uiPad.style.transform = '';
+                            uiPad.style.borderColor = '';
+                        }, 100);
+                    }, Math.max(0, absoluteNoteTime - audioCtx.currentTime) * 1000);
+                }
+                
+                ev.played = true;
+            }
+        });
+
+        // Метроном
+        if (globalSettings.metronome && seqState === 'RECORDING') {
+            const beatSec = 60.0 / globalSettings.bpm;
+            while (nextNoteTime < now + lookahead) {
+                playMetroClick(nextNoteTime, currentBeat % 4 === 0);
+                nextNoteTime += beatSec;
+                currentBeat++;
+            }
+        }
+
+        seqTimerID = requestAnimationFrame(scheduler);
+    }
+
+    function startSequencer(isRecording, exactStartTime = 0) {
+        loopDurationSec = calculateLoopDuration();
+        // Используем точное будущее время, если оно передано (для Pre-roll)
+        loopStartCtxTime = exactStartTime > 0 ? exactStartTime : audioCtx.currentTime;
+        nextNoteTime = loopStartCtxTime;
+        currentBeat = 0;
+        
+        seqEvents.forEach(ev => ev.played = false);
+        
+        seqState = isRecording ? 'RECORDING' : 'PLAYING';
+        scheduler();
+    }
+
+    function stopSequencer() {
+        seqState = 'IDLE';
+        cancelAnimationFrame(seqTimerID);
+        btnRecLoop.innerHTML = 'REC LOOP'; btnRecLoop.style = '';
+        btnPlayLoop.innerHTML = 'PLAY LOOP'; btnPlayLoop.style = '';
+        updatePadScreen('READY');
+    }
+
+    // 3. КНОПКИ УПРАВЛЕНИЯ
     btnRecLoop.addEventListener('click', async () => { 
         vibrate(50); 
         if (padState !== 'IDLE') clearMicLoadStates(); 
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
         
         if (seqState === 'IDLE' || seqState === 'PLAYING' || seqState === 'PAUSED') { 
-            if (loopAudioSource) { try { loopAudioSource.stop(); } catch(e){} }
-            btnPlayLoop.innerHTML = 'PLAY LOOP'; btnPlayLoop.style = '';
-            seqState = 'WAITING'; seqEvents = [];
-            btnRecLoop.innerHTML = 'STOP REC'; btnRecLoop.style.backgroundColor = '#ff0000'; btnRecLoop.style.color = '#ffffff'; 
-            padScreen.innerHTML = 'WAITING<br>PAD HIT'; 
-        } else if (seqState === 'WAITING' || seqState === 'RECORDING') { 
-            const wasRecording = (seqState === 'RECORDING');
-            seqState = 'IDLE'; 
-            btnRecLoop.innerHTML = 'REC LOOP'; btnRecLoop.style = ''; 
+            stopSequencer();
+            seqEvents = []; // НАЧИНАЕМ НОВУЮ ЗАПИСЬ
             
-            if (wasRecording && seqEvents.length > 0) {
-                padScreen.innerHTML = 'RENDERING...';
-                const duration = Math.max(1, Math.ceil(audioCtx.currentTime - seqStartTime + 3.0)); 
-                try {
-                    const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, audioCtx.sampleRate * duration, audioCtx.sampleRate);
-                    seqEvents.forEach(ev => {
-                        const pData = padData[globalSettings.padBank][ev.padId];
-                        if (pData && pData.buffer) {
-                            const src = offlineCtx.createBufferSource();
-                            src.buffer = pData.buffer;
-                            
-                            const pitchVal = Number(pData.pitch || 0);
-                            const trimStartVal = Number(pData.trimStart || 0);
-                            const trimEndVal = Number(pData.trimEnd || 100);
-                            const volVal = Number(pData.volume !== undefined ? pData.volume : 100);
-                            const fadeInVal = Number(pData.fadeIn || 0);
-                            const fadeOutVal = Number(pData.fadeOut || 0);
-
-                            const playbackRate = Math.pow(2, pitchVal / 12);
-                            src.playbackRate.value = playbackRate;
-
-                            const totalDuration = pData.buffer.duration;
-                            let startOffset = totalDuration * (trimStartVal / 100);
-                            let endOffset = totalDuration * (trimEndVal / 100);
-                            if (startOffset >= endOffset) endOffset = startOffset + 0.1;
-                            
-                            const playDurationSource = endOffset - startOffset;
-                            const actualPlayDuration = playDurationSource / playbackRate;
-
-                            const padGain = offlineCtx.createGain();
-                            const padVol = volVal / 100;
-                            const fadeInSec = fadeInVal / 1000;
-                            const fadeOutSec = fadeOutVal / 1000;
-
-                            if (fadeInSec > 0) {
-                                padGain.gain.setValueAtTime(0, ev.time);
-                                padGain.gain.linearRampToValueAtTime(padVol, ev.time + Math.min(fadeInSec, actualPlayDuration));
-                            } else {
-                                padGain.gain.setValueAtTime(padVol, ev.time);
-                            }
-                            
-                            if (fadeOutSec > 0) {
-                                const fadeOutStart = ev.time + actualPlayDuration - Math.min(fadeOutSec, actualPlayDuration);
-                                padGain.gain.setValueAtTime(padVol, fadeOutStart);
-                                padGain.gain.linearRampToValueAtTime(0, ev.time + actualPlayDuration);
-                            }
-
-                            src.connect(padGain);
-                            padGain.connect(offlineCtx.destination);
-                            src.start(ev.time, startOffset, playDurationSource);
-                        }
-                    });
-                    
-                    latestLoopBuffer = await offlineCtx.startRendering();
-                    const recName = `PAD_MIX_${String(padMixCount).padStart(2, '0')}`;
-                    padMixCount++;
-                    
-                    recordingHistory.push({ name: recName, buffer: latestLoopBuffer });
-                    renderRecordingHistory();
-                    
-                    padScreen.innerHTML = `SAVED HIST:<br>${recName}`;
-                    setTimeout(() => { if(seqState === 'IDLE') padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 3000);
-                } catch(e) { padScreen.innerHTML = 'RENDER ERROR'; setTimeout(() => { padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 2000); }
+            if (globalSettings.preroll && globalSettings.bpm > 0) {
+                seqState = 'PREROLL';
+                padScreen.innerHTML = 'PRE-ROLL<br>GET READY!';
+                btnRecLoop.innerHTML = 'PRE-ROLL'; btnRecLoop.style.backgroundColor = '#ffaa00'; btnRecLoop.style.color = '#331a00';
+                
+                const beatSec = 60.0 / globalSettings.bpm;
+                const now = audioCtx.currentTime;
+                const exactStartTime = now + (beatSec * 4); // Идеальное время старта в будущем
+                
+                for(let i = 0; i < 4; i++) { playMetroClick(now + i * beatSec, i === 0); }
+                
+                setTimeout(() => {
+                    if (seqState === 'PREROLL') {
+                        btnRecLoop.innerHTML = 'STOP REC'; btnRecLoop.style.backgroundColor = '#ff0000'; btnRecLoop.style.color = '#ffffff'; 
+                        padScreen.innerHTML = 'RECORDING...<br>OVERDUB ON';
+                        startSequencer(true, exactStartTime); // Передаем точное время старта в движок
+                    }
+                }, beatSec * 4 * 1000);
             } else {
-                padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS';
+                btnRecLoop.innerHTML = 'STOP REC'; btnRecLoop.style.backgroundColor = '#ff0000'; btnRecLoop.style.color = '#ffffff'; 
+                padScreen.innerHTML = 'RECORDING...<br>OVERDUB ON';
+                startSequencer(true);
             }
+        } else if (seqState === 'RECORDING' || seqState === 'PREROLL') { 
+            // Переход из записи сразу в воспроизведение (Live Looping)
+            seqState = 'PLAYING';
+            btnRecLoop.innerHTML = 'REC LOOP'; btnRecLoop.style = '';
+            btnPlayLoop.innerHTML = 'STOP LOOP'; btnPlayLoop.style.backgroundColor = '#003300'; btnPlayLoop.style.borderColor = '#00ff00'; btnPlayLoop.style.color = '#55ff55'; 
+            padScreen.innerHTML = 'PLAYING<br>MIDI LOOP'; 
         } 
     });
 
-    btnPlayLoop.addEventListener('click', () => { 
+    btnPlayLoop.addEventListener('click', async () => { 
         vibrate(50); 
-        if (!latestLoopBuffer) {
-            padScreen.innerHTML = 'NO LOOP<br>RECORDED YET';
-            setTimeout(() => { if (seqState === 'IDLE') padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 2000);
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+        if (seqEvents.length === 0) {
+            padScreen.innerHTML = 'NO EVENTS<br>RECORDED YET';
+            setTimeout(() => { if (seqState === 'IDLE') updatePadScreen('READY'); }, 2000);
             return;
         }
+
         if (seqState === 'PLAYING') { 
-            if (loopAudioSource) { try { loopAudioSource.stop(); } catch(e){} }
-            seqState = 'PAUSED'; btnPlayLoop.innerHTML = 'PLAY LOOP'; btnPlayLoop.style = ''; padScreen.innerHTML = 'LOOP<br>PAUSED'; 
+            stopSequencer();
         } else { 
-            if (loopAudioSource) { try { loopAudioSource.stop(); } catch(e){} }
-            loopAudioSource = audioCtx.createBufferSource();
-            loopAudioSource.buffer = latestLoopBuffer;
-            loopAudioSource.connect(audioCtx.destination);
-            loopAudioSource.onended = () => {
-                if (seqState === 'PLAYING') { seqState = 'IDLE'; btnPlayLoop.innerHTML = 'PLAY LOOP'; btnPlayLoop.style = ''; padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }
-            };
-            loopAudioSource.start(0);
-            seqState = 'PLAYING'; btnPlayLoop.innerHTML = 'STOP LOOP'; btnPlayLoop.style.backgroundColor = '#003300'; btnPlayLoop.style.borderColor = '#00ff00'; btnPlayLoop.style.color = '#55ff55'; padScreen.innerHTML = 'PLAYING<br>PAD MIX'; 
+            stopSequencer();
+            btnPlayLoop.innerHTML = 'STOP LOOP'; btnPlayLoop.style.backgroundColor = '#003300'; btnPlayLoop.style.borderColor = '#00ff00'; btnPlayLoop.style.color = '#55ff55'; 
+            padScreen.innerHTML = 'PLAYING<br>MIDI LOOP'; 
+            startSequencer(false);
         } 
     });
 
+    // 4. ПРИВЯЗКА ПЭДОВ К СЕКВЕНСОРУ
     allPads.forEach(pad => {
         const handlePress = async (e) => { 
             e.preventDefault(); 
             if (audioCtx.state === 'suspended') await audioCtx.resume();
-            
-            if (seqState === 'WAITING') { 
-                seqState = 'RECORDING'; 
-                seqStartTime = audioCtx.currentTime;
-                padScreen.innerHTML = 'RECORDING...<br>[HIT STOP]'; 
-            }
-            if (seqState === 'RECORDING') {
-                seqEvents.push({ padId: pad.dataset.id, time: audioCtx.currentTime - seqStartTime });
-            }
             
             if (padState === 'LOAD_WAIT_PAD') { 
                 vibrate([30, 50, 30]); 
@@ -4083,7 +4449,7 @@ function clickDeviceBtn() {
                 padScreen.innerHTML = `FILE LOADED<br>TO PAD ${pad.dataset.id}`; 
                 
                 updateMiniPadsVisuals(); updateMainPadsVisuals();
-                setTimeout(() => { if (padState === 'IDLE' && seqState === 'IDLE') padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 2000); 
+                setTimeout(() => { if (padState === 'IDLE' && seqState === 'IDLE') updatePadScreen('READY'); }, 2000); 
                 return; 
             } 
             
@@ -4095,99 +4461,36 @@ function clickDeviceBtn() {
                 if (pData && pData.buffer) {
                     const now = audioCtx.currentTime;
                     
-                    if (pData.activeSource && pData.activeGain) {
-                        try {
-                            pData.activeGain.gain.cancelScheduledValues(now);
-                            pData.activeGain.gain.setValueAtTime(pData.activeGain.gain.value, now);
-                            pData.activeGain.gain.linearRampToValueAtTime(0, now + 0.015);
-                            pData.activeSource.stop(now + 0.02);
-                        } catch(e) {}
-                    }
-                    
-                    const source = audioCtx.createBufferSource();
-                    source.buffer = pData.buffer;
-                    
-                    const pitchVal = Number(pData.pitch || 0);
-                    const trimStartVal = Number(pData.trimStart || 0);
-                    const trimEndVal = Number(pData.trimEnd || 100);
-                    const volVal = Number(pData.volume !== undefined ? pData.volume : 100);
-                    const fadeInVal = Number(pData.fadeIn || 0);
-                    const fadeOutVal = Number(pData.fadeOut || 0);
-                    
-                    const playbackRate = Math.pow(2, pitchVal / 12);
-                    source.playbackRate.value = playbackRate;
-
-                    const totalDuration = pData.buffer.duration;
-                    let startOffset = totalDuration * (trimStartVal / 100);
-                    let endOffset = totalDuration * (trimEndVal / 100);
-                    if (startOffset >= endOffset) endOffset = startOffset + 0.1;
-                    
-                    const playDurationSource = endOffset - startOffset;
-                    const actualPlayDuration = playDurationSource / playbackRate;
-                    
-                    if (pData.mode === 'Loop') {
-                        source.loop = true;
-                        source.loopStart = startOffset;
-                        source.loopEnd = endOffset;
-                    }
-
-                    const padGain = audioCtx.createGain();
-                    const padVol = volVal / 100;
-                    const fadeInSec = Math.max(0.01, fadeInVal / 1000);
-                    const fadeOutSec = Math.max(0.01, fadeOutVal / 1000);
-
-                    padGain.gain.setValueAtTime(0, now);
-                    padGain.gain.linearRampToValueAtTime(padVol, now + fadeInSec / 3);
-                    
-                    if (fadeOutSec > 0.01 && pData.mode !== 'Loop') {
-                        const fadeOutStart = now + actualPlayDuration - fadeOutSec;
-                        padGain.gain.setValueAtTime(padVol, fadeOutStart);
-                        padGain.gain.linearRampToValueAtTime(0, Math.max(now, fadeOutStart) + fadeOutSec / 3);
-                    }
-
-                    const fxMix = Number(pData.send !== undefined ? pData.send : 100) / 100;
-                    const currentParams = `${pData.fx}_${pData.fxParam1}_${pData.fxParam2}_${pData.fxParam3}`;
-
-                    if (!pData.fxBus || pData.lastParams !== currentParams) {
-                        if (pData.fxBus) {
-                            try { pData.fxBus.disconnect(); pData.fxDry.disconnect(); pData.fxWet.disconnect(); } catch(e){}
+                    // ЗАПИСЬ MIDI-СОБЫТИЯ В НАШ НОВЫЙ ТАЙМЕР
+                    if (seqState === 'RECORDING') {
+                        let recTime = now - loopStartCtxTime;
+                        
+                        const btnQuantize = document.getElementById('btn-quantize-toggle');
+                        if (btnQuantize && btnQuantize.classList.contains('active-mode') && globalSettings.bpm > 0) {
+                            const beatDuration = 60.0 / globalSettings.bpm;
+                            let gridMult = 0.25; 
+                            if (globalSettings.quantize === '1/4') gridMult = 1.0;
+                            else if (globalSettings.quantize === '1/8') gridMult = 0.5;
+                            else if (globalSettings.quantize === '1/32') gridMult = 0.125;
+                            
+                            const gridDuration = beatDuration * gridMult;
+                            recTime = Math.round(recTime / gridDuration) * gridDuration;
                         }
-                        pData.fxBus = audioCtx.createGain();
-                        pData.fxDry = audioCtx.createGain();
-                        pData.fxWet = audioCtx.createGain();
                         
-                        pData.fxBus.connect(pData.fxDry);
-                        pData.fxDry.connect(masterFilter);
-                        
-                        let lastNode = buildPadInsertFx(audioCtx, pData, pData.fxBus);
-                        lastNode.connect(pData.fxWet);
-                        pData.fxWet.connect(masterFilter);
-                        
-                        pData.lastParams = currentParams;
+                        if (recTime >= loopDurationSec) recTime -= loopDurationSec;
+                        seqEvents.push({ padId: padId, time: recTime, played: true });
                     }
 
-                    pData.fxDry.gain.value = 1.0 - fxMix;
-                    pData.fxWet.gain.value = fxMix;
+                    // Звук извлекается всегда при касании
+                    playPadAudio(padId, globalSettings.padBank, 0);
 
-                    source.connect(padGain);
-                    padGain.connect(pData.fxBus);
-                    
-                    pData.activeSource = source;
-                    pData.activeGain = padGain;
-                    
-                    if (pData.mode === 'Loop') {
-                        source.start(now, startOffset);
-                    } else {
-                        source.start(now, startOffset, playDurationSource);
-                    }
-                
                     let shortName = pData.fileName || 'SAMPLE';
                     if (shortName.length > 12) shortName = shortName.substring(0, 10) + '..';
                     padScreen.innerHTML = `PLAYING:<br>${shortName}`;
-                    setTimeout(() => { if (padState === 'IDLE' && seqState === 'IDLE') padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 1000);
+                    setTimeout(() => { if (padState === 'IDLE' && (seqState === 'IDLE' || seqState === 'PLAYING' || seqState === 'RECORDING')) updatePadScreen(); }, 1000);
                 } else {
                     padScreen.innerHTML = `PAD ${padId}<br>EMPTY`;
-                    setTimeout(() => { if (padState === 'IDLE' && seqState === 'IDLE') padScreen.innerHTML = 'SEQ: IDLE<br>LOOP: 4 BARS'; }, 1000);
+                    setTimeout(() => { if (padState === 'IDLE') updatePadScreen('READY'); }, 1000);
                 }
             }
         };
@@ -4233,7 +4536,7 @@ function clickDeviceBtn() {
         smartScreenTimeout = setTimeout(() => {
             smartScreenContainer.classList.remove('active-val');
             // Возвращаем дефолтное состояние
-            smartScreen.innerHTML = `METRONOME: ${globalSettings.metronome ? 'ON' : 'OFF'} &ensp; QUANTIZE: ${globalSettings.quantize}<br>PAD WORKSHOP READY`;
+            updateGlobalScreen();
         }, 1000);
     }
 
@@ -4251,10 +4554,14 @@ function clickDeviceBtn() {
         const label = knob.parentElement.querySelector('.main-knob-label').textContent;
 
         const updateKnobVisual = (val) => {
-            // Высчитываем угол от -130 до 130 градусов
             const percent = (val - min) / (max - min);
             const angle = -130 + (percent * 260);
             line.style.transform = `rotate(${angle}deg)`;
+            
+            // НОВОЕ: Обновляем текст под крутилкой
+            const textEl = knob.parentElement.querySelector('.fx-val-text');
+            if (textEl) textEl.textContent = Math.round(val) + unit;
+            
             savePadData(paramName, val);
         };
 
@@ -4365,7 +4672,8 @@ function clickDeviceBtn() {
     const btnFxHold = document.getElementById('btn-fx-hold'); 
     let tapTimes = []; let tapTimeout;
     
-    if(btnFxTap) btnFxTap.addEventListener('click', () => { vibrate(30); btnFxTap.style.backgroundColor = '#550000'; setTimeout(() => btnFxTap.style.backgroundColor = '', 100); const now = Date.now(); tapTimes.push(now); if (tapTimes.length > 4) tapTimes.shift(); if (tapTimes.length > 1) { let sum = 0; for (let i = 1; i < tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i-1]); fxState.bpm = Math.round(60000 / (sum / (tapTimes.length - 1))); renderFxScreen(); clearTimeout(tapTimeout); tapTimeout = setTimeout(() => { tapTimes = []; }, 2000); } });
+    let fxTapTimes = []; let fxTapTimeout;
+    if(btnFxTap) btnFxTap.addEventListener('click', () => { vibrate(30); btnFxTap.style.backgroundColor = '#550000'; setTimeout(() => btnFxTap.style.backgroundColor = '', 100); const now = Date.now(); fxTapTimes.push(now); if (fxTapTimes.length > 4) fxTapTimes.shift(); if (fxTapTimes.length > 1) { let sum = 0; for (let i = 1; i < fxTapTimes.length; i++) sum += (fxTapTimes[i] - fxTapTimes[i-1]); fxState.bpm = Math.round(60000 / (sum / (fxTapTimes.length - 1))); renderFxScreen(); clearTimeout(fxTapTimeout); fxTapTimeout = setTimeout(() => { fxTapTimes = []; }, 2000); } });
     if(btnFxSource) btnFxSource.addEventListener('click', () => { vibrate(50); fxState.source = fxState.source === 'MASTER' ? 'PADS' : (fxState.source === 'PADS' ? 'MIC' : 'MASTER'); renderFxScreen(); });
     if(btnFxHold) btnFxHold.addEventListener('click', () => { vibrate(50); btnFxHold.classList.toggle('active-mode'); });
     if(btnFxBank) btnFxBank.addEventListener('click', () => { vibrate(50); fxState.bank = fxState.bank === 'A' ? 'B' : 'A'; btnFxBank.classList.toggle('bank-b'); renderFxScreen(); });
@@ -5251,20 +5559,12 @@ function clickDeviceBtn() {
         
         // Аккуратно собираем только чистые настройки, без виртуальных проводов
         padClipboard = {
-            mode: sourceData.mode,
-            pitch: sourceData.pitch,
-            volume: sourceData.volume,
-            trimStart: sourceData.trimStart,
-            trimEnd: sourceData.trimEnd,
-            fadeIn: sourceData.fadeIn,
-            fadeOut: sourceData.fadeOut,
-            fx: sourceData.fx,
-            send: sourceData.send,
-            fxParam1: sourceData.fxParam1,
-            fxParam2: sourceData.fxParam2,
-            fxParam3: sourceData.fxParam3,
-            fileName: sourceData.fileName,
-            buffer: sourceData.buffer
+            mode: sourceData.mode, pitch: sourceData.pitch, volume: sourceData.volume,
+            trimStart: sourceData.trimStart, trimEnd: sourceData.trimEnd, fadeIn: sourceData.fadeIn, fadeOut: sourceData.fadeOut, send: sourceData.send, fileName: sourceData.fileName, buffer: sourceData.buffer,
+            fx1: sourceData.fx1, fx1On: sourceData.fx1On, fx1Mix: sourceData.fx1Mix, fx1p1: sourceData.fx1p1, fx1p2: sourceData.fx1p2, fx1p3: sourceData.fx1p3,
+            fx2: sourceData.fx2, fx2On: sourceData.fx2On, fx2Mix: sourceData.fx2Mix, fx2p1: sourceData.fx2p1, fx2p2: sourceData.fx2p2, fx2p3: sourceData.fx2p3,
+            fx3: sourceData.fx3, fx3On: sourceData.fx3On, fx3Mix: sourceData.fx3Mix, fx3p1: sourceData.fx3p1, fx3p2: sourceData.fx3p2, fx3p3: sourceData.fx3p3,
+            fx4: sourceData.fx4, fx4On: sourceData.fx4On, fx4Mix: sourceData.fx4Mix, fx4p1: sourceData.fx4p1, fx4p2: sourceData.fx4p2, fx4p3: sourceData.fx4p3
         };
         
         document.getElementById('pad-context-menu').classList.remove('show');
@@ -5287,9 +5587,10 @@ function clickDeviceBtn() {
         targetData.fadeOut = padClipboard.fadeOut;
         targetData.fx = padClipboard.fx;
         targetData.send = padClipboard.send;
-        targetData.fxParam1 = padClipboard.fxParam1;
-        targetData.fxParam2 = padClipboard.fxParam2;
-        targetData.fxParam3 = padClipboard.fxParam3;
+        targetData.fx1 = padClipboard.fx1; targetData.fx1On = padClipboard.fx1On; targetData.fx1Mix = padClipboard.fx1Mix; targetData.fx1p1 = padClipboard.fx1p1; targetData.fx1p2 = padClipboard.fx1p2; targetData.fx1p3 = padClipboard.fx1p3;
+        targetData.fx2 = padClipboard.fx2; targetData.fx2On = padClipboard.fx2On; targetData.fx2Mix = padClipboard.fx2Mix; targetData.fx2p1 = padClipboard.fx2p1; targetData.fx2p2 = padClipboard.fx2p2; targetData.fx2p3 = padClipboard.fx2p3;
+        targetData.fx3 = padClipboard.fx3; targetData.fx3On = padClipboard.fx3On; targetData.fx3Mix = padClipboard.fx3Mix; targetData.fx3p1 = padClipboard.fx3p1; targetData.fx3p2 = padClipboard.fx3p2; targetData.fx3p3 = padClipboard.fx3p3;
+        targetData.fx4 = padClipboard.fx4; targetData.fx4On = padClipboard.fx4On; targetData.fx4Mix = padClipboard.fx4Mix; targetData.fx4p1 = padClipboard.fx4p1; targetData.fx4p2 = padClipboard.fx4p2; targetData.fx4p3 = padClipboard.fx4p3;
         targetData.fileName = padClipboard.fileName;
         targetData.buffer = padClipboard.buffer;
         
@@ -5312,7 +5613,7 @@ function clickDeviceBtn() {
 
     function contextClearPad() {
         vibrate([30, 50]);
-        padData[globalSettings.padBank][contextPadId] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, fx: 'None', send: 100, buffer: null, fileName: '' };
+        padData[globalSettings.padBank][contextPadId] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, send: 100, buffer: null, fileName: '', fx1: 'None', fx1On: true, fx1Mix: 100, fx1p1: 50, fx1p2: 50, fx1p3: 50, fx2: 'None', fx2On: true, fx2Mix: 100, fx2p1: 50, fx2p2: 50, fx2p3: 50, fx3: 'None', fx3On: true, fx3Mix: 100, fx3p1: 50, fx3p2: 50, fx3p3: 50, fx4: 'None', fx4On: true, fx4Mix: 100, fx4p1: 50, fx4p2: 50, fx4p3: 50 };
         
         document.getElementById('pad-context-menu').classList.remove('show');
         showOnSmartScreen(`PAD ${contextPadId}`, "CLEARED!");
@@ -5321,6 +5622,149 @@ function clickDeviceBtn() {
         updateMiniPadsVisuals();
         updateMainPadsVisuals();
     }
+    // ============================================
+// ТЕМП И СИНХРОНИЗАЦИЯ (BPM, METRO, QUANTIZE)
+// ============================================
+globalSettings.bpm = 130;
+globalSettings.preroll = true;
+globalSettings.loopLength = '4'; // По умолчанию 4 такта (Bars)
+
+// Привязка селектора длины петли
+const loopLenSelect = document.getElementById('set-loop-length');
+if (loopLenSelect) {
+    loopLenSelect.addEventListener('change', (e) => {
+        globalSettings.loopLength = e.target.value;
+    });
+}
+
+function updateGlobalScreen() {
+    const screen = document.getElementById('set-global-screen');
+    if (screen) {
+        screen.innerHTML = `BPM: ${globalSettings.bpm} &ensp; METRO: ${globalSettings.metronome ? 'ON' : 'OFF'}<br>QUANTIZE: ${globalSettings.quantize} &ensp; PRE-ROLL: ${globalSettings.preroll ? 'ON' : 'OFF'}`;
+    }
+}
+
+// Привязка ползунка BPM
+const bpmSlider = document.getElementById('global-bpm-slider');
+if (bpmSlider) {
+    bpmSlider.addEventListener('input', (e) => {
+        globalSettings.bpm = e.target.value;
+        updateGlobalScreen();
+        if(typeof updatePadScreen === 'function') updatePadScreen();
+    });
+}
+
+// Привязка селектора квантизации
+const quantizeGrid = document.getElementById('set-quantize-grid');
+if (quantizeGrid) {
+    quantizeGrid.addEventListener('change', (e) => {
+        globalSettings.quantize = e.target.value;
+        updateGlobalScreen();
+        if(typeof updatePadScreen === 'function') updatePadScreen();
+    });
+}
+
+// Кнопка Metronome
+const btnMetro = document.getElementById('btn-metro-toggle');
+if (btnMetro) {
+    btnMetro.addEventListener('click', () => {
+        setTimeout(() => {
+            globalSettings.metronome = btnMetro.classList.contains('active-mode');
+            updateGlobalScreen();
+            if(typeof updatePadScreen === 'function') updatePadScreen();
+        }, 10);
+    });
+}
+
+// Кнопка Quantize Toggle (Включение/Выключение сетки)
+const btnQuantizeToggle = document.getElementById('btn-quantize-toggle');
+if (btnQuantizeToggle) {
+    btnQuantizeToggle.addEventListener('click', () => {
+        setTimeout(() => {
+            updateGlobalScreen();
+            if(typeof updatePadScreen === 'function') updatePadScreen();
+        }, 10);
+    });
+}
+
+// Кнопка Pre-Roll
+const btnPreroll = document.getElementById('btn-preroll-toggle');
+if (btnPreroll) {
+    btnPreroll.addEventListener('click', () => {
+        setTimeout(() => {
+            globalSettings.preroll = btnPreroll.classList.contains('active-mode');
+            updateGlobalScreen();
+        }, 10);
+    });
+}
+// ============================================
+// ЛОГИКА МИНИ-КНОПОК И МИНИ-КРУТИЛОК ИНСЕРТ-ЭФФЕКТОВ (D/W)
+// ============================================
+function togglePadFx(slotIdx) {
+    vibrate(30);
+    const pData = padData[globalSettings.padBank][currentEditingPad];
+    const btn = document.getElementById('pad-fx-btn-' + slotIdx);
+    if(btn) {
+        const isActive = btn.classList.toggle('active');
+        pData['fx'+slotIdx+'On'] = isActive;
+        showOnSmartScreen(`PAD FX ${slotIdx}`, isActive ? 'ON' : 'BYPASS');
+
+        // ЖИВОЕ ОБНОВЛЕНИЕ ЗВУКА НА ЛЕТУ
+        const dryNode = pData['activeFx'+slotIdx+'Dry'];
+        const wetNode = pData['activeFx'+slotIdx+'Wet'];
+        if (dryNode && wetNode) {
+            const now = audioCtx.currentTime;
+            if (isActive) {
+                const mix = (pData['fx'+slotIdx+'Mix'] !== undefined ? pData['fx'+slotIdx+'Mix'] : 100) / 100;
+                dryNode.gain.setTargetAtTime(1.0 - mix, now, 0.02);
+                wetNode.gain.setTargetAtTime(mix, now, 0.02);
+            } else {
+                dryNode.gain.setTargetAtTime(1.0, now, 0.02);
+                wetNode.gain.setTargetAtTime(0.0, now, 0.02);
+            }
+        }
+    }
+}
+
+document.querySelectorAll('.pad-fx-mix-knob').forEach(knob => {
+    let startY = 0; let startVal = 0; const slotIdx = knob.dataset.slot;
+    const line = knob.querySelector('.fx-mini-knob-line');
+    const textVal = document.getElementById(`pad-fx-val-${slotIdx}`);
+    
+    knob.addEventListener('touchstart', (e) => { 
+        e.stopPropagation(); startY = e.touches[0].clientY; 
+        const pData = padData[globalSettings.padBank][currentEditingPad];
+        startVal = pData['fx'+slotIdx+'Mix'] !== undefined ? pData['fx'+slotIdx+'Mix'] : 100;
+        showOnSmartScreen(`PAD FX ${slotIdx} MIX`, startVal + '%');
+    }, {passive: false});
+    
+    knob.addEventListener('touchmove', (e) => { 
+        e.preventDefault(); e.stopPropagation(); 
+        
+        let newVal = startVal + (startY - e.touches[0].clientY) * 0.5; // Чувствительность
+        if (newVal < 0) newVal = 0; if (newVal > 100) newVal = 100; 
+        newVal = Math.round(newVal);
+        
+        const pData = padData[globalSettings.padBank][currentEditingPad];
+        pData['fx'+slotIdx+'Mix'] = newVal;
+        
+        line.style.transform = `rotate(${-130 + (newVal / 100) * 260}deg)`; 
+        textVal.textContent = newVal + '%'; 
+        showOnSmartScreen(`PAD FX ${slotIdx} MIX`, newVal + '%');
+
+        // ЖИВОЕ ОБНОВЛЕНИЕ ЗВУКА НА ЛЕТУ ПРИ ВРАЩЕНИИ
+        const dryNode = pData['activeFx'+slotIdx+'Dry'];
+        const wetNode = pData['activeFx'+slotIdx+'Wet'];
+        const isOn = pData['fx'+slotIdx+'On'] !== false;
+        
+        if (isOn && dryNode && wetNode) {
+            const now = audioCtx.currentTime;
+            const mix = newVal / 100;
+            dryNode.gain.setTargetAtTime(1.0 - mix, now, 0.02);
+            wetNode.gain.setTargetAtTime(mix, now, 0.02);
+        }
+    }, {passive: false});
+});
 </script>
 </body>
 </html>
