@@ -636,6 +636,109 @@ top: 2px; }
 .eq-pro-freq { font-size: 8px; color: #666; font-family: monospace; }
 .ios-disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); }
 /* #endregion */
+/* ========================================= */
+/* --- НОВЫЕ СТИЛИ СЕКВЕНСОРА --- */
+/* ========================================= */
+#sequencer-section {
+    width: 100%;
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+#seq-screen {
+    background: #020202;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: inset 0 0 15px rgba(0,0,0,1);
+    color: #0ff;
+    font-family: 'MatrixType Display', monospace;
+    text-shadow: 0 0 5px rgba(0,255,255,0.5);
+}
+
+.seq-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #333;
+    padding-bottom: 5px;
+}
+
+.seq-pattern-select {
+    background: #111;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #222;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.seq-btn-save {
+    background: #ff6600;
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 9px;
+    padding: 3px 6px;
+    box-shadow: 0 0 8px rgba(255,102,0,0.5);
+}
+
+.seq-grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 3px;
+}
+
+.seq-step {
+    aspect-ratio: 1 / 1.5;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 2px;
+}
+
+.seq-step.highlight { background: #2a2a2a; border-color: #444; }
+
+.seq-step.active {
+    background: #0ff;
+    box-shadow: 0 0 8px #0ff;
+    border-color: #fff;
+}
+
+#seq-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.ctrl-btn {
+    background: #1a1a1a;
+    color: #aaa;
+    border: 2px solid #333;
+    padding: 10px 0;
+    font-size: 10px;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+    border-radius: 6px;
+    text-align: center;
+    box-shadow: 0 3px 0 #0a0a0a;
+    transition: 0.1s;
+}
+
+.ctrl-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 #0a0a0a;
+}
+
+.rec-btn { border-color: #500; color: #f55; background: #2a0000; }
+.play-btn { border-color: #050; color: #5f5; background: #002a00; }
+.mute-btn { border-color: #550; color: #ff5; background: #2a2a00; }
+.undo-btn { border-color: #005; color: #55f; background: #00002a; }
     </style>
 </head>
 <body style="background-color: #050505;">
@@ -1049,18 +1152,53 @@ top: 2px; }
                             <button class="pad pad-7" data-id="7"></button><button class="pad pad-8" data-id="8"></button><button class="pad pad-9" data-id="9"></button>
                             <button class="pad pad-10" data-id="10"></button><button class="pad pad-11" data-id="11"></button><button class="pad pad-12" data-id="12"></button>
                         </div>
-                        <div class="rec-section">
-                                <div class="rec-btn-group">
-                                    <button class="pad-action-btn" id="btn-main-tap" style="border-color: #ff6600; color: #ffaa00;">TAP</button>
-                                    <button class="pad-action-btn" id="btn-load">LOAD</button>
-                                    <input type="file" id="hidden-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
-                                </div>
-                            <div class="display-screen"><div class="screen-text-inner" id="pad-screen">BPM: 130 | Q: OFF<br>BANK: A | METRO: OFF<br>LOOPER: STOP<br>STATUS: READY</div></div>
-                            <div class="rec-btn-group">
-                                <button class="pad-action-btn red-mode" id="btn-rec-loop">REC LOOP</button>
-                                <button class="pad-action-btn" id="btn-play-loop">PLAY LOOP</button>
-                            </div>
-                        </div>
+                        <!-- === НОВЫЙ БЛОК: СЕКВЕНСОР И ТРАНСПОРТ === -->
+<div id="sequencer-section">
+    <!-- Скрытые элементы (не удалять, чтобы не сломался JS) -->
+    <button id="btn-load" style="display: none;"></button>
+    <input type="file" id="hidden-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
+    <div id="pad-screen" style="display: none;"></div>
+
+    <!-- OLED Экран Секвенсора -->
+    <div id="seq-screen">
+        <div class="seq-header">
+            <span class="seq-info" style="color: #fff;">P1: KICK</span>
+            <div class="seq-pattern-select">
+                <span style="color:#ff6600">◀</span> PTN: EMPTY <span style="color:#ff6600">▶</span>
+            </div>
+            <span class="seq-info">BPM:130</span>
+            <span class="seq-info">BAR:1/2</span>
+            <button class="seq-btn-save">💾 SAVE</button>
+        </div>
+        
+        <!-- Сетка шагов (32 шага) -->
+        <div class="seq-grid">
+            <div class="seq-step active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
+            <div class="seq-step highlight"></div> <div class="seq-step"></div> <div class="seq-step active"></div> <div class="seq-step"></div>
+            <div class="seq-step highlight"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
+            <div class="seq-step highlight active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step active"></div>
+            
+            <div class="seq-step highlight active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
+            <div class="seq-step highlight"></div> <div class="seq-step"></div> <div class="seq-step active"></div> <div class="seq-step"></div>
+            <div class="seq-step highlight"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
+            <div class="seq-step highlight active"></div> <div class="seq-step active"></div> <div class="seq-step"></div> <div class="seq-step"></div>
+        </div>
+    </div>
+
+    <!-- 8 Хардверных кнопок -->
+    <div id="seq-controls">
+        <button class="ctrl-btn rec-btn" id="btn-rec-loop">⏺ REC</button>
+        <button class="ctrl-btn play-btn" id="btn-play-loop">▶ PLAY</button>
+        <button class="ctrl-btn" id="btn-main-tap">TAP TMP</button>
+        <button class="ctrl-btn" id="btn-clear-pad">CLEAR</button>
+
+        <button class="ctrl-btn">◀ PAGE</button>
+        <button class="ctrl-btn">PAGE ▶</button>
+        <button class="ctrl-btn undo-btn">UNDO</button>
+        <button class="ctrl-btn mute-btn">MUTE</button>
+    </div>
+</div>
+<!-- === КОНЕЦ БЛОКА СЕКВЕНСОРА === -->
                     </div>
                 </div>
 <!-- === СЛАЙД: XY-ТАЧПАД И ГЛОБАЛЬНЫЕ ЭФФЕКТЫ === -->
