@@ -645,6 +645,19 @@ top: 2px; }
     margin-top: 10px; border: 2px solid #333;
     width: 100%; box-sizing: border-box; flex-shrink: 0; overflow: hidden;
 }
+/* Новая кнопка BPM (Tap Tempo) прямо на OLED экране */
+.seq-btn-bpm {
+    background: transparent; color: #0ff; border: 1px solid rgba(0, 255, 255, 0.4); 
+    border-radius: 3px; font-weight: bold; font-size: 10px; 
+    padding: 3px 6px; cursor: pointer; font-family: monospace;
+    transition: 0.1s;
+}
+.seq-btn-bpm:active {
+    background: #0ff; color: #000; box-shadow: 0 0 8px #0ff;
+}
+
+/* Цвет для новой кнопки KEY/SEQ */
+.key-btn { background: #330033; color: #f0f; } /* Кибер-фиолетовый */
 #seq-screen {
     background: #050505; border: 2px solid #000; border-radius: 6px;
     padding: 6px; box-shadow: inset 0 0 10px rgba(0,0,0,0.9);
@@ -686,6 +699,284 @@ top: 2px; }
 .mute-btn { background: #550; color: #ff6; }
 .solo-btn { background: #003366; color: #00ccff; }
 .shift-btn { background: #222; border: 1px solid #555; color: #fff; }
+/* --- НОВЫЕ КНОПКИ ГЛАВНОГО СЕКВЕНСОРА --- */
+.seq-header-new {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.seq-top-btn {
+    background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;
+    font-size: 11px; font-weight: bold; font-family: monospace;
+    padding: 8px 0; text-align: center; cursor: pointer; transition: 0.1s;
+    box-shadow: 0 4px 0 #111; touch-action: manipulation;
+}
+
+.seq-top-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #111; }
+.seq-top-btn.red-btn { background: #400; color: #f66; border-color: #800; box-shadow: 0 4px 0 #200; }
+.seq-top-btn.orange-btn { background: #420; color: #fa0; border-color: #840; box-shadow: 0 4px 0 #210; }
+.seq-top-btn.blue-btn { background: #003366; color: #00ccff; border-color: #005599; box-shadow: 0 4px 0 #001a33; }
+.seq-top-btn.tap-btn { background: #111; color: #0ff; border-color: rgba(0, 255, 255, 0.4); box-shadow: 0 4px 0 #000; }
+.seq-top-btn.tap-btn:active { background: #0ff; color: #000; box-shadow: 0 0 10px #0ff; transform: translateY(4px); }
+
+/* --- МОДАЛЬНОЕ ОКНО PATTERN STUDIO --- */
+.pattern-studio-window {
+    width: 100vw !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: max(15px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)) 10px !important;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Тулбар (Длина, Свинг, Навигация) */
+.ps-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 6px;
+}
+.ps-label { font-size: 9px; color: #666; font-weight: bold; margin-bottom: 3px; display: block; text-transform: uppercase; }
+.ps-btn {
+    background: #1a1a1a; color: #aaa; border: 1px solid #333; border-radius: 4px;
+    font-size: 11px; font-weight: bold; padding: 6px 10px; cursor: pointer; transition: 0.1s;
+}
+.ps-btn:active { transform: scale(0.9); }
+.ps-btn.active { background: #330000; color: #ff3333; border-color: #ff0000; box-shadow: inset 0 0 5px rgba(255,0,0,0.5); }
+
+/* Пресеты инструментов */
+.ps-presets-row {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+    margin: 10px 0;
+}
+.ps-preset-btn {
+    background: #111; color: #888; border: 1px solid #333; border-radius: 4px;
+    font-size: 10px; font-weight: bold; padding: 8px 0; cursor: pointer; transition: 0.1s;
+}
+.ps-preset-btn:active { transform: scale(0.95); background: #222; }
+.ps-preset-btn.rand-btn { color: #00ffff; font-size: 14px; border-color: #005555; background: #001a1a; }
+
+/* Тонкий переключатель SEQUENCER | KEYS */
+.ps-mode-toggle {
+    display: flex; width: 100%; gap: 2px; background: #050505;
+    padding: 3px; border-radius: 6px; border: 1px solid #222; margin-bottom: 10px;
+}
+.ps-mode-btn {
+    flex: 1; background: transparent; color: #555; border: none;
+    padding: 8px 0; font-size: 11px; font-weight: bold; letter-spacing: 2px;
+    border-radius: 4px; cursor: pointer; transition: 0.2s; text-transform: uppercase;
+}
+.ps-mode-btn.active {
+    background: #221100; color: #ff8800; box-shadow: 0 0 8px rgba(255, 136, 0, 0.4);
+}
+
+/* Матрица 8х8 */
+.ps-workspace { flex: 1; display: flex; justify-content: center; align-items: center; min-height: 0; }
+.pattern-matrix {
+    display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); gap: 4px;
+    background: #050505; padding: 6px; border-radius: 8px; border: 2px solid #222;
+    width: 100%; max-width: 400px; aspect-ratio: 1; box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+}
+.matrix-step {
+    background: #1a1a1a; border-radius: 3px; border: 1px solid #333;
+    cursor: pointer; transition: transform 0.1s, background-color 0.1s; touch-action: none;
+}
+.matrix-step:active { transform: scale(0.85); }
+.matrix-step.active { background: #00ffff; border-color: #fff; box-shadow: 0 0 8px #00ffff; }
+/* --- КЛАВИАТУРА (KEYS WORKSPACE) --- */
+.ps-keys-workspace {
+    display: none; 
+    flex-direction: column;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 1;
+    margin: auto;
+    background: #050505;
+    border-radius: 8px;
+    border: 2px solid #222;
+    padding: 12px 8px;
+    box-sizing: border-box;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+}
+/* --- СИНТЕЗАТОР (SYNTH WORKSPACE) --- */
+.ps-synth-workspace {
+    display: none; 
+    flex-direction: column;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 1;
+    margin: auto;
+    background: #050505;
+    border-radius: 8px;
+    border: 2px solid #222;
+    padding: 10px;
+    box-sizing: border-box;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+.ps-synth-workspace::-webkit-scrollbar { display: none; }
+
+/* Блоки синтезатора (OSC, FILTER, ENV) */
+.synth-module {
+    background: #0a0a0a;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+.synth-module-title {
+    font-size: 10px;
+    color: #ff6600;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    border-bottom: 1px dashed #333;
+    padding-bottom: 4px;
+}
+.synth-knobs-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+/* Мини-селектор для волны */
+.synth-wave-sel {
+    background: #111;
+    color: #00ffff;
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-size: 14px;
+    padding: 2px 4px;
+    outline: none;
+    cursor: pointer;
+}
+.octave-controls {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+}
+.oct-btn {
+    background: #141414; color: #00ffff; border: 1px solid #005555; border-radius: 6px;
+    font-size: 11px; font-weight: bold; padding: 8px 14px; cursor: pointer;
+}
+.oct-display {
+    font-family: monospace; color: #00ffff; font-size: 13px; font-weight: bold;
+}
+.piano-container {
+    flex: 1; position: relative; display: flex; height: 100%;
+}
+.white-key {
+    flex: 1; background: #e0e0e0; border: 1px solid #999; border-radius: 0 0 6px 6px;
+    margin: 0 1px; display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 10px; color: #444; font-weight: bold; font-size: 10px; cursor: pointer;
+}
+.black-key {
+    position: absolute; width: 8.5%; height: 58%; background: #111;
+    border: 1px solid #000; border-radius: 0 0 4px 4px; z-index: 2; cursor: pointer;
+}
+.octave-led-bar {
+    width: 100%; height: 5px; background: #0a0a0a; border-radius: 3px; margin-top: 12px; position: relative; border: 1px solid #222;
+}
+.octave-led-indicator {
+    position: absolute; left: 37.5%; width: 25%; height: 100%; background: #00ffff; border-radius: 2px;
+}
+/* Лента пэдов в Pattern Studio */
+.ps-pads-ribbon {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0 0 10px 0;
+    margin-bottom: 5px;
+    scrollbar-width: none; /* Прячем скролл в Firefox */
+    -webkit-overflow-scrolling: touch;
+}
+.ps-pads-ribbon::-webkit-scrollbar {
+    display: none; /* Прячем скролл в Chrome/Safari */
+}
+.ps-ribbon-pad {
+    flex: 0 0 42px; /* Строго фиксированный размер, как у шагов секвенсора */
+    height: 42px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.1s;
+    touch-action: pan-x;
+}
+.ps-ribbon-pad:active {
+    transform: scale(0.9);
+}
+.ps-ribbon-pad.active {
+    background: #221100;
+    border-color: #ff6600;
+    color: #ff9933;
+    box-shadow: inset 0 0 8px rgba(255, 102, 0, 0.4);
+}
+.ps-ribbon-pad.has-sample {
+    border-color: #0088ff;
+    color: #33aaff;
+}
+/* Подвал (Footer) */
+.ps-foot-btn {
+    flex: 1; padding: 12px; font-size: 12px; font-weight: bold;
+    border-radius: 8px; cursor: pointer; transition: 0.1s; border: 1px solid transparent;
+}
+.ps-foot-btn:active { transform: scale(0.95); }
+.ps-foot-btn.play { background: #002200; color: #55ff55; border-color: #00ff00; }
+.ps-foot-btn.save { background: #222; color: #fff; border-color: #444; }
+.ps-foot-btn.apply { background: var(--digital); color: #000; box-shadow: 0 0 15px var(--digital); }
+/* Мини-секвенсор над клавишами */
+.ps-mini-seq {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 12px;
+    background: #0a0a0a;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #222;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.ps-mini-seq::-webkit-scrollbar { display: none; }
+
+.ps-mini-step {
+    flex: 0 0 22px; /* Фиксированная ширина, чтобы можно было свайпать */
+    height: 28px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: 0.1s;
+}
+/* Отделяем каждые 4 шага (доли) чуть большим отступом для навигации */
+.ps-mini-step:nth-child(4n) {
+    margin-right: 6px; 
+}
+
+.ps-mini-step.active {
+    background: #00ffff;
+    border-color: #fff;
+    box-shadow: 0 0 8px #00ffff;
+}
+.ps-mini-step.editing {
+    background: #ffaa00;
+    border-color: #fff;
+    box-shadow: 0 0 10px #ffaa00;
+    animation: stepEditBlink 0.6s infinite alternate;
+}
+@keyframes stepEditBlink {
+    0% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
     </style>
 </head>
 <body style="background-color: #050505;">
@@ -1103,17 +1394,12 @@ top: 2px; }
                         <div id="sequencer-section">
                             <!-- OLED Экран -->
                             <div id="seq-screen">
-                                <div class="seq-header">
-                                    <!-- Кнопки стали слева и крупнее, текст P1 убран -->
-                                    <div style="display:flex; gap:6px;">
-                                        <button class="seq-btn-mic">🎙️ V2M</button>
-                                        <button class="seq-btn-save">💾 SAVE</button>
-                                    </div>
-                                    <div class="seq-pattern-select">
-                                        <span>◀</span> PTN: EMPTY <span>▶</span>
-                                    </div>
-                                    <span class="seq-info">BPM:130</span>
-                                </div>
+                                <div class="seq-header-new">
+    <button class="seq-top-btn red-btn">🎙️ V2M</button>
+    <button class="seq-top-btn orange-btn">💾 SAVE</button>
+    <button class="seq-top-btn blue-btn" onclick="document.getElementById('patternStudioModal').style.display='flex'">✎ EDIT</button>
+    <button class="seq-top-btn tap-btn" id="btn-bpm-tap"> TAP: 130</button>
+</div>
                                 
                                 <!-- Сетка шагов -->
                                 <div class="seq-grid">
@@ -1134,7 +1420,8 @@ top: 2px; }
                             <div id="seq-controls">
                                 <button class="ctrl-btn rec-btn" id="btn-rec-loop">⏺ REC</button>
                                 <button class="ctrl-btn play-btn" id="btn-play-loop">▶ PLAY</button>
-                                <button class="ctrl-btn" id="btn-main-tap">TAP</button>
+                                <!-- НОВАЯ КНОПКА KEY / SEQ ВМЕСТО TAP -->
+                                <button class="ctrl-btn key-btn" id="btn-seq-key">KEY / SEQ</button>
                                 <button class="ctrl-btn" id="btn-seq-select">SELECT</button>
 
                                 <button class="ctrl-btn shift-btn" id="btn-seq-shift">SHIFT</button>
@@ -1396,7 +1683,397 @@ top: 2px; }
 
 <audio id="radio-stream" preload="metadata" crossorigin="anonymous"></audio>
 <!-- === ОКНА РАДИО И ПЛЕЕР КОНЕЦ === -->  
- 
+ <!-- === PATTERN STUDIO MODAL === -->
+<div id="patternStudioModal" class="modal-overlay">
+    <div class="modal-window pattern-studio-window">
+        
+        <!-- HEADER -->
+        <div class="menu-header" style="margin-bottom: 15px;">
+            <div class="menu-header-bar" onclick="document.getElementById('patternStudioModal').style.display='none'"></div>
+            <span style="margin-top: 15px; font-family: 'MatrixType Display', monospace; color: var(--digital); font-size: 16px;">PATTERN STUDIO</span>
+        </div>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; padding: 0;">
+            
+            <!-- TOOLBAR: Length, Swing, Nudge -->
+            <div class="ps-toolbar">
+                <div style="text-align: center;">
+                    <span class="ps-label">LENGTH</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="ps-btn active">16</button>
+                        <button class="ps-btn">32</button>
+                        <button class="ps-btn">64</button>
+                    </div>
+                </div>
+                <div style="flex: 1; padding: 0 15px; text-align: center;">
+                    <span class="ps-label">SWING</span>
+                    <input type="range" class="set-range" min="0" max="75" value="15" style="width: 100%; margin-top: 6px;">
+                </div>
+                <div style="text-align: center;">
+                    <span class="ps-label">NUDGE</span>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="ps-btn">◀</button>
+                        <button class="ps-btn">▶</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRESETS (KICK, SNARE, HATS, PERC, USER, RANDOM) -->
+            <div class="ps-presets-row">
+                <button class="ps-preset-btn">KICK</button>
+                <button class="ps-preset-btn">SNARE</button>
+                <button class="ps-preset-btn">HATS</button>
+                <button class="ps-preset-btn">PERC</button>
+                <button class="ps-preset-btn">USER</button>
+                <button class="ps-preset-btn rand-btn">🎲</button>
+            </div>
+
+            <!-- SEQUENCER / KEYS / SYNTH TOGGLE -->
+            <div class="ps-mode-toggle">
+                <button class="ps-mode-btn active" id="tab-sequencer" onclick="switchPsView('sequencer')">SEQUENCER</button>
+                <button class="ps-mode-btn" id="tab-keys" onclick="switchPsView('keys')">KEYS</button>
+                <button class="ps-mode-btn" id="tab-synth" onclick="switchPsView('synth')">SYNTH</button>
+            </div>
+
+            <!-- 🔻 НОВАЯ ЛЕНТА ПЭДОВ ЗДЕСЬ 🔻 -->
+            <div class="ps-pads-ribbon">
+                <div class="ps-ribbon-pad active">P1</div>
+                <div class="ps-ribbon-pad has-sample">P2</div>
+                <div class="ps-ribbon-pad">P3</div>
+                <div class="ps-ribbon-pad">P4</div>
+                <div class="ps-ribbon-pad">P5</div>
+                <div class="ps-ribbon-pad">P6</div>
+                <div class="ps-ribbon-pad">P7</div>
+                <div class="ps-ribbon-pad">P8</div>
+                <div class="ps-ribbon-pad">P9</div>
+                <div class="ps-ribbon-pad">P10</div>
+                <div class="ps-ribbon-pad">P11</div>
+                <div class="ps-ribbon-pad">P12</div>
+            </div>
+            <!-- 🔺 КОНЕЦ ЛЕНТЫ ПЭДОВ 🔺 -->
+
+            <!-- 8x8 MATRIX WORKSPACE -->
+            <div class="ps-workspace" id="view-sequencer">
+    <div class="pattern-matrix" id="pattern-matrix-grid">
+        <!-- JS сгенерирует 64 ячейки -->
+    </div>
+</div>
+<!-- KEYS WORKSPACE -->
+            <div class="ps-keys-workspace" id="view-keys">
+                <div class="octave-controls">
+                    <button class="oct-btn">◀ OCT -</button>
+                    <span class="oct-display">OCTAVE 3</span>
+                    <button class="oct-btn">OCT + ▶</button>
+                </div>
+                                
+                <!-- 🔻 МИНИ-СЕКВЕНСОР ДЛЯ РЕДАКТИРОВАНИЯ НОТ 🔻 -->
+                <div class="ps-mini-seq">
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step active"></div>
+                    <div class="ps-mini-step editing"></div> <!-- Вот этот мы типа выбрали -->
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step active"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step active"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step"></div>
+                    <div class="ps-mini-step active"></div>
+                    <div class="ps-mini-step"></div>
+                </div>
+                <!-- 🔺 КОНЕЦ МИНИ-СЕКВЕНСОРА 🔺 -->
+
+                <div class="piano-container">
+                    <div class="white-key">C</div>
+                    <div class="white-key">D</div>
+                    <div class="white-key">E</div>
+                    <div class="white-key">F</div>
+                    <div class="white-key">G</div>
+                    <div class="white-key">A</div>
+                    <div class="white-key">B</div>
+
+                    <div class="black-key" style="left: 10.2%;"></div>
+                    <div class="black-key" style="left: 24.5%;"></div>
+                    <div class="black-key" style="left: 53.1%;"></div>
+                    <div class="black-key" style="left: 67.4%;"></div>
+                    <div class="black-key" style="left: 81.7%;"></div>
+                </div>
+
+                <div class="octave-led-bar">
+                    <div class="octave-led-indicator"></div>
+                </div>
+            </div>
+        </div>
+<!-- 🔻 SYNTH WORKSPACE 🔻 -->
+            <div class="ps-synth-workspace" id="view-synth">
+                <!-- OSCILLATORS & NOISE (MIXER) -->
+                <div class="synth-module">
+                    <div class="synth-module-title">Oscillators & Mixer</div>
+                    <div class="synth-knobs-row" style="margin-bottom: 10px;">
+                        <div class="main-knob-container">
+                            <select class="synth-wave-sel"><option>∿</option><option selected>◺</option><option>⎍</option><option>OFF</option></select>
+                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text">OSC 1</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <select class="synth-wave-sel"><option>∿</option><option>◺</option><option selected>⎍</option><option>OFF</option></select>
+                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text">OSC 2</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <select class="synth-wave-sel"><option>∿</option><option>◺</option><option>⎍</option><option selected>OFF</option></select>
+                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text">OSC 3</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <select class="synth-wave-sel"><option>WHT</option><option>PNK</option><option selected>OFF</option></select>
+                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text">NOISE</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILTER (VCF) -->
+                <div class="synth-module">
+                    <div class="synth-module-title">Ladder Filter (VCF)</div>
+                    <div class="synth-knobs-row">
+                        <div class="main-knob-container">
+                            <div class="main-knob"><div class="main-knob-line" style="transform: rotate(130deg);"></div></div>
+                            <div class="fx-val-text">CUTOFF</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob"><div class="main-knob-line" style="transform: rotate(-130deg);"></div></div>
+                            <div class="fx-val-text">RESO (Q)</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob"><div class="main-knob-line" style="transform: rotate(0deg);"></div></div>
+                            <div class="fx-val-text">ENV MOD</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- LFO (MODULATION) -->
+                <div class="synth-module">
+                    <div class="synth-module-title">LFO (Modulation)</div>
+                    <div class="synth-knobs-row">
+                        <div class="main-knob-container">
+                            <select class="synth-wave-sel"><option selected>∿</option><option>◺</option><option>⎍</option></select>
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-50deg);"></div></div>
+                            <div class="fx-val-text">WAVE</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(20deg);"></div></div>
+                            <div class="fx-val-text">RATE</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-90deg);"></div></div>
+                            <div class="fx-val-text">DEPTH</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ENVELOPES -->
+                <div class="synth-module">
+                    <div class="synth-module-title">Envelopes (ADSR)</div>
+                    <div class="synth-knobs-row">
+                        <div class="main-knob-container">
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-130deg);"></div></div>
+                            <div class="fx-val-text">ATTACK</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-50deg);"></div></div>
+                            <div class="fx-val-text">DECAY</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(130deg);"></div></div>
+                            <div class="fx-val-text">SUSTAIN</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-100deg);"></div></div>
+                            <div class="fx-val-text">RELEASE</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- SYNTH INSERT FX (Прямой доступ к эффектам) -->
+                <div class="synth-module">
+                    <div class="synth-module-title">Synth Insert Effects</div>
+                    <div class="fx-chain" style="margin: 0; background: transparent; border: none; padding: 0;">
+                        <div class="fx-unit">
+                            <button class="fx-mini-btn active" id="synth-fx-btn-1" onclick="toggleSynthFx(1)">FLTR</button>
+                            <div class="fx-mini-knob synth-fx-mix" data-slot="1"><div class="fx-mini-knob-line"></div></div>
+                            <div class="fx-val-text" id="synth-fx-val-1">100%</div>
+                            <div class="fx-dw-label">D/W</div>
+                        </div>
+                        <div class="fx-arrow">➔</div>
+                        <div class="fx-unit">
+                            <button class="fx-mini-btn active" id="synth-fx-btn-2" onclick="toggleSynthFx(2)">ECHO</button>
+                            <div class="fx-mini-knob synth-fx-mix" data-slot="2"><div class="fx-mini-knob-line"></div></div>
+                            <div class="fx-val-text" id="synth-fx-val-2">100%</div>
+                            <div class="fx-dw-label">D/W</div>
+                        </div>
+                        <div class="fx-arrow">➔</div>
+                        <div class="fx-unit">
+                            <button class="fx-mini-btn active" id="synth-fx-btn-3" onclick="toggleSynthFx(3)">RVRB</button>
+                            <div class="fx-mini-knob synth-fx-mix" data-slot="3"><div class="fx-mini-knob-line"></div></div>
+                            <div class="fx-val-text" id="synth-fx-val-3">100%</div>
+                            <div class="fx-dw-label">D/W</div>
+                        </div>
+                        <div class="fx-arrow">➔</div>
+                        <div class="fx-unit">
+                            <button class="fx-mini-btn active" id="synth-fx-btn-4" onclick="toggleSynthFx(4)">FLNG</button>
+                            <div class="fx-mini-knob synth-fx-mix" data-slot="4"><div class="fx-mini-knob-line"></div></div>
+                            <div class="fx-val-text" id="synth-fx-val-4">100%</div>
+                            <div class="fx-dw-label">D/W</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- СТУДИЙНЫЕ ИНСЕРТ-ЭФФЕКТЫ СИНТЕЗАТОРА (4 СЛОТА) -->
+                <div class="synth-module">
+                    <div class="synth-module-title">Synth Effects Chain</div>
+                    
+                    <!-- СЛОТ 1 -->
+                    <div class="set-row" style="margin-bottom: 8px;">
+                        <div style="position: relative;">
+                            <select class="set-control" id="synth-fx-select-1" onchange="renderFxParams(this, 'synth-insert-fx-1')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                                <option value="None" selected>None</option>
+                                <option value="Filter">Filter (LP/HP)</option>
+                                <option value="Delay">Delay / Echo</option>
+                                <option value="Flanger">Flanger (Jet Sweep)</option>
+                                <option value="Reverb">Reverb (Arena)</option>
+                            </select>
+                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 1</div>
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                        </div>
+                        <div id="synth-insert-fx-1" class="dynamic-params-container"></div>
+                    </div>
+
+                    <!-- СЛОТ 2 -->
+                    <div class="set-row" style="margin-bottom: 8px;">
+                        <div style="position: relative;">
+                            <select class="set-control" id="synth-fx-select-2" onchange="renderFxParams(this, 'synth-insert-fx-2')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                                <option value="None" selected>None</option>
+                                <option value="Filter">Filter (LP/HP)</option>
+                                <option value="Delay">Delay / Echo</option>
+                                <option value="Flanger">Flanger (Jet Sweep)</option>
+                                <option value="Reverb">Reverb (Arena)</option>
+                            </select>
+                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 2</div>
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                        </div>
+                        <div id="synth-insert-fx-2" class="dynamic-params-container"></div>
+                    </div>
+
+                    <!-- СЛОТ 3 -->
+                    <div class="set-row" style="margin-bottom: 8px;">
+                        <div style="position: relative;">
+                            <select class="set-control" id="synth-fx-select-3" onchange="renderFxParams(this, 'synth-insert-fx-3')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                                <option value="None" selected>None</option>
+                                <option value="Filter">Filter (LP/HP)</option>
+                                <option value="Delay">Delay / Echo</option>
+                                <option value="Flanger">Flanger (Jet Sweep)</option>
+                                <option value="Reverb">Reverb (Arena)</option>
+                            </select>
+                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 3</div>
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                        </div>
+                        <div id="synth-insert-fx-3" class="dynamic-params-container"></div>
+                    </div>
+
+                    <!-- СЛОТ 4 -->
+                    <div class="set-row" style="margin-bottom: 6px;">
+                        <div style="position: relative;">
+                            <select class="set-control" id="synth-fx-select-4" onchange="renderFxParams(this, 'synth-insert-fx-4')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                                <option value="None" selected>None</option>
+                                <option value="Filter">Filter (LP/HP)</option>
+                                <option value="Delay">Delay / Echo</option>
+                                <option value="Flanger">Flanger (Jet Sweep)</option>
+                                <option value="Reverb">Reverb (Arena)</option>
+                            </select>
+                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 4</div>
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                        </div>
+                        <div id="synth-insert-fx-4" class="dynamic-params-container"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- 🔺 КОНЕЦ SYNTH WORKSPACE 🔺 -->
+        <!-- FOOTER -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; padding-bottom: 5px;">
+            
+            <!-- 1. Загрузка и Очистка (вместо одной кнопки Load) -->
+            <div style="display: flex; gap: 6px;">
+                <button class="ps-foot-btn" style="flex: 1; background: #221100; color: #ffaa00; border-color: #aa5500; padding: 12px 0;">📂 LOAD</button>
+                <button class="ps-foot-btn" style="flex: 1; background: #330000; color: #ff5555; border-color: #ff0000; padding: 12px 0;">🗑 CLR</button>
+            </div>
+            
+            <!-- 2. Предпрослушка (разделенная) -->
+            <div style="display: flex; gap: 6px;">
+                <button class="ps-foot-btn play" style="flex: 1; padding: 12px 0;">▶ PAD</button>
+                <button class="ps-foot-btn play" style="flex: 1; padding: 12px 0;">▶ ALL</button>
+            </div>
+
+            <!-- 3. Закрыть (Оставляем как было на своем месте) -->
+            <button class="ps-foot-btn cancel" onclick="document.getElementById('patternStudioModal').style.display='none'">❌ CLOSE</button>
+
+            <!-- 4. Отмена и Повтор (вместо кнопки Apply) -->
+            <div style="display: flex; gap: 6px;">
+                <button class="ps-foot-btn" style="flex: 1; background: #222; color: #aaa; border-color: #444; padding: 12px 0;">↩ UNDO</button>
+                <button class="ps-foot-btn" style="flex: 1; background: #222; color: #aaa; border-color: #444; padding: 12px 0;">REDO ↪</button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Генерация 64 ячеек сетки
+    const matrixGrid = document.getElementById('pattern-matrix-grid');
+    if(matrixGrid) {
+        for(let i = 0; i < 64; i++) {
+            const step = document.createElement('div');
+            step.className = 'matrix-step';
+            if(Math.random() > 0.85) step.classList.add('active'); 
+            
+            const toggleStep = (e) => {
+                if (e.cancelable) e.preventDefault();
+                step.classList.toggle('active');
+                if (navigator.vibrate) navigator.vibrate(15);
+            };
+            step.addEventListener('mousedown', toggleStep);
+            step.addEventListener('touchstart', toggleStep, {passive: false});
+            
+            matrixGrid.appendChild(step);
+        }
+    }
+
+    // Функция переключения между сеткой и клавишами
+    function switchPsView(view) {
+        if (navigator.vibrate) navigator.vibrate(20);
+        
+        document.getElementById('tab-sequencer').classList.remove('active');
+        document.getElementById('tab-keys').classList.remove('active');
+        document.getElementById('tab-synth').classList.remove('active'); // Новое
+        
+        document.getElementById('view-sequencer').style.display = 'none';
+        document.getElementById('view-keys').style.display = 'none';
+        document.getElementById('view-synth').style.display = 'none'; // Новое
+
+        if (view === 'sequencer') {
+            document.getElementById('tab-sequencer').classList.add('active');
+            document.getElementById('view-sequencer').style.display = 'flex';
+        } else if (view === 'keys') {
+            document.getElementById('tab-keys').classList.add('active');
+            document.getElementById('view-keys').style.display = 'flex';
+        } else {
+            document.getElementById('tab-synth').classList.add('active');
+            document.getElementById('view-synth').style.display = 'flex';
+        }
+    }
+</script>
 <script>
     // ============================================
     // БЭКЕНД СТАТИСТИКА (ДЛЯ ТЕБЯ)
