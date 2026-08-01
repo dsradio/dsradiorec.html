@@ -62,13 +62,14 @@
         
         .swiper-slide { flex: 0 0 100%; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding-top: max(15px, env(safe-area-inset-top)); padding-bottom: env(safe-area-inset-bottom, 15px); scroll-snap-align: center; scroll-snap-stop: always; box-sizing: border-box; }
         /* Чуть уменьшили верхний padding */
-.fx-container { width: 90%; max-width: 400px; height: auto; max-height: 100%; background-color: #000000; border-radius: 30px; padding: 10px 15px 20px 15px; display: flex; flex-direction: column; }
+/* ОБНОВЛЕННЫЙ ДИЗАЙН ЭКРАНОВ (Full-Width) */
+        .fx-container { width: 100%; max-width: 450px; height: 100%; background-color: transparent; border-radius: 0; padding: 5px 8px 20px 8px; display: flex; flex-direction: column; }
 
 /* Убрали лишний отступ под заголовками */
 .fx-header { color: #ff6600; text-align: center; font-style: italic; font-weight: 900; font-size: 26px; margin-bottom: 5px; letter-spacing: 1px; flex-shrink: 0; }
 
-/* Прижали пэды ближе к секвенсором */
-.pads-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 8px; flex-shrink: 0; }
+/* Пэды центрируются в пустом пространстве и пропорционально сжимаются */
+        .pads-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: auto; width: 100%; max-width: 44vh; flex-shrink: 0; }
         .pad { border-radius: 15px; aspect-ratio: 1; border: 2px solid transparent; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s, border-color 0.2s; touch-action: none; }
         .pad:active { transform: scale(0.95); }
         .pad.blinking { animation: padBlink 0.8s infinite alternate; }
@@ -107,13 +108,17 @@
         .settings-scroll-area { flex: 1 1 auto; overflow-y: auto; scrollbar-width: none; touch-action: pan-y; padding-right: 2px; padding-bottom: 30px; min-height: 0; }
         .settings-scroll-area::-webkit-scrollbar { display: none; }
         
-        .set-section { margin-bottom: 10px; border: 1px solid #222; border-radius: 10px; background: #070707; flex-shrink: 0; }
-        .set-header { background: #111; padding: 12px; border-radius: 10px; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; transition: border-radius 0.2s; }
-        .set-header::after { content: '▼'; font-size: 10px; color: #666; transition: 0.2s; }
-        .set-section.open .set-header { border-radius: 10px 10px 0 0; }
-        .set-section.open .set-header::after { transform: rotate(180deg); color: #ff6600; }
-        .set-content { padding: 12px; display: none; border-top: 1px solid #1a1a1a; position: relative; }
+        /* Кибер-стиль для карточек настроек */
+        .set-section { margin-bottom: 12px; border: 2px solid #222; border-radius: 8px; background: #050505; box-shadow: inset 0 0 15px rgba(0,0,0,0.9); flex-shrink: 0; overflow: hidden; }
+        .set-header { background: #0a0a0a; padding: 12px; color: #ff6600; font-size: 11px; font-style: italic; font-weight: 900; cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+        .set-header::after { content: '▼'; font-size: 10px; font-style: normal; color: #555; transition: 0.3s; }
+        .set-section.open .set-header { border-bottom: 1px dashed #333; color: #00ffff; background: #111; }
+        .set-section.open .set-header::after { transform: rotate(180deg); color: #00ffff; }
+        .set-content { padding: 12px; display: none; position: relative; border-top: none; }
         .set-section.open .set-content { display: block; }
+        
+        /* Прокачиваем V2M прогресс-бар (делаем толстым) */
+        #v2m-ui-panel .progress-container { height: 16px !important; border-radius: 8px !important; border: 1px solid #440044 !important; background: #1a001a !important; box-shadow: inset 0 2px 5px rgba(0,0,0,0.9); }
         
         .set-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 5px; }
         .set-row:last-child { margin-bottom: 0; }
@@ -779,7 +784,8 @@ top: 2px; }
 .pattern-matrix {
     display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); gap: 4px;
     background: #050505; padding: 6px; border-radius: 8px; border: 2px solid #222;
-    width: 100%; max-width: 400px; aspect-ratio: 1; box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+    width: 100%; max-width: 400px; max-height: 100%; aspect-ratio: 1; box-shadow: inset 0 0 15px rgba(0,0,0,0.9); box-sizing: border-box; 
+    margin: 0 auto;
 }
 .matrix-step {
     background: #1a1a1a; border-radius: 3px; border: 1px solid #333;
@@ -787,14 +793,16 @@ top: 2px; }
 }
 .matrix-step:active { transform: scale(0.85); }
 .matrix-step.active { background: #00ffff; border-color: #fff; box-shadow: 0 0 8px #00ffff; }
+
 /* --- КЛАВИАТУРА (KEYS WORKSPACE) --- */
 .ps-keys-workspace {
     display: none; 
     flex-direction: column;
     width: 100%;
     max-width: 400px;
-    aspect-ratio: 1;
-    margin: auto;
+    flex: 1;
+    min-height: 0;
+    margin: 0 auto;
     background: #050505;
     border-radius: 8px;
     border: 2px solid #222;
@@ -802,14 +810,51 @@ top: 2px; }
     box-sizing: border-box;
     box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
 }
+
+/* --- НОВЫЕ ОКНА (PATTERN, EFFECTS, SAMPLER) --- */
+.ps-custom-workspace {
+    display: none; 
+    flex-direction: column;
+    width: 100%;
+    max-width: 400px;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    margin: 0 auto;
+    background: #050505;
+    border-radius: 8px;
+    border: 2px solid #222;
+    padding: 10px;
+    box-sizing: border-box;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+.ps-custom-workspace::-webkit-scrollbar { display: none; }
+
+/* --- СТИЛИ СПИСКА ПАТТЕРНОВ --- */
+.pattern-preset-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #111; padding: 10px; border-radius: 6px; border: 1px solid #222;
+    margin-bottom: 8px; cursor: pointer; transition: 0.1s;
+}
+.pattern-preset-row:active { transform: scale(0.98); background: #222; }
+.pattern-preset-name { font-size: 11px; font-weight: bold; color: #ff8800; width: 85px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pattern-mini-grid { display: flex; gap: 2px; }
+.p-dot { width: 6px; height: 12px; background: #222; border-radius: 2px; }
+.p-dot.on { background: #00ffff; box-shadow: 0 0 5px #00ffff; }
+.p-dot:nth-child(4n):not(:last-child) { margin-right: 5px; }
+
 /* --- СИНТЕЗАТОР (SYNTH WORKSPACE) --- */
 .ps-synth-workspace {
     display: none; 
     flex-direction: column;
     width: 100%;
     max-width: 400px;
-    aspect-ratio: 1;
-    margin: auto;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    margin: 0 auto;
     background: #050505;
     border-radius: 8px;
     border: 2px solid #222;
@@ -889,8 +934,9 @@ top: 2px; }
     overflow-x: auto;
     padding: 0 0 10px 0;
     margin-bottom: 5px;
-    scrollbar-width: none; /* Прячем скролл в Firefox */
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    flex-shrink: 0; /* Запрещаем сплющивать ленту */
 }
 .ps-pads-ribbon::-webkit-scrollbar {
     display: none; /* Прячем скролл в Chrome/Safari */
@@ -977,6 +1023,77 @@ top: 2px; }
     0% { opacity: 1; }
     100% { opacity: 0.4; }
 }
+.pattern-studio-window .modal-body {
+    overflow-y: hidden !important;
+}
+/* --- MULTI-ARP GENERATOR --- */
+.arp-container { display: flex; flex-direction: column; gap: 10px; height: 100%; padding-bottom: 20px; }
+.arp-tabs { display: flex; gap: 6px; }
+.arp-tab { flex: 1; padding: 8px; background: #111; color: #888; border: 1px solid #333; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
+.arp-tab.active { background: #003333; color: #00ffff; border-color: #00ffff; box-shadow: inset 0 0 8px rgba(0,255,255,0.3); }
+
+/* ТРЕХСЛОЙНЫЙ ВИЗУАЛИЗАТОР */
+.arp-vis-box { 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-around; 
+    height: 100px; 
+    background: #050505; 
+    border: 2px solid #222; 
+    border-radius: 8px; 
+    padding: 6px; 
+    box-shadow: inset 0 0 15px #000; 
+    box-sizing: border-box;
+}
+.arp-vis-row { 
+    display: flex; 
+    align-items: center; 
+    gap: 4px; 
+    height: 24px; 
+}
+.arp-row-label { 
+    font-size: 10px; 
+    font-family: monospace; 
+    color: #666; 
+    width: 25px; 
+    flex-shrink: 0; 
+}
+.arp-ticks-grid { 
+    display: flex; 
+    flex: 1; 
+    justify-content: space-between; 
+    align-items: center; 
+    height: 100%; 
+}
+.arp-tick { 
+    width: 2px; 
+    height: 16px; 
+    background: transparent; 
+    border-radius: 1px; 
+    transition: background 0.1s; 
+}
+/* Пунктирная линия на каждую долю (каждые 4 шага) */
+.arp-tick.beat-divider { 
+    border-left: 1px dashed rgba(255, 255, 255, 0.08); 
+}
+/* Сплошная линия на начало каждого такта (каждые 16 шагов) */
+.arp-tick.bar-divider { 
+    border-left: 1px solid rgba(255, 255, 255, 0.25); 
+}
+
+.arp-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #0a0a0a; padding: 10px; border-radius: 8px; border: 1px solid #222; }
+.arp-row { display: flex; flex-direction: column; gap: 5px; }
+.arp-label { font-size: 9px; color: #888; font-weight: bold; display: flex; justify-content: space-between; text-transform: uppercase; }
+.arp-val { color: #00ffff; font-family: monospace; font-size: 11px; }
+.arp-select { background: #111; color: #00ffff; border: 1px solid #333; padding: 6px; border-radius: 4px; font-size: 11px; font-weight: bold; outline: none; }
+/* Состояния кнопок микшера */
+.mix-btn.active-solo { border-color: #00ff00 !important; color: #55ff55 !important; background-color: #003300 !important; box-shadow: 0 0 10px rgba(0,255,0,0.4); }
+.mix-btn.active-mute { border-color: #ff0000 !important; color: #ff5555 !important; background-color: #330000 !important; box-shadow: 0 0 10px rgba(255,0,0,0.4); }
+.mix-btn.active-master { border-color: #ffaa00 !important; color: #ffaa00 !important; background-color: #331a00 !important; box-shadow: 0 0 10px rgba(255,170,0,0.4); }
+.mix-btn.active-meters { border-color: #00ffff !important; color: #00ffff !important; background-color: #003333 !important; box-shadow: 0 0 10px rgba(0,255,255,0.4); }
+
+.ps-ribbon-pad.is-muted { background: #330000; border-color: #ff0000; color: #ff5555; }
+.ps-ribbon-pad.is-solo { background: #003300; border-color: #00ff00; color: #55ff55; }
     </style>
 </head>
 <body style="background-color: #050505;">
@@ -1144,18 +1261,23 @@ top: 2px; }
 </div>
                                     <div id="pad-editor-card" style="border-top: 1px dashed #222; padding-top: 10px; margin-top: 5px;">
     
-    <div class="set-row" style="background: #111; padding: 6px 10px; border-radius: 8px; border: 1px solid #222; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; width: 100%;">
-            <div id="pad-editor-title" style="color: #fff; font-size: 11px; font-weight: bold;">Editing: P1 (Bank A)</div>
-            <div id="pad-editor-filename" style="color: #666; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%;">[Empty]</div>
+    <div class="set-row" style="background: #0a0a0a; padding: 12px; border-radius: 10px; border: 1px solid #222; margin-bottom: 15px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
+        <!-- ИНФО О ПЭДЕ -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #333;">
+            <div id="pad-editor-title" style="color: #ff8800; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Editing: P1 (Bank A)</div>
+            <div id="pad-editor-filename" style="color: #00ffff; font-size: 10px; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">[Empty]</div>
         </div>
-        <div style="display:flex; gap:8px; position: relative;">
-            <button class="pad-action-btn active-mode" id="btn-assign-device" style="flex:1; height: 30px; border-radius: 6px; font-size: 11px;" onclick="clickDeviceBtn()">📂 DEVICE</button>
-            <button class="pad-action-btn" id="btn-assign-records" style="flex:1; height: 30px; border-radius: 6px; font-size: 11px;" onclick="clickRecordsBtn()">🎙️ RECORDS</button>
-            <div id="history-load-list" style="display:none; flex-direction:column; gap:5px; position:absolute; top:36px; right:0; width:calc(50% - 4px); max-height:180px; overflow-y:auto; border:1px solid #444; padding:5px; border-radius:6px; background:#1a1a1a; z-index:100; box-shadow:0 15px 40px rgba(0,0,0,0.95);"></div>
+        
+        <!-- ДВЕ БЫСТРЫЕ КНОПКИ -->
+        <div id="pad-main-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: relative;">
+            <button class="pad-action-btn active-mode" id="btn-assign-device" style="height: 35px; border-radius: 6px; font-size: 10px;" onclick="clickDeviceBtn()">📂 LOAD</button>
+            <button class="pad-action-btn red-mode" id="btn-assign-records" style="height: 35px; border-radius: 6px; font-size: 10px;" onclick="clickRecordsBtn()">🎙️ REC</button>
+            
+            <!-- ВЫПАДАЮЩИЙ СПИСОК ДИКТОФОНА -->
+            <div id="history-load-list" style="display:none; flex-direction:column; gap:5px; position:absolute; top:42px; left:0; right:0; max-height:180px; overflow-y:auto; border:1px solid #444; padding:5px; border-radius:6px; background:#1a1a1a; z-index:100; box-shadow:0 15px 40px rgba(0,0,0,0.95);"></div>
         </div>
     </div>
-<input type="file" id="editor-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
+    <input type="file" id="editor-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
 
 <div class="set-row" style="margin-bottom: 8px;">
     <label>Playback Mode</label>
@@ -1165,18 +1287,6 @@ top: 2px; }
         <option value="Loop">Loop (Repeat)</option>
     </select>
 </div>
-
-                                        <div class="set-row" style="margin: 8px 0;">
-                                            <div style="display: flex; gap: 8px; align-items: stretch; height: 70px;">
-                                                <div style="flex: 1; position: relative; background: #0a0a0a; border: 1px solid #333; border-radius: 6px; overflow: hidden;">
-                                                    <canvas id="waveform-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
-                                                </div>
-                                                <button class="pad-action-btn" id="btn-preview-pad" style="width: 45px; height: 100%; border-radius: 6px; background-color: #002200; border-color: #00aa00; color: #55ff55; font-size: 16px; padding: 0;">▶</button>
-                                            </div>
-                                            <div style="display: flex; margin-top: 5px;">
-                                                <input type="range" class="set-range" id="waveform-zoom" min="1" max="10" value="1" step="0.1" style="flex: 1; height: 6px; border-radius: 3px;">
-                                            </div>
-                                        </div>
 
 <div class="main-knobs-row">
     <div class="main-knob-container">
@@ -1203,10 +1313,7 @@ top: 2px; }
     <div class="fx-unit"><button class="fx-mini-btn active" id="pad-fx-btn-3" onclick="togglePadFx(3)">FX 3</button><div class="fx-mini-knob pad-fx-mix-knob" data-slot="3"><div class="fx-mini-knob-line"></div></div><div class="fx-val-text" id="pad-fx-val-3">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
     <div class="fx-unit"><button class="fx-mini-btn active" id="pad-fx-btn-4" onclick="togglePadFx(4)">FX 4</button><div class="fx-mini-knob pad-fx-mix-knob" data-slot="4"><div class="fx-mini-knob-line"></div></div><div class="fx-val-text" id="pad-fx-val-4">100%</div><div class="fx-dw-label">D/W</div></div>
 </div>
-                                        <div class="set-row"><label>Trim Start</label><div class="set-range-group"><input type="range" class="set-range" id="pad-trim-start-slider" min="0" max="100" value="0" step="0.1" oninput="updateSetRangeLabel(this, '%'); savePadData('trimStart', this.value)"><span class="set-range-val" id="pad-trim-start-val">0.0%</span></div></div>
-                                        <div class="set-row" style="margin-top: -5px;"><label style="color: #6699ff;">Fade In</label><div class="set-range-group"><input type="range" class="set-range" id="pad-fade-in-slider" min="0" max="500" value="0" step="1" oninput="updateSetRangeLabel(this, 'ms'); savePadData('fadeIn', this.value)"><span class="set-range-val" id="pad-fade-in-val" style="color: #6699ff;">0ms</span></div></div>
-                                        <div class="set-row" style="margin-top: 10px;"><label>Trim End</label><div class="set-range-group"><input type="range" class="set-range" id="pad-trim-end-slider" min="0" max="100" value="100" step="0.1" oninput="updateSetRangeLabel(this, '%'); savePadData('trimEnd', this.value)"><span class="set-range-val" id="pad-trim-end-val">100.0%</span></div></div>
-                                        <div class="set-row" style="margin-top: -5px;"><label style="color: #6699ff;">Fade Out</label><div class="set-range-group"><input type="range" class="set-range" id="pad-fade-out-slider" min="0" max="2000" value="0" step="1" oninput="updateSetRangeLabel(this, 'ms'); savePadData('fadeOut', this.value)"><span class="set-range-val" id="pad-fade-out-val" style="color: #6699ff;">0ms</span></div></div>
+                                      
 
 <div class="set-row" style="margin-bottom: 6px;">
     <div style="position: relative;">
@@ -1366,6 +1473,16 @@ top: 2px; }
                                         </div>
                                 </div>
                             </div>
+
+                            <div class="set-section">
+                                <div class="set-header" onclick="toggleSetSection(this)" style="color: #ff66ff; border-color: #aa00ff;">Voice to MIDI Engine</div>
+                                <div class="set-content">
+                                    <div style="font-size: 11px; color: #888; text-align: center; padding: 20px 0; border: 1px dashed #333; border-radius: 6px;">
+                                        [ V2M Engine UI & Settings pending ]
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="set-section" style="margin-bottom: 20px;">
     <div class="set-header" onclick="toggleSetSection(this)">About</div>
     <div class="set-content">
@@ -1436,18 +1553,52 @@ top: 2px; }
 <!-- === СЛАЙД: XY-ТАЧПАД И ГЛОБАЛЬНЫЕ ЭФФЕКТЫ === -->
                 <div class="swiper-slide slide-fx">
                     <div class="fx-container" style="position: relative;">
-                        <div class="fx-header">Fx Section</div>
+                        <!-- СТУДИЙНЫЙ ЭКРАН ВЫБОРА И ЗНАЧЕНИЙ -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #050505; border: 2px solid #222; border-radius: 8px; padding: 6px; margin-bottom: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+                            <div style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;" onclick="selectFxSlot(1)">
+                                <div class="fx-val-text" id="fx-val-1" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            </div>
+                            <div style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;" onclick="selectFxSlot(2)">
+                                <div class="fx-val-text" id="fx-val-2" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            </div>
+                            <div style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;" onclick="selectFxSlot(3)">
+                                <div class="fx-val-text" id="fx-val-3" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            </div>
+                            <div style="flex: 1; text-align: center; cursor: pointer;" onclick="selectFxSlot(4)">
+                                <div class="fx-val-text" id="fx-val-4" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            </div>
+                        </div>
                         <div class="xy-pad" id="xy-pad"><div class="xy-crosshair-v" id="xy-v"></div><div class="xy-crosshair-h" id="xy-h"></div><div class="xy-touch-point" id="xy-touch-point"></div><div id="xy-trails"></div></div>
+                        <!-- ОЧИЩЕННЫЕ КРУТИЛКИ (БЕЗ ТЕКСТА И КНОПОК ВНИЗУ) -->
                         <div class="fx-chain">
-                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-1">FX 1</button><div class="fx-mini-knob" data-fx="1"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-1">100%</div></div><div class="fx-val-text" id="fx-val-1">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
-                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-2">FX 2</button><div class="fx-mini-knob" data-fx="2"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-2">100%</div></div><div class="fx-val-text" id="fx-val-2">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
-                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-3">FX 3</button><div class="fx-mini-knob" data-fx="3"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-3">100%</div></div><div class="fx-val-text" id="fx-val-3">100%</div><div class="fx-dw-label">D/W</div></div><div class="fx-arrow">➔</div>
-                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-4">FX 4</button><div class="fx-mini-knob" data-fx="4"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-4">100%</div></div><div class="fx-val-text" id="fx-val-4">100%</div><div class="fx-dw-label">D/W</div></div>
+                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-1">FX 1</button><div class="fx-mini-knob" data-fx="1"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-1">100%</div></div></div><div class="fx-arrow">➔</div>
+                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-2">FX 2</button><div class="fx-mini-knob" data-fx="2"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-2">100%</div></div></div><div class="fx-arrow">➔</div>
+                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-3">FX 3</button><div class="fx-mini-knob" data-fx="3"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-3">100%</div></div></div><div class="fx-arrow">➔</div>
+                            <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-4">FX 4</button><div class="fx-mini-knob" data-fx="4"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-4">100%</div></div></div>
                         </div>
                         <div class="rec-section" style="margin-top: 25px;">
                             <div class="rec-btn-group"><button class="pad-action-btn" id="btn-fx-tap">TAP</button><button class="pad-action-btn" id="btn-fx-source">SOURCE</button></div>
-                            <div class="display-screen"><div class="screen-text-inner" id="fx-screen">BPM: ---<br>SRC: MASTER<br><span style="color:#ff3333">BANK A</span></div></div>
+                            <div class="display-screen" style="flex-direction: row; justify-content: space-around; padding: 0 8px;">
+                                <div class="screen-text-inner" id="fx-screen" style="flex: 1;">BPM: ---<br>SRC: MASTER<br><span style="color:#ff3333">BANK A</span></div>
+                                <div style="font-size: 16px; color: #666; cursor: pointer; display: flex; align-items: center;" onclick="openFxGlobalSettings()">⚙️</div>
+                            </div>
                             <div class="rec-btn-group"><button class="pad-action-btn" id="btn-fx-hold">HOLD</button><button class="pad-action-btn" id="btn-fx-bank">BANK A/B</button></div>
+                        </div>
+
+                        <!-- КОНТЕЙНЕР НАСТРОЕК ВЫБРАННОГО ЭФФЕКТА -->
+                        <div id="fx-slot-settings" style="display: none; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 10px; margin: 10px 5px 0 5px; overflow-y: auto;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <div style="color: #00ffff; font-size: 10px; font-weight: bold;">НАСТРОЙКИ СЛОТА <span id="fx-active-slot-name">1</span></div>
+                                <div style="color: #ff3333; font-size: 14px; cursor: pointer; font-weight: bold;" onclick="document.getElementById('fx-slot-settings').style.display='none'">✕</div>
+                            </div>
+                            <!-- Сюда JS будет подкидывать ползунки -->
+                            <div id="fx-params-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                <div style="color: #666; font-size: 10px; text-align: center;">Select an effect...</div>
+                            </div>
                         </div>
                         
                         <!-- === ЗАГЛУШКА ДЛЯ APPLE 🤷‍♂️ === -->
@@ -1687,10 +1838,49 @@ top: 2px; }
 <div id="patternStudioModal" class="modal-overlay">
     <div class="modal-window pattern-studio-window">
         
-        <!-- HEADER -->
-        <div class="menu-header" style="margin-bottom: 15px;">
-            <div class="menu-header-bar" onclick="document.getElementById('patternStudioModal').style.display='none'"></div>
-            <span style="margin-top: 15px; font-family: 'MatrixType Display', monospace; color: var(--digital); font-size: 16px;">PATTERN STUDIO</span>
+        <!-- ИНТЕРАКТИВНЫЙ ДИСПЛЕЙ (ВМЕСТО ШАПКИ) -->
+        <div id="ps-info-display" style="display: flex; justify-content: space-between; align-items: center; background: #050505; border: 2px solid #222; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); cursor: pointer;" onclick="document.getElementById('ps-settings-popup').style.display = document.getElementById('ps-settings-popup').style.display === 'none' ? 'block' : 'none'; if(typeof vibrate==='function') vibrate(30);">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px;">[ TAP TO SETUP ]</div>
+                <div id="ps-global-screen" style="font-family: 'MatrixType Display', monospace; color: #00ffff; font-size: 11px; text-shadow: 0 0 5px rgba(0,255,255,0.5);">
+                    BPM: 130 &nbsp;|&nbsp; Q: 1/16 &nbsp;|&nbsp; METRO: OFF
+                </div>
+            </div>
+            <div style="font-size: 14px; color: #666;">⚙️</div>
+        </div>
+
+        <!-- ВСПЛЫВАЮЩЕЕ ОКНО НАСТРОЕК (СКРЫТО) -->
+        <div id="ps-settings-popup" style="display: none; position: absolute; top: 60px; left: 10px; right: 10px; background: #0a0a0a; border: 2px solid #333; border-radius: 8px; padding: 15px; z-index: 100; box-shadow: 0 15px 30px rgba(0,0,0,0.95);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                <span style="color: #ff8800; font-size: 11px; font-weight: bold;">GLOBAL SETTINGS</span>
+                <span style="color: #ff3333; font-size: 14px; cursor: pointer; font-weight: bold;" onclick="document.getElementById('ps-settings-popup').style.display='none'">✕</span>
+            </div>
+            
+            <div class="set-row" style="margin-bottom: 15px;">
+                <label style="color: #00ffff;">Tempo (BPM)</label>
+                <div class="set-range-group">
+                    <input type="range" class="set-range" min="60" max="200" value="130" step="1" oninput="updateSetRangeLabel(this, ' BPM'); globalSettings.bpm = this.value; updateGlobalScreen(); document.getElementById('global-bpm-slider').value = this.value;">
+                    <span class="set-range-val" style="color: #00ffff;">130 BPM</span>
+                </div>
+            </div>
+            
+            <div class="set-row" style="margin-bottom: 15px;">
+                <label>Quantize & Grid</label>
+                <div style="display: flex; gap: 10px;">
+                    <button class="pad-action-btn" style="height:35px; flex: 1;" onclick="vibrate(30); this.classList.toggle('active-mode'); globalSettings.quantizeOn = this.classList.contains('active-mode'); this.textContent = globalSettings.quantizeOn ? 'Q: ON' : 'Q: OFF'; updateGlobalScreen();">Q: OFF</button>
+                    <select class="set-control" style="flex: 1; height: 35px;" onchange="globalSettings.quantize = this.value; document.getElementById('set-quantize-grid').value = this.value; updateGlobalScreen();">
+                        <option>1/4</option>
+                        <option>1/8</option>
+                        <option selected>1/16</option>
+                        <option>1/32</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="pad-action-btn" style="height:35px; flex: 1;" onclick="vibrate(30); this.classList.toggle('active-mode'); globalSettings.metronome = this.classList.contains('active-mode'); this.textContent = globalSettings.metronome ? 'METRO: ON' : 'METRO: OFF'; document.getElementById('btn-metro-toggle').classList.toggle('active-mode', globalSettings.metronome); updateGlobalScreen();">METRO: OFF</button>
+                <button class="pad-action-btn active-mode" style="height:35px; flex: 1;" onclick="vibrate(30); this.classList.toggle('active-mode'); globalSettings.preroll = this.classList.contains('active-mode'); this.textContent = globalSettings.preroll ? 'PRE: ON' : 'PRE: OFF'; document.getElementById('btn-preroll-toggle').classList.toggle('active-mode', globalSettings.preroll); updateGlobalScreen();">PRE: ON</button>
+            </div>
         </div>
 
         <div class="modal-body" style="display: flex; flex-direction: column; padding: 0;">
@@ -1718,17 +1908,14 @@ top: 2px; }
                 </div>
             </div>
 
-            <!-- PRESETS (KICK, SNARE, HATS, PERC, USER, RANDOM) -->
-            <div class="ps-presets-row">
-                <button class="ps-preset-btn">KICK</button>
-                <button class="ps-preset-btn">SNARE</button>
-                <button class="ps-preset-btn">HATS</button>
-                <button class="ps-preset-btn">PERC</button>
-                <button class="ps-preset-btn">USER</button>
-                <button class="ps-preset-btn rand-btn">🎲</button>
+            <!-- ВЕРХНИЙ РЯД (НОВЫЕ ВКЛАДКИ) -->
+            <div class="ps-mode-toggle" style="margin-bottom: 4px; margin-top: 10px;">
+                <button class="ps-mode-btn" id="tab-pattern" onclick="switchPsView('pattern')">PATTERN</button>
+                <button class="ps-mode-btn" id="tab-effects" onclick="switchPsView('effects')">MIXER / FX</button>
+                <button class="ps-mode-btn" id="tab-sampler" onclick="switchPsView('sampler')">SAMPLER</button>
             </div>
-
-            <!-- SEQUENCER / KEYS / SYNTH TOGGLE -->
+            
+            <!-- НИЖНИЙ РЯД (СЕКВЕНСОР / КЛАВИШИ / СИНТЕЗАТОР) -->
             <div class="ps-mode-toggle">
                 <button class="ps-mode-btn active" id="tab-sequencer" onclick="switchPsView('sequencer')">SEQUENCER</button>
                 <button class="ps-mode-btn" id="tab-keys" onclick="switchPsView('keys')">KEYS</button>
@@ -1752,254 +1939,435 @@ top: 2px; }
             </div>
             <!-- 🔺 КОНЕЦ ЛЕНТЫ ПЭДОВ 🔺 -->
 
-            <!-- 8x8 MATRIX WORKSPACE -->
-            <div class="ps-workspace" id="view-sequencer">
-    <div class="pattern-matrix" id="pattern-matrix-grid">
-        <!-- JS сгенерирует 64 ячейки -->
+            <!-- 4. PATTERN WORKSPACE -->
+            <div class="ps-custom-workspace" id="view-pattern" style="display: none; padding: 0;">
+                
+                <!-- ВЕРХНЕЕ МЕНЮ КАТЕГОРИЙ (ФИКСИРОВАННОЕ) -->
+<div style="background: #0a0a0a; padding: 10px; border-bottom: 2px solid #222; flex-shrink: 0; border-radius: 8px 8px 0 0;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1.2fr; gap: 6px;">
+        <button class="pad-action-btn pat-cat-btn" style="border-color: #aa00ff; color: #ff66ff;" onclick="openPatternCategory('synth', this)">SYNTH</button>
+        <button class="pad-action-btn pat-cat-btn" style="border-color: #ffaa00; color: #ffaa00;" onclick="openPatternCategory('hits', this)">HITS</button>
+        <button class="pad-action-btn pat-cat-btn" style="border-color: #0088ff; color: #33aaff;" onclick="openPatternCategory('user', this)">USER</button>
+        <button class="pad-action-btn pat-cat-btn active-mode" style="border-color: #00ffcc; color: #00ffcc;" onclick="openPatternCategory('arp', this)">MULTI-ARP</button>
     </div>
 </div>
-<!-- KEYS WORKSPACE -->
-            <div class="ps-keys-workspace" id="view-keys">
-                <div class="octave-controls">
-                    <button class="oct-btn">◀ OCT -</button>
-                    <span class="oct-display">OCTAVE 3</span>
-                    <button class="oct-btn">OCT + ▶</button>
-                </div>
-                                
-                <!-- 🔻 МИНИ-СЕКВЕНСОР ДЛЯ РЕДАКТИРОВАНИЯ НОТ 🔻 -->
-                <div class="ps-mini-seq">
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step active"></div>
-                    <div class="ps-mini-step editing"></div> <!-- Вот этот мы типа выбрали -->
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step active"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step active"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step"></div>
-                    <div class="ps-mini-step active"></div>
-                    <div class="ps-mini-step"></div>
-                </div>
-                <!-- 🔺 КОНЕЦ МИНИ-СЕКВЕНСОРА 🔺 -->
 
-                <div class="piano-container">
-                    <div class="white-key">C</div>
-                    <div class="white-key">D</div>
-                    <div class="white-key">E</div>
-                    <div class="white-key">F</div>
-                    <div class="white-key">G</div>
-                    <div class="white-key">A</div>
-                    <div class="white-key">B</div>
-
-                    <div class="black-key" style="left: 10.2%;"></div>
-                    <div class="black-key" style="left: 24.5%;"></div>
-                    <div class="black-key" style="left: 53.1%;"></div>
-                    <div class="black-key" style="left: 67.4%;"></div>
-                    <div class="black-key" style="left: 81.7%;"></div>
+                <!-- ПРОКРУЧИВАЕМЫЙ СПИСОК ПАТТЕРНОВ -->
+                <div id="pattern-list-container" style="overflow-y: auto; flex: 1; padding: 10px; scrollbar-width: none;">
+                    <!-- Сюда JS загрузит список кнопок -->
                 </div>
 
-                <div class="octave-led-bar">
-                    <div class="octave-led-indicator"></div>
+            </div>
+
+            <!-- 5. MIXER / FX WORKSPACE -->
+            <div class="ps-custom-workspace" id="view-effects" style="display: none; padding: 0;">
+                
+                <!-- ВЕРХНЯЯ ПАНЕЛЬ РЕЖИМОВ -->
+                <div style="background: #0a0a0a; padding: 10px; border-bottom: 2px solid #222; flex-shrink: 0; border-radius: 8px 8px 0 0;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                        <button class="pad-action-btn mix-btn" id="mix-btn-solo" onclick="toggleMixMode('solo')">SOLO</button>
+                        <button class="pad-action-btn mix-btn" id="mix-btn-mute" onclick="toggleMixMode('mute')">MUTE</button>
+                        <button class="pad-action-btn mix-btn" id="mix-btn-master" onclick="toggleMixMode('master')">MASTER</button>
+                        <button class="pad-action-btn mix-btn" id="mix-btn-meters" onclick="toggleMixMode('meters')">METERS</button>
+                    </div>
+                </div>
+
+                <!-- ЗОНА КРУТИЛОК И ЭФФЕКТОВ (ПЭД / МАСТЕР) -->
+                <div id="mix-settings-area" style="flex: 1; overflow-y: auto; padding: 10px; scrollbar-width: none;">
+                    
+                    <!-- РЯД 1: ЭКВАЛАЙЗЕР (LOW, MID, HIGH) -->
+                    <div class="main-knobs-row" style="margin-top: 0; padding: 12px 6px; background: #0a0a0a; border-radius: 10px; border: 1px solid #222;">
+                        <div class="main-knob-container">
+                            <div class="main-knob-label" id="mix-lbl-1">LOW</div>
+                            <div class="main-knob mix-knob" id="mix-knob-1" data-param=""><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text" id="mix-val-1">0 dB</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob-label" id="mix-lbl-2">MID</div>
+                            <div class="main-knob mix-knob" id="mix-knob-2" data-param=""><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text" id="mix-val-2">0 dB</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob-label" id="mix-lbl-3">HIGH</div>
+                            <div class="main-knob mix-knob" id="mix-knob-3" data-param=""><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text" id="mix-val-3">0 dB</div>
+                        </div>
+                    </div>
+
+                    <!-- РЯД 2: ГРОМКОСТЬ И ЭФФЕКТЫ -->
+                    <div class="main-knobs-row" style="margin-top: 10px; padding: 12px 6px; background: #0a0a0a; border-radius: 10px; border: 1px solid #222;">
+                        <div class="main-knob-container">
+                            <div class="main-knob-label" id="mix-lbl-4">VOLUME</div>
+                            <div class="main-knob mix-knob" id="mix-knob-4" data-param=""><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text" id="mix-val-4">100%</div>
+                        </div>
+                        <div class="main-knob-container">
+                            <div class="main-knob-label" id="mix-lbl-5">FX SEND</div>
+                            <div class="main-knob mix-knob" id="mix-knob-5" data-param=""><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text" id="mix-val-5">100%</div>
+                        </div>
+                        <div class="main-knob-container" id="mix-knob-container-6" style="display: none;">
+                            <div class="main-knob-label" id="mix-lbl-6">FX REL</div>
+                            <div class="main-knob mix-knob" id="mix-knob-6" data-param=""><div class="main-knob-line"></div></div>
+                            <div class="fx-val-text" id="mix-val-6">0ms</div>
+                        </div>
+                    </div>
+
+                    <div class="synth-module-title" id="mix-fx-title" style="margin-top: 15px;">Insert FX</div>
+                    
+                    <div id="mix-fx-slots">
+                        <div class="set-row" style="margin-bottom: 6px;">
+                            <div style="position: relative;">
+                                <select class="set-control mix-fx-sel" id="mix-fx-sel-1" style="padding-right: 90px; -webkit-appearance: none; appearance: none;"></select>
+                                <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none;">FX 1</div>
+                                <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                            </div>
+                            <div id="mix-fx-params-1" class="dynamic-params-container"></div>
+                        </div>
+                        <div class="set-row" style="margin-bottom: 6px;">
+                            <div style="position: relative;">
+                                <select class="set-control mix-fx-sel" id="mix-fx-sel-2" style="padding-right: 90px; -webkit-appearance: none; appearance: none;"></select>
+                                <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none;">FX 2</div>
+                                <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                            </div>
+                            <div id="mix-fx-params-2" class="dynamic-params-container"></div>
+                        </div>
+                        <div class="set-row" style="margin-bottom: 6px;">
+                            <div style="position: relative;">
+                                <select class="set-control mix-fx-sel" id="mix-fx-sel-3" style="padding-right: 90px; -webkit-appearance: none; appearance: none;"></select>
+                                <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none;">FX 3</div>
+                                <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                            </div>
+                            <div id="mix-fx-params-3" class="dynamic-params-container"></div>
+                        </div>
+                        <div class="set-row" style="margin-bottom: 6px;">
+                            <div style="position: relative;">
+                                <select class="set-control mix-fx-sel" id="mix-fx-sel-4" style="padding-right: 90px; -webkit-appearance: none; appearance: none;"></select>
+                                <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none;">FX 4</div>
+                                <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                            </div>
+                            <div id="mix-fx-params-4" class="dynamic-params-container"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ЗОНА VU METERS -->
+                <div id="mix-meters-area" style="flex: 1; display: none; padding: 10px; background: #050505;">
+                    <div style="display: flex; height: 100%; width: 100%;">
+                        <div id="vu-scroll-container" style="flex: 1; overflow-x: auto; scrollbar-width: none; display: flex; flex-direction: column;">
+                            <div style="flex: 1; min-height: 0;">
+                                <canvas id="vu-pads-canvas" style="height: 100%; display: block;"></canvas>
+                            </div>
+                            <div id="vu-knobs-container" style="height: 45px; position: relative; margin-top: 5px; flex-shrink: 0;"></div>
+                        </div>
+                        <div style="width: 50px; border-left: 2px solid #222; margin-left: 5px; padding-left: 5px; display: flex; flex-direction: column;">
+                            <div style="text-align: center; font-size: 9px; color: #ff0000; font-weight: bold; margin-bottom: 4px;">MST</div>
+                            <canvas id="vu-master-canvas" style="width: 100%; flex: 1; display: block;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. SAMPLER WORKSPACE -->
+            <div class="ps-custom-workspace" id="view-sampler" style="display: none; padding: 15px 10px;">
+                
+                <!-- Окно волны -->
+                <div style="flex: 1; min-height: 140px; background: #0a0a0a; border: 2px solid #222; border-radius: 8px; position: relative; overflow-x: auto; overflow-y: hidden; margin-bottom: 20px;">
+                    <canvas id="sampler-canvas" style="height: 100%; display: block;"></canvas>
+                    
+                    <div id="sampler-marker-start" style="position: absolute; top: 0; bottom: 0; left: 0%; width: 2px; background: #ff6600; pointer-events: none; z-index: 10;">
+                        <div style="background: #ff6600; color: #000; font-size: 9px; font-weight: bold; padding: 2px 4px; position: absolute; top: 0; transform: translateX(-50%); border-radius: 2px;">START</div>
+                    </div>
+                    <div id="sampler-marker-end" style="position: absolute; top: 0; bottom: 0; left: 100%; width: 2px; background: #0088ff; pointer-events: none; z-index: 10;">
+                        <div style="background: #0088ff; color: #000; font-size: 9px; font-weight: bold; padding: 2px 4px; position: absolute; top: 0; transform: translateX(-50%); border-radius: 2px;">END</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px; padding: 0 10px;">
+                    <input type="range" class="set-range" id="sampler-zoom" min="1" max="10" value="1" step="0.1" style="width: 100%;">
+                </div>
+
+                <!-- 4 Слайдера точной настройки -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    <div style="text-align: center;">
+                        <input type="range" class="set-range" id="sampler-start" min="0" max="100" value="0" step="0.1" style="width: 100%;">
+                        <div style="font-size: 10px; color: #888; font-family: monospace; margin-top: 6px;">START: <span id="sampler-val-start" style="color: #ff6600;">0.0%</span></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <input type="range" class="set-range" id="sampler-end" min="0" max="100" value="100" step="0.1" style="width: 100%;">
+                        <div style="font-size: 10px; color: #888; font-family: monospace; margin-top: 6px;">END: <span id="sampler-val-end" style="color: #0088ff;">100.0%</span></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <input type="range" class="set-range" id="sampler-fadein" min="0" max="500" value="0" step="1" style="width: 100%;">
+                        <div style="font-size: 10px; color: #888; font-family: monospace; margin-top: 6px;">FADE IN: <span id="sampler-val-fadein" style="color: #ccc;">0ms</span></div>
+                    </div>
+                    <div style="text-align: center;">
+                        <input type="range" class="set-range" id="sampler-fadeout" min="0" max="2000" value="0" step="1" style="width: 100%;">
+                        <div style="font-size: 10px; color: #888; font-family: monospace; margin-top: 6px;">FADE OUT: <span id="sampler-val-fadeout" style="color: #ccc;">0ms</span></div>
+                    </div>
+                </div>
+
+                <!-- Внутренние кнопки управления сэмплером -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex-shrink: 0;">
+                    <button class="pad-action-btn" id="sampler-btn-load" style="height: 35px; border-color: #555; color: #aaa; font-size: 10px;">📂 LOAD</button>
+                    <button class="pad-action-btn red-mode" id="sampler-btn-rec" style="height: 35px; font-size: 10px;">⏺ REC</button>
+                    <button class="pad-action-btn" id="sampler-btn-play" style="height: 35px; background: #002200; border-color: #00aa00; color: #55ff55; font-size: 10px;">▶ PLAY</button>
+                    <button class="pad-action-btn active-mode" id="sampler-btn-assign" style="height: 35px; font-size: 10px; letter-spacing: 0.5px;">ASSIGN</button>
+                </div>
+                <input type="file" id="sampler-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
+            </div>
+
+            
+    <!-- 8x8 MATRIX WORKSPACE -->
+    <div class="ps-workspace" id="view-sequencer">
+        <div class="pattern-matrix" id="pattern-matrix-grid">
+            <!-- JS сгенерирует 64 ячейки -->
+        </div>
+    </div>
+
+    <!-- KEYS WORKSPACE -->
+    <div class="ps-keys-workspace" id="view-keys">
+        <div class="octave-controls">
+            <button class="oct-btn">◀ OCT -</button>
+            <span class="oct-display">OCTAVE 3</span>
+            <button class="oct-btn">OCT + ▶</button>
+        </div>
+                                    
+        <!-- 🔻 МИНИ-СЕКВЕНСОР ДЛЯ РЕДАКТИРОВАНИЯ НОТ 🔻 -->
+        <div class="ps-mini-seq">
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step active"></div>
+            <div class="ps-mini-step editing"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step active"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step active"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step"></div>
+            <div class="ps-mini-step active"></div>
+            <div class="ps-mini-step"></div>
+        </div>
+        <!-- 🔺 КОНЕЦ МИНИ-СЕКВЕНСОРА 🔺 -->
+
+        <div class="piano-container">
+            <div class="white-key">C</div>
+            <div class="white-key">D</div>
+            <div class="white-key">E</div>
+            <div class="white-key">F</div>
+            <div class="white-key">G</div>
+            <div class="white-key">A</div>
+            <div class="white-key">B</div>
+
+            <div class="black-key" style="left: 10.2%;"></div>
+            <div class="black-key" style="left: 24.5%;"></div>
+            <div class="black-key" style="left: 53.1%;"></div>
+            <div class="black-key" style="left: 67.4%;"></div>
+            <div class="black-key" style="left: 81.7%;"></div>
+        </div>
+
+        <div class="octave-led-bar">
+            <div class="octave-led-indicator"></div>
+        </div>
+    </div>
+
+    <!-- 🔻 SYNTH WORKSPACE 🔻 -->
+    <div class="ps-synth-workspace" id="view-synth">
+        <!-- OSCILLATORS & NOISE (MIXER) -->
+        <div class="synth-module">
+            <div class="synth-module-title">Oscillators & Mixer</div>
+            <div class="synth-knobs-row" style="margin-bottom: 10px;">
+                <div class="main-knob-container">
+                    <select class="synth-wave-sel"><option>∿</option><option selected>◺</option><option>⎍</option><option>OFF</option></select>
+                    <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                    <div class="fx-val-text">OSC 1</div>
+                </div>
+                <div class="main-knob-container">
+                    <select class="synth-wave-sel"><option>∿</option><option>◺</option><option selected>⎍</option><option>OFF</option></select>
+                    <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                    <div class="fx-val-text">OSC 2</div>
+                </div>
+                <div class="main-knob-container">
+                    <select class="synth-wave-sel"><option>∿</option><option>◺</option><option>⎍</option><option selected>OFF</option></select>
+                    <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                    <div class="fx-val-text">OSC 3</div>
+                </div>
+                <div class="main-knob-container">
+                    <select class="synth-wave-sel"><option>WHT</option><option>PNK</option><option selected>OFF</option></select>
+                    <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
+                    <div class="fx-val-text">NOISE</div>
                 </div>
             </div>
         </div>
-<!-- 🔻 SYNTH WORKSPACE 🔻 -->
-            <div class="ps-synth-workspace" id="view-synth">
-                <!-- OSCILLATORS & NOISE (MIXER) -->
-                <div class="synth-module">
-                    <div class="synth-module-title">Oscillators & Mixer</div>
-                    <div class="synth-knobs-row" style="margin-bottom: 10px;">
-                        <div class="main-knob-container">
-                            <select class="synth-wave-sel"><option>∿</option><option selected>◺</option><option>⎍</option><option>OFF</option></select>
-                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
-                            <div class="fx-val-text">OSC 1</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <select class="synth-wave-sel"><option>∿</option><option>◺</option><option selected>⎍</option><option>OFF</option></select>
-                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
-                            <div class="fx-val-text">OSC 2</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <select class="synth-wave-sel"><option>∿</option><option>◺</option><option>⎍</option><option selected>OFF</option></select>
-                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
-                            <div class="fx-val-text">OSC 3</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <select class="synth-wave-sel"><option>WHT</option><option>PNK</option><option selected>OFF</option></select>
-                            <div class="main-knob" style="width:30px; height:30px;"><div class="main-knob-line"></div></div>
-                            <div class="fx-val-text">NOISE</div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- FILTER (VCF) -->
-                <div class="synth-module">
-                    <div class="synth-module-title">Ladder Filter (VCF)</div>
-                    <div class="synth-knobs-row">
-                        <div class="main-knob-container">
-                            <div class="main-knob"><div class="main-knob-line" style="transform: rotate(130deg);"></div></div>
-                            <div class="fx-val-text">CUTOFF</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob"><div class="main-knob-line" style="transform: rotate(-130deg);"></div></div>
-                            <div class="fx-val-text">RESO (Q)</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob"><div class="main-knob-line" style="transform: rotate(0deg);"></div></div>
-                            <div class="fx-val-text">ENV MOD</div>
-                        </div>
-                    </div>
+        <!-- FILTER (VCF) -->
+        <div class="synth-module">
+            <div class="synth-module-title">Ladder Filter (VCF)</div>
+            <div class="synth-knobs-row">
+                <div class="main-knob-container">
+                    <div class="main-knob"><div class="main-knob-line" style="transform: rotate(130deg);"></div></div>
+                    <div class="fx-val-text">CUTOFF</div>
                 </div>
-                <!-- LFO (MODULATION) -->
-                <div class="synth-module">
-                    <div class="synth-module-title">LFO (Modulation)</div>
-                    <div class="synth-knobs-row">
-                        <div class="main-knob-container">
-                            <select class="synth-wave-sel"><option selected>∿</option><option>◺</option><option>⎍</option></select>
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-50deg);"></div></div>
-                            <div class="fx-val-text">WAVE</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(20deg);"></div></div>
-                            <div class="fx-val-text">RATE</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-90deg);"></div></div>
-                            <div class="fx-val-text">DEPTH</div>
-                        </div>
-                    </div>
+                <div class="main-knob-container">
+                    <div class="main-knob"><div class="main-knob-line" style="transform: rotate(-130deg);"></div></div>
+                    <div class="fx-val-text">RESO (Q)</div>
                 </div>
-
-                <!-- ENVELOPES -->
-                <div class="synth-module">
-                    <div class="synth-module-title">Envelopes (ADSR)</div>
-                    <div class="synth-knobs-row">
-                        <div class="main-knob-container">
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-130deg);"></div></div>
-                            <div class="fx-val-text">ATTACK</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-50deg);"></div></div>
-                            <div class="fx-val-text">DECAY</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(130deg);"></div></div>
-                            <div class="fx-val-text">SUSTAIN</div>
-                        </div>
-                        <div class="main-knob-container">
-                            <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-100deg);"></div></div>
-                            <div class="fx-val-text">RELEASE</div>
-                        </div>
-                    </div>
-                </div>
-                <!-- SYNTH INSERT FX (Прямой доступ к эффектам) -->
-                <div class="synth-module">
-                    <div class="synth-module-title">Synth Insert Effects</div>
-                    <div class="fx-chain" style="margin: 0; background: transparent; border: none; padding: 0;">
-                        <div class="fx-unit">
-                            <button class="fx-mini-btn active" id="synth-fx-btn-1" onclick="toggleSynthFx(1)">FLTR</button>
-                            <div class="fx-mini-knob synth-fx-mix" data-slot="1"><div class="fx-mini-knob-line"></div></div>
-                            <div class="fx-val-text" id="synth-fx-val-1">100%</div>
-                            <div class="fx-dw-label">D/W</div>
-                        </div>
-                        <div class="fx-arrow">➔</div>
-                        <div class="fx-unit">
-                            <button class="fx-mini-btn active" id="synth-fx-btn-2" onclick="toggleSynthFx(2)">ECHO</button>
-                            <div class="fx-mini-knob synth-fx-mix" data-slot="2"><div class="fx-mini-knob-line"></div></div>
-                            <div class="fx-val-text" id="synth-fx-val-2">100%</div>
-                            <div class="fx-dw-label">D/W</div>
-                        </div>
-                        <div class="fx-arrow">➔</div>
-                        <div class="fx-unit">
-                            <button class="fx-mini-btn active" id="synth-fx-btn-3" onclick="toggleSynthFx(3)">RVRB</button>
-                            <div class="fx-mini-knob synth-fx-mix" data-slot="3"><div class="fx-mini-knob-line"></div></div>
-                            <div class="fx-val-text" id="synth-fx-val-3">100%</div>
-                            <div class="fx-dw-label">D/W</div>
-                        </div>
-                        <div class="fx-arrow">➔</div>
-                        <div class="fx-unit">
-                            <button class="fx-mini-btn active" id="synth-fx-btn-4" onclick="toggleSynthFx(4)">FLNG</button>
-                            <div class="fx-mini-knob synth-fx-mix" data-slot="4"><div class="fx-mini-knob-line"></div></div>
-                            <div class="fx-val-text" id="synth-fx-val-4">100%</div>
-                            <div class="fx-dw-label">D/W</div>
-                        </div>
-                    </div>
-                </div>
-                <!-- СТУДИЙНЫЕ ИНСЕРТ-ЭФФЕКТЫ СИНТЕЗАТОРА (4 СЛОТА) -->
-                <div class="synth-module">
-                    <div class="synth-module-title">Synth Effects Chain</div>
-                    
-                    <!-- СЛОТ 1 -->
-                    <div class="set-row" style="margin-bottom: 8px;">
-                        <div style="position: relative;">
-                            <select class="set-control" id="synth-fx-select-1" onchange="renderFxParams(this, 'synth-insert-fx-1')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
-                                <option value="None" selected>None</option>
-                                <option value="Filter">Filter (LP/HP)</option>
-                                <option value="Delay">Delay / Echo</option>
-                                <option value="Flanger">Flanger (Jet Sweep)</option>
-                                <option value="Reverb">Reverb (Arena)</option>
-                            </select>
-                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 1</div>
-                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
-                        </div>
-                        <div id="synth-insert-fx-1" class="dynamic-params-container"></div>
-                    </div>
-
-                    <!-- СЛОТ 2 -->
-                    <div class="set-row" style="margin-bottom: 8px;">
-                        <div style="position: relative;">
-                            <select class="set-control" id="synth-fx-select-2" onchange="renderFxParams(this, 'synth-insert-fx-2')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
-                                <option value="None" selected>None</option>
-                                <option value="Filter">Filter (LP/HP)</option>
-                                <option value="Delay">Delay / Echo</option>
-                                <option value="Flanger">Flanger (Jet Sweep)</option>
-                                <option value="Reverb">Reverb (Arena)</option>
-                            </select>
-                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 2</div>
-                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
-                        </div>
-                        <div id="synth-insert-fx-2" class="dynamic-params-container"></div>
-                    </div>
-
-                    <!-- СЛОТ 3 -->
-                    <div class="set-row" style="margin-bottom: 8px;">
-                        <div style="position: relative;">
-                            <select class="set-control" id="synth-fx-select-3" onchange="renderFxParams(this, 'synth-insert-fx-3')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
-                                <option value="None" selected>None</option>
-                                <option value="Filter">Filter (LP/HP)</option>
-                                <option value="Delay">Delay / Echo</option>
-                                <option value="Flanger">Flanger (Jet Sweep)</option>
-                                <option value="Reverb">Reverb (Arena)</option>
-                            </select>
-                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 3</div>
-                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
-                        </div>
-                        <div id="synth-insert-fx-3" class="dynamic-params-container"></div>
-                    </div>
-
-                    <!-- СЛОТ 4 -->
-                    <div class="set-row" style="margin-bottom: 6px;">
-                        <div style="position: relative;">
-                            <select class="set-control" id="synth-fx-select-4" onchange="renderFxParams(this, 'synth-insert-fx-4')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
-                                <option value="None" selected>None</option>
-                                <option value="Filter">Filter (LP/HP)</option>
-                                <option value="Delay">Delay / Echo</option>
-                                <option value="Flanger">Flanger (Jet Sweep)</option>
-                                <option value="Reverb">Reverb (Arena)</option>
-                            </select>
-                            <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 4</div>
-                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
-                        </div>
-                        <div id="synth-insert-fx-4" class="dynamic-params-container"></div>
-                    </div>
+                <div class="main-knob-container">
+                    <div class="main-knob"><div class="main-knob-line" style="transform: rotate(0deg);"></div></div>
+                    <div class="fx-val-text">ENV MOD</div>
                 </div>
             </div>
-            <!-- 🔺 КОНЕЦ SYNTH WORKSPACE 🔺 -->
+        </div>
+        <!-- LFO (MODULATION) -->
+        <div class="synth-module">
+            <div class="synth-module-title">LFO (Modulation)</div>
+            <div class="synth-knobs-row">
+                <div class="main-knob-container">
+                    <select class="synth-wave-sel"><option selected>∿</option><option>◺</option><option>⎍</option></select>
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-50deg);"></div></div>
+                    <div class="fx-val-text">WAVE</div>
+                </div>
+                <div class="main-knob-container">
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(20deg);"></div></div>
+                    <div class="fx-val-text">RATE</div>
+                </div>
+                <div class="main-knob-container">
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-90deg);"></div></div>
+                    <div class="fx-val-text">DEPTH</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ENVELOPES -->
+        <div class="synth-module">
+            <div class="synth-module-title">Envelopes (ADSR)</div>
+            <div class="synth-knobs-row">
+                <div class="main-knob-container">
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-130deg);"></div></div>
+                    <div class="fx-val-text">ATTACK</div>
+                </div>
+                <div class="main-knob-container">
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-50deg);"></div></div>
+                    <div class="fx-val-text">DECAY</div>
+                </div>
+                <div class="main-knob-container">
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(130deg);"></div></div>
+                    <div class="fx-val-text">SUSTAIN</div>
+                </div>
+                <div class="main-knob-container">
+                    <div class="main-knob" style="width:28px; height:28px;"><div class="main-knob-line" style="transform: rotate(-100deg);"></div></div>
+                    <div class="fx-val-text">RELEASE</div>
+                </div>
+            </div>
+        </div>
+        <!-- SYNTH INSERT FX -->
+        <div class="synth-module">
+            <div class="synth-module-title">Synth Insert Effects</div>
+            <div class="fx-chain" style="margin: 0; background: transparent; border: none; padding: 0;">
+                <div class="fx-unit">
+                    <button class="fx-mini-btn active" id="synth-fx-btn-1" onclick="toggleSynthFx(1)">FLTR</button>
+                    <div class="fx-mini-knob synth-fx-mix" data-slot="1"><div class="fx-mini-knob-line"></div></div>
+                    <div class="fx-val-text" id="synth-fx-val-1">100%</div>
+                    <div class="fx-dw-label">D/W</div>
+                </div>
+                <div class="fx-arrow">➔</div>
+                <div class="fx-unit">
+                    <button class="fx-mini-btn active" id="synth-fx-btn-2" onclick="toggleSynthFx(2)">ECHO</button>
+                    <div class="fx-mini-knob synth-fx-mix" data-slot="2"><div class="fx-mini-knob-line"></div></div>
+                    <div class="fx-val-text" id="synth-fx-val-2">100%</div>
+                    <div class="fx-dw-label">D/W</div>
+                </div>
+                <div class="fx-arrow">➔</div>
+                <div class="fx-unit">
+                    <button class="fx-mini-btn active" id="synth-fx-btn-3" onclick="toggleSynthFx(3)">RVRB</button>
+                    <div class="fx-mini-knob synth-fx-mix" data-slot="3"><div class="fx-mini-knob-line"></div></div>
+                    <div class="fx-val-text" id="synth-fx-val-3">100%</div>
+                    <div class="fx-dw-label">D/W</div>
+                </div>
+                <div class="fx-arrow">➔</div>
+                <div class="fx-unit">
+                    <button class="fx-mini-btn active" id="synth-fx-btn-4" onclick="toggleSynthFx(4)">FLNG</button>
+                    <div class="fx-mini-knob synth-fx-mix" data-slot="4"><div class="fx-mini-knob-line"></div></div>
+                    <div class="fx-val-text" id="synth-fx-val-4">100%</div>
+                    <div class="fx-dw-label">D/W</div>
+                </div>
+            </div>
+        </div>
+        <!-- СТУДИЙНЫЕ ИНСЕРТ-ЭФФЕКТЫ СИНТЕЗАТОРА (4 СЛОТА) -->
+        <div class="synth-module">
+            <div class="synth-module-title">Synth Effects Chain</div>
+            
+            <!-- СЛОТ 1 -->
+            <div class="set-row" style="margin-bottom: 8px;">
+                <div style="position: relative;">
+                    <select class="set-control" id="synth-fx-select-1" onchange="renderFxParams(this, 'synth-insert-fx-1')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                        <option value="None" selected>None</option>
+                        <option value="Filter">Filter (LP/HP)</option>
+                        <option value="Delay">Delay / Echo</option>
+                        <option value="Flanger">Flanger (Jet Sweep)</option>
+                        <option value="Reverb">Reverb (Arena)</option>
+                    </select>
+                    <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 1</div>
+                    <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                </div>
+                <div id="synth-insert-fx-1" class="dynamic-params-container"></div>
+            </div>
+
+            <!-- СЛОТ 2 -->
+            <div class="set-row" style="margin-bottom: 8px;">
+                <div style="position: relative;">
+                    <select class="set-control" id="synth-fx-select-2" onchange="renderFxParams(this, 'synth-insert-fx-2')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                        <option value="None" selected>None</option>
+                        <option value="Filter">Filter (LP/HP)</option>
+                        <option value="Delay">Delay / Echo</option>
+                        <option value="Flanger">Flanger (Jet Sweep)</option>
+                        <option value="Reverb">Reverb (Arena)</option>
+                    </select>
+                    <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 2</div>
+                    <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                </div>
+                <div id="synth-insert-fx-2" class="dynamic-params-container"></div>
+            </div>
+
+            <!-- СЛОТ 3 -->
+            <div class="set-row" style="margin-bottom: 8px;">
+                <div style="position: relative;">
+                    <select class="set-control" id="synth-fx-select-3" onchange="renderFxParams(this, 'synth-insert-fx-3')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                        <option value="None" selected>None</option>
+                        <option value="Filter">Filter (LP/HP)</option>
+                        <option value="Delay">Delay / Echo</option>
+                        <option value="Flanger">Flanger (Jet Sweep)</option>
+                        <option value="Reverb">Reverb (Arena)</option>
+                    </select>
+                    <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 3</div>
+                    <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                </div>
+                <div id="synth-insert-fx-3" class="dynamic-params-container"></div>
+            </div>
+
+            <!-- СЛОТ 4 -->
+            <div class="set-row" style="margin-bottom: 6px;">
+                <div style="position: relative;">
+                    <select class="set-control" id="synth-fx-select-4" onchange="renderFxParams(this, 'synth-insert-fx-4')" style="padding-right: 90px; -webkit-appearance: none; appearance: none;">
+                        <option value="None" selected>None</option>
+                        <option value="Filter">Filter (LP/HP)</option>
+                        <option value="Delay">Delay / Echo</option>
+                        <option value="Flanger">Flanger (Jet Sweep)</option>
+                        <option value="Reverb">Reverb (Arena)</option>
+                    </select>
+                    <div style="position: absolute; right: 28px; top: 50%; transform: translateY(-50%); color: #00ffcc; font-size: 9px; font-weight: bold; pointer-events: none; letter-spacing: 0.5px;">SYNTH FX 4</div>
+                    <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #666; font-size: 10px; pointer-events: none;">▼</div>
+                </div>
+                <div id="synth-insert-fx-4" class="dynamic-params-container"></div>
+            </div>
+        </div>
+    </div>
+
+
         <!-- FOOTER -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; padding-bottom: 5px;">
             
@@ -2050,29 +2418,638 @@ top: 2px; }
         }
     }
 
-    // Функция переключения между сеткой и клавишами
+    // Умное переключение между всеми 6 экранами студии
     function switchPsView(view) {
         if (navigator.vibrate) navigator.vibrate(20);
         
-        document.getElementById('tab-sequencer').classList.remove('active');
-        document.getElementById('tab-keys').classList.remove('active');
-        document.getElementById('tab-synth').classList.remove('active'); // Новое
+        const tabs = ['pattern', 'effects', 'sampler', 'sequencer', 'keys', 'synth'];
         
-        document.getElementById('view-sequencer').style.display = 'none';
-        document.getElementById('view-keys').style.display = 'none';
-        document.getElementById('view-synth').style.display = 'none'; // Новое
+        // Сначала всё выключаем
+        tabs.forEach(t => {
+            const tabBtn = document.getElementById('tab-' + t);
+            const viewDiv = document.getElementById('view-' + t);
+            if(tabBtn) tabBtn.classList.remove('active');
+            if(viewDiv) viewDiv.style.display = 'none';
+        });
 
-        if (view === 'sequencer') {
-            document.getElementById('tab-sequencer').classList.add('active');
-            document.getElementById('view-sequencer').style.display = 'flex';
-        } else if (view === 'keys') {
-            document.getElementById('tab-keys').classList.add('active');
-            document.getElementById('view-keys').style.display = 'flex';
-        } else {
-            document.getElementById('tab-synth').classList.add('active');
-            document.getElementById('view-synth').style.display = 'flex';
+        // Включаем только то, что нажали
+        const activeTab = document.getElementById('tab-' + view);
+        const activeView = document.getElementById('view-' + view);
+        
+        if(activeTab) activeTab.classList.add('active');
+        if(activeView) activeView.style.display = 'flex'; 
+    }
+
+    // ============================================
+    // ДВИЖОК БИБЛИОТЕКИ ПАТТЕРНОВ
+    // ============================================
+    const patternDatabase = {
+        'kick': [
+            { name: "4/4 Floor", data: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0] },
+            { name: "Break 1", data: [1,0,0,0, 0,0,1,0, 0,0,0,0, 1,0,0,0] },
+            { name: "Syncopated", data: [1,0,0,1, 0,0,1,0, 1,0,0,0, 0,1,0,0] },
+            { name: "Garage", data: [1,0,0,0, 0,0,1,0, 0,0,0,1, 0,0,0,0] }
+        ],
+        'snare': [
+            { name: "Classic 2/4", data: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0] },
+            { name: "Break 1", data: [0,0,0,0, 1,0,0,1, 0,0,1,0, 1,0,0,0] },
+            { name: "Trap", data: [0,0,0,0, 1,0,0,0, 0,0,1,0, 1,0,0,0] }
+        ],
+        'hats': [
+            { name: "16ths", data: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+            { name: "Off-beat", data: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0] },
+            { name: "Trap Rolls", data: [1,0,1,0, 1,1,1,1, 1,0,1,0, 1,1,1,1] },
+            { name: "8ths", data: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0] }
+        ],
+        'perc': [
+            { name: "Conga Groove", data: [0,0,1,0, 0,1,0,1, 0,0,1,0, 0,1,1,0] },
+            { name: "Clave", data: [1,0,0,1, 0,0,1,0, 0,0,0,0, 1,0,1,0] },
+            { name: "Tom Fill", data: [0,0,0,0, 0,0,0,0, 1,0,1,0, 1,1,1,1] }
+        ],
+        'bass': [
+            { name: "Trance Roll", data: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
+            { name: "House Offbeat", data: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0] },
+            { name: "Acid Rumble", data: [1,0,1,1, 1,0,1,1, 1,0,1,1, 1,0,1,1] },
+            { name: "Break Bass", data: [1,0,0,1, 0,1,0,0, 1,0,1,0, 0,1,0,0] }
+        ]
+    };
+
+    function openPatternCategory(category, btnElement) {
+        if (navigator.vibrate) navigator.vibrate(30);
+        
+        if (btnElement) {
+            document.querySelectorAll('.pat-cat-btn').forEach(b => b.classList.remove('active-mode'));
+            btnElement.classList.add('active-mode');
+        }
+        
+        const container = document.getElementById('pattern-list-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (category === 'arp' || category === 'random') {
+            renderArpGenerator();
+            return;
+        }
+
+        if (category === 'user') {
+            renderUserPatterns();
+            return;
+        }
+
+        if (category === 'hits') {
+            renderHitsCategory();
+            return;
+        }
+
+        // Если это synth, берем паттерны баса (синтезатора)
+        const dbCategory = category === 'synth' ? 'bass' : category;
+        const patterns = patternDatabase[dbCategory] || [];
+        
+        patterns.forEach(pat => {
+            let dotsHtml = '';
+            for(let i=0; i<16; i++) {
+                dotsHtml += `<div class="p-dot ${pat.data[i] ? 'on' : ''}"></div>`;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'pattern-preset-row';
+            row.innerHTML = `<div class="pattern-preset-name">${pat.name}</div><div class="pattern-mini-grid">${dotsHtml}</div>`;
+            
+            row.onclick = () => {
+                armPatternLoad(pat.data, row, false);
+            };
+            
+            container.appendChild(row);
+        });
+    }
+
+    function renderHitsCategory() {
+        const container = document.getElementById('pattern-list-container');
+        if (!container) return;
+
+        const categories = [
+            { id: 'kick', title: 'KICKS' },
+            { id: 'snare', title: 'SNARES / CLAPS' },
+            { id: 'hats', title: 'HATS / CYMBALS' },
+            { id: 'perc', title: 'PERCUSSION' }
+        ];
+
+        let html = '';
+        categories.forEach(cat => {
+            let patternsHtml = '';
+            const patterns = patternDatabase[cat.id] || [];
+            
+            patterns.forEach(pat => {
+                let dotsHtml = '';
+                for(let i=0; i<16; i++) {
+                    dotsHtml += `<div class="p-dot ${pat.data[i] ? 'on' : ''}"></div>`;
+                }
+                const dataStr = JSON.stringify(pat.data);
+                patternsHtml += `
+                    <div class="pattern-preset-row" onclick='applyHitPattern(this, ${dataStr})'>
+                        <div class="pattern-preset-name">${pat.name}</div>
+                        <div class="pattern-mini-grid">${dotsHtml}</div>
+                    </div>
+                `;
+            });
+
+            // Используем уже готовые CSS-классы аккордеона из твоего кода
+            html += `
+                <div class="set-section" style="margin-bottom: 8px;">
+                    <div class="set-header" onclick="toggleSetSection(this)" style="padding: 10px; font-size: 11px;">📁 ${cat.title}</div>
+                    <div class="set-content" style="padding: 8px; background: transparent; border: none;">
+                        ${patternsHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // Глобальная функция для клика по паттерну из списка HITS
+    window.applyHitPattern = function(rowElement, patternData) {
+        armPatternLoad(patternData, rowElement, false);
+    };
+
+    // --- ЛОГИКА USER PATTERNS ---
+    function renderUserPatterns() {
+        const container = document.getElementById('pattern-list-container');
+        if (!container) return;
+        container.innerHTML = `
+            <button class="pad-action-btn active-mode" style="width: 100%; height: 45px; margin-bottom: 15px; font-size: 13px; border-radius: 6px; letter-spacing: 1px;" onclick="saveCurrentUserPattern()">
+                💾 SAVE CURRENT PATTERN
+            </button>
+            <div id="user-patterns-list"></div>
+        `;
+        updateUserPatternsList();
+    }
+
+    function updateUserPatternsList() {
+        const listEl = document.getElementById('user-patterns-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        let saved = JSON.parse(localStorage.getItem('dsr_user_patterns')) || [];
+        
+        if (saved.length === 0) {
+            listEl.innerHTML = '<div style="color:#666; text-align:center; font-size:11px; margin-top:20px; font-weight:bold;">NO SAVED PATTERNS YET</div>';
+            return;
+        }
+
+        // Выводим от новых к старым
+        saved.slice().reverse().forEach(pat => {
+            let dotsHtml = '';
+            // Показываем в миниатюре только первые 16 шагов
+            for(let i=0; i<16; i++) {
+                dotsHtml += `<div class="p-dot ${pat.data[i] ? 'on' : ''}"></div>`;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'pattern-preset-row';
+            row.innerHTML = `
+                <div class="pattern-preset-name" style="width: 60px;">${pat.name}</div>
+                <div class="pattern-mini-grid" style="flex:1; justify-content: center;">${dotsHtml}</div>
+                <button style="background:transparent; border:none; color:#ff3333; font-size:16px; padding:0 5px; margin-left: 5px;" onclick="deleteUserPattern(${pat.id}, event)">✕</button>
+            `;
+            
+            row.onclick = (e) => {
+                if (e.target.tagName === 'BUTTON') return; // Игнорируем клик по крестику
+                armPatternLoad(pat.data, row, false);
+            };
+            
+            listEl.appendChild(row);
+        });
+    }
+
+    function saveCurrentUserPattern() {
+        if (navigator.vibrate) navigator.vibrate(50);
+        const grid = document.getElementById('pattern-matrix-grid');
+        if (!grid) return;
+        
+        const cells = grid.children;
+        let newData = [];
+        // Читаем все 64 шага с сетки
+        for (let i = 0; i < 64; i++) {
+            newData.push(cells[i].classList.contains('active') ? 1 : 0);
+        }
+        
+        let saved = JSON.parse(localStorage.getItem('dsr_user_patterns')) || [];
+        const newPat = {
+            id: Date.now(),
+            name: "USER " + (saved.length + 1),
+            data: newData
+        };
+        saved.push(newPat);
+        localStorage.setItem('dsr_user_patterns', JSON.stringify(saved));
+        
+        updateUserPatternsList();
+    }
+
+    function deleteUserPattern(id, e) {
+        e.stopPropagation();
+        if (navigator.vibrate) navigator.vibrate([30, 50]);
+        let saved = JSON.parse(localStorage.getItem('dsr_user_patterns')) || [];
+        saved = saved.filter(p => p.id !== id);
+        
+        // Переименовываем оставшиеся по порядку
+        saved.forEach((p, idx) => p.name = "USER " + (idx + 1));
+        
+        localStorage.setItem('dsr_user_patterns', JSON.stringify(saved));
+        updateUserPatternsList();
+    }
+
+    // --- УМНАЯ ЗАГРУЗКА В МАТРИЦУ ---
+    function loadPatternToSequencer(patternData) {
+        const grid = document.getElementById('pattern-matrix-grid');
+        if (!grid) return;
+        const cells = grid.children;
+        
+        for (let i = 0; i < 64; i++) {
+            // Если данных 64 (юзер), берем [i]. Если 16 (стандарт), зацикливаем луп [i % 16]
+            const val = patternData.length === 64 ? patternData[i] : patternData[i % 16];
+            
+            if (val) cells[i].classList.add('active');
+            else cells[i].classList.remove('active');
         }
     }
+
+    // Загружаем ARP при старте, чтобы список не был пустым
+    window.addEventListener('DOMContentLoaded', () => {
+        const arpBtn = document.querySelector('.pat-cat-btn[onclick*="arp"]');
+        if(arpBtn) openPatternCategory('arp', arpBtn);
+    });
+    // ============================================
+// MULTI-LAYER ARP GENERATOR (EUCLIDEAN MATH)
+// ============================================
+let arpState = {
+    activeLayer: 1,
+    layers: {
+        1: { hits: 8, offset: 0 },
+        2: { hits: 0, offset: 0 },
+        3: { hits: 0, offset: 0 }
+    },
+    rate: 16, feel: 'straight', dir: 'up', octaves: 1
+};
+
+function renderArpGenerator() {
+    const container = document.getElementById('pattern-list-container');
+    if (!container) return;
+
+    let rowsHtml = '';
+    [1, 2, 3].forEach(l => {
+        let ticksHtml = '';
+        for (let i = 0; i < 64; i++) {
+            let divClass = 'arp-tick';
+            if (i % 16 === 0) {
+                divClass += ' bar-divider'; // Начало такта (теперь и для шага 0)
+            } else if (i % 4 === 0) {
+                divClass += ' beat-divider'; // Доля внутри такта
+            }
+            ticksHtml += `<div class="${divClass}" id="arp-tick-${l}-${i}"></div>`;
+        }
+        rowsHtml += `
+            <div class="arp-vis-row">
+                <span class="arp-row-label">L${l}</span>
+                <div class="arp-ticks-grid">${ticksHtml}</div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = `
+        <div class="arp-container">
+            <div class="arp-tabs">
+                <button class="arp-tab active" id="arp-tab-1" onclick="selectArpLayer(1)">Layer 1</button>
+                <button class="arp-tab" id="arp-tab-2" onclick="selectArpLayer(2)">Layer 2</button>
+                <button class="arp-tab" id="arp-tab-3" onclick="selectArpLayer(3)">Layer 3</button>
+            </div>
+
+            <div style="background: #111; padding: 10px; border-radius: 8px; border: 1px solid #222; display: flex; flex-direction: column; gap: 10px;">
+                <div class="arp-row">
+                    <div class="arp-label"><span>HITS (Удары)</span> <span class="arp-val" id="arp-hits-val">${arpState.layers[arpState.activeLayer].hits}</span></div>
+                    <input type="range" class="set-range" id="arp-hits-slider" min="0" max="64" value="${arpState.layers[arpState.activeLayer].hits}" oninput="updateArpState('hits', this.value)">
+                </div>
+                <div class="arp-row">
+                    <div class="arp-label"><span>OFFSET (Сдвиг)</span> <span class="arp-val" id="arp-offset-val">${arpState.layers[arpState.activeLayer].offset}</span></div>
+                    <input type="range" class="set-range" id="arp-offset-slider" min="0" max="63" value="${arpState.layers[arpState.activeLayer].offset}" oninput="updateArpState('offset', this.value)">
+                </div>
+            </div>
+
+            <div class="arp-vis-box">
+                ${rowsHtml}
+            </div>
+
+            <div class="arp-controls-grid">
+                <div class="arp-row">
+                    <div class="arp-label"><span>RATE</span></div>
+                    <select class="arp-select" onchange="updateArpGlobal('rate', this.value)">
+                        <option value="8" ${arpState.rate == 8 ? 'selected' : ''}>1/8</option>
+                        <option value="16" ${arpState.rate == 16 ? 'selected' : ''}>1/16</option>
+                        <option value="32" ${arpState.rate == 32 ? 'selected' : ''}>1/32</option>
+                    </select>
+                </div>
+                <div class="arp-row">
+                    <div class="arp-label"><span>FEEL</span></div>
+                    <select class="arp-select" onchange="updateArpGlobal('feel', this.value)">
+                        <option value="straight" ${arpState.feel === 'straight' ? 'selected' : ''}>Straight</option>
+                        <option value="triplet" ${arpState.feel === 'triplet' ? 'selected' : ''}>Triplet</option>
+                        <option value="dotted" ${arpState.feel === 'dotted' ? 'selected' : ''}>Dotted</option>
+                    </select>
+                </div>
+                <div class="arp-row">
+                    <div class="arp-label"><span>DIRECTION</span></div>
+                    <select class="arp-select" onchange="updateArpGlobal('dir', this.value)">
+                        <option value="up" ${arpState.dir === 'up' ? 'selected' : ''}>Up</option>
+                        <option value="down" ${arpState.dir === 'down' ? 'selected' : ''}>Down</option>
+                        <option value="random" ${arpState.dir === 'random' ? 'selected' : ''}>Random</option>
+                    </select>
+                </div>
+                <div class="arp-row">
+                    <div class="arp-label"><span>OCTAVES</span> <span class="arp-val" id="arp-oct-val">${arpState.octaves}</span></div>
+                    <input type="range" class="set-range" min="1" max="3" value="${arpState.octaves}" oninput="updateArpGlobal('octaves', this.value)">
+                </div>
+            </div>
+
+            <button class="pad-action-btn active-mode" style="height: 55px; border-radius: 8px; font-size: 14px; font-weight: bold; letter-spacing: 1px;" onclick="applyArpToSequencer(this)">APPLY TO PAD...</button>
+        </div>
+    `;
+    drawArpVisualizer();
+}
+
+function selectArpLayer(layer) {
+    if (navigator.vibrate) navigator.vibrate(20);
+    arpState.activeLayer = layer;
+    [1, 2, 3].forEach(l => {
+        const btn = document.getElementById('arp-tab-' + l);
+        if (btn) btn.classList.toggle('active', l === layer);
+    });
+    const hSlider = document.getElementById('arp-hits-slider');
+    const oSlider = document.getElementById('arp-offset-slider');
+    if (hSlider) hSlider.value = arpState.layers[layer].hits;
+    const hVal = document.getElementById('arp-hits-val');
+    if (hVal) hVal.textContent = arpState.layers[layer].hits;
+    if (oSlider) oSlider.value = arpState.layers[layer].offset;
+    const oVal = document.getElementById('arp-offset-val');
+    if (oVal) oVal.textContent = arpState.layers[layer].offset;
+}
+
+function updateArpState(param, value) {
+    arpState.layers[arpState.activeLayer][param] = parseInt(value);
+    const valEl = document.getElementById(`arp-${param}-val`);
+    if (valEl) valEl.textContent = value;
+    drawArpVisualizer();
+}
+
+function updateArpGlobal(param, value) {
+    arpState[param] = isNaN(value) ? value : parseInt(value);
+    if (param === 'octaves') {
+        const octVal = document.getElementById('arp-oct-val');
+        if (octVal) octVal.textContent = value;
+    }
+    drawArpVisualizer();
+}
+
+function generateLayerPattern(layerNum) {
+    let layerPat = new Array(64).fill(0);
+    let hits = arpState.layers[layerNum].hits;
+    let offset = arpState.layers[layerNum].offset;
+
+    if (hits > 0) {
+        for (let i = 0; i < hits; i++) {
+            let pos = Math.floor((i * 64) / hits);
+            layerPat[(pos + offset) % 64] = 1;
+        }
+    }
+
+    if (arpState.feel === 'triplet' || arpState.feel === 'dotted') {
+        let grooved = new Array(64).fill(0);
+        for (let i = 0; i < 64; i++) {
+            if (layerPat[i]) {
+                let shift = 0;
+                if (arpState.feel === 'dotted' && i % 4 === 2) shift = 1;
+                if (arpState.feel === 'triplet' && i % 2 !== 0) shift = Math.random() > 0.5 ? 1 : 0;
+                grooved[(i + shift) % 64] = 1;
+            }
+        }
+        layerPat = grooved;
+    }
+    return layerPat;
+}
+
+function generateArpPattern() {
+    let combined = new Array(64).fill(0);
+    [1, 2, 3].forEach(l => {
+        let pat = generateLayerPattern(l);
+        for (let i = 0; i < 64; i++) {
+            if (pat[i]) combined[i] = 1;
+        }
+    });
+    return combined;
+}
+
+function drawArpVisualizer() {
+    let pitchIndex = 0;
+    let maxSteps = 8 * arpState.octaves;
+
+    [1, 2, 3].forEach(l => {
+        let pat = generateLayerPattern(l);
+        for (let i = 0; i < 64; i++) {
+            const tick = document.getElementById(`arp-tick-${l}-${i}`);
+            if (!tick) continue;
+
+            if (pat[i]) {
+                let hue = 0;
+                if (arpState.dir === 'up') {
+                    hue = (pitchIndex % maxSteps) * (240 / maxSteps);
+                } else if (arpState.dir === 'down') {
+                    hue = 240 - ((pitchIndex % maxSteps) * (240 / maxSteps));
+                } else if (arpState.dir === 'random') {
+                    hue = Math.floor(Math.random() * maxSteps) * (240 / maxSteps);
+                }
+
+                tick.style.background = `hsl(${hue}, 100%, 50%)`;
+                tick.style.boxShadow = `0 0 6px hsl(${hue}, 100%, 50%)`;
+                pitchIndex++;
+            } else {
+                tick.style.background = 'transparent';
+                tick.style.boxShadow = 'none';
+            }
+        }
+    });
+}
+
+function applyArpToSequencer(btnElement) {
+    const pattern = generateArpPattern();
+    if (btnElement) {
+        armPatternLoad(pattern, btnElement, true);
+    }
+}
+// ============================================
+// BIG SAMPLER LOGIC
+// ============================================
+let samplerState = { buffer: null, fileName: '', start: 0, end: 100, fadeIn: 0, fadeOut: 0, assigning: false };
+const sCanvas = document.getElementById('sampler-canvas');
+const sCtx = sCanvas ? sCanvas.getContext('2d') : null;
+
+function drawSamplerWave() {
+    if (!sCanvas || !sCtx) return;
+    const zoom = parseFloat(document.getElementById('sampler-zoom').value) || 1;
+    const parentW = sCanvas.parentElement.clientWidth;
+    const h = sCanvas.parentElement.clientHeight;
+    
+    sCanvas.width = parentW * zoom;
+    sCanvas.height = h;
+    sCtx.clearRect(0, 0, sCanvas.width, h);
+
+    if (!samplerState.buffer) {
+        sCtx.fillStyle = '#444'; sCtx.font = '12px monospace'; sCtx.textAlign = 'center';
+        sCtx.fillText('LOAD OR RECORD SAMPLE', sCanvas.width/2, h/2 + 4);
+        return;
+    }
+
+    const data = samplerState.buffer.getChannelData(0);
+    const step = Math.ceil(data.length / sCanvas.width);
+    const amp = h / 2;
+
+    sCtx.fillStyle = '#00ffff'; 
+    for (let i = 0; i < sCanvas.width; i++) {
+        let min = 1.0, max = -1.0;
+        for (let j = 0; j < step; j++) {
+            const v = data[(i * step) + j];
+            if (v < min) min = v; if (v > max) max = v;
+        }
+        sCtx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+    }
+    
+    const mStart = document.getElementById('sampler-marker-start');
+    const mEnd = document.getElementById('sampler-marker-end');
+    if(mStart) mStart.style.left = samplerState.start + '%';
+    if(mEnd) mEnd.style.left = samplerState.end + '%';
+    
+    sCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    sCtx.fillRect(0, 0, sCanvas.width * (samplerState.start/100), h);
+    sCtx.fillRect(sCanvas.width * (samplerState.end/100), 0, sCanvas.width, h);
+}
+
+const sMap = [
+    { id: 'sampler-start', key: 'start', unit: '%', el: 'sampler-val-start' },
+    { id: 'sampler-end', key: 'end', unit: '%', el: 'sampler-val-end' },
+    { id: 'sampler-fadein', key: 'fadeIn', unit: 'ms', el: 'sampler-val-fadein' },
+    { id: 'sampler-fadeout', key: 'fadeOut', unit: 'ms', el: 'sampler-val-fadeout' }
+];
+
+sMap.forEach(m => {
+    const slider = document.getElementById(m.id);
+    if(slider) {
+        slider.addEventListener('input', e => {
+            samplerState[m.key] = parseFloat(e.target.value);
+            document.getElementById(m.el).textContent = m.unit === '%' ? samplerState[m.key].toFixed(1) + m.unit : Math.round(samplerState[m.key]) + m.unit;
+            drawSamplerWave();
+        });
+    }
+});
+
+const sZoom = document.getElementById('sampler-zoom');
+if(sZoom) sZoom.addEventListener('input', drawSamplerWave);
+
+// Кнопка LOAD (Локальный файл)
+const btnSLoad = document.getElementById('sampler-btn-load');
+const sFileInput = document.getElementById('sampler-file-input');
+if(btnSLoad && sFileInput) {
+    btnSLoad.onclick = async () => { if (audioCtx.state === 'suspended') await audioCtx.resume(); sFileInput.click(); };
+    sFileInput.onchange = e => {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async ev => {
+                samplerState.buffer = await audioCtx.decodeAudioData(ev.target.result);
+                samplerState.fileName = file.name;
+                drawSamplerWave();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        sFileInput.value = '';
+    };
+}
+
+// Кнопка REC (Запись с микрофона прямо в Сэмплер)
+const btnSRec = document.getElementById('sampler-btn-rec');
+let samplerMediaRecorder = null;
+let samplerChunks = [];
+if(btnSRec) {
+    btnSRec.onclick = async () => {
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        
+        if (samplerMediaRecorder && samplerMediaRecorder.state === 'recording') {
+            samplerMediaRecorder.stop();
+            btnSRec.textContent = '⏺ REC'; btnSRec.style.background = ''; btnSRec.style.color = '';
+            vibrate([30,50]);
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                samplerMediaRecorder = new MediaRecorder(stream);
+                samplerChunks = [];
+                samplerMediaRecorder.ondataavailable = e => { if (e.data.size > 0) samplerChunks.push(e.data); };
+                samplerMediaRecorder.onstop = async () => {
+                    const blob = new Blob(samplerChunks);
+                    const arrayBuffer = await blob.arrayBuffer();
+                    samplerState.buffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    samplerState.fileName = 'MIC_SAMPLER_REC';
+                    drawSamplerWave();
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                samplerMediaRecorder.start();
+                btnSRec.textContent = '■ STOP'; btnSRec.style.background = '#ff0000'; btnSRec.style.color = '#fff';
+                vibrate(50);
+            } catch(err) { alert('Mic Access Denied'); }
+        }
+    };
+}
+
+// Логика ASSIGN
+const btnAssign = document.getElementById('sampler-btn-assign');
+if(btnAssign) {
+    btnAssign.onclick = () => {
+        vibrate(30);
+        if(!samplerState.buffer) return;
+        samplerState.assigning = !samplerState.assigning;
+        
+        if (samplerState.assigning) {
+            btnAssign.style.background = '#00ff00'; btnAssign.style.color = '#000'; btnAssign.textContent = 'SELECT PAD ABOVE ➔';
+            document.querySelectorAll('.ps-ribbon-pad').forEach(p => p.style.boxShadow = '0 0 10px #00ff00');
+        } else {
+            btnAssign.style.background = ''; btnAssign.style.color = ''; btnAssign.textContent = 'ASSIGN ➔';
+            document.querySelectorAll('.ps-ribbon-pad').forEach(p => p.style.boxShadow = '');
+        }
+    };
+}
+
+// Перехват клика по ленте пэдов для ASSIGN
+document.querySelectorAll('.ps-ribbon-pad').forEach((pad, idx) => {
+    pad.addEventListener('click', (e) => {
+        if(samplerState.assigning) {
+            e.stopPropagation(); vibrate([30,50]);
+            const padId = idx + 1;
+            const pData = padData[globalSettings.padBank][padId];
+            
+            pData.buffer = samplerState.buffer;
+            pData.fileName = samplerState.fileName;
+            pData.trimStart = samplerState.start;
+            pData.trimEnd = samplerState.end;
+            pData.fadeIn = samplerState.fadeIn;
+            pData.fadeOut = samplerState.fadeOut;
+            
+            samplerState.assigning = false;
+            btnAssign.style.background = ''; btnAssign.style.color = ''; btnAssign.textContent = 'ASSIGN ➔';
+            document.querySelectorAll('.ps-ribbon-pad').forEach(p => p.style.boxShadow = '');
+            
+            if(padId == currentEditingPad) loadPadData();
+            updateMiniPadsVisuals();
+            updateMainPadsVisuals();
+        }
+    });
+});
+
+window.addEventListener('load', drawSamplerWave);
 </script>
 <script>
     // ============================================
@@ -3343,6 +4320,7 @@ top: 2px; }
 function renderFxParams(selectEl, containerId) {
     const type = selectEl.value;
     const container = document.getElementById(containerId);
+    if (!container) return;
     let html = '';
 
     const fxDatabase = {
@@ -3362,18 +4340,19 @@ function renderFxParams(selectEl, containerId) {
     };
 
     let pData = null;
-    let isPadSlot = containerId.startsWith('pad-insert-fx-');
-    let padFxIndex = isPadSlot ? containerId.replace('pad-insert-fx-', '') : null;
+    let isMixer = containerId.startsWith('mix-fx-params-');
+    let isPadSlot = containerId.startsWith('pad-insert-fx-') || (isMixer && typeof mixState !== 'undefined' && mixState.mode !== 'master');
+    let isMasterSlot = containerId.startsWith('fx-params-') || (isMixer && typeof mixState !== 'undefined' && mixState.mode === 'master');
+    let slotIndex = containerId.replace(/[^0-9]/g, '');
 
     if (isPadSlot) {
         pData = padData[globalSettings.padBank][currentEditingPad];
-        let fxKey = 'fx' + padFxIndex;
+        let fxKey = 'fx' + slotIndex;
         
-        // НОВОЕ: Меняем аббревиатуру сразу при выборе из выпадающего списка
-        const btn = document.getElementById('pad-fx-btn-' + padFxIndex);
+        const btn = document.getElementById('pad-fx-btn-' + slotIndex);
         if (btn) {
-            const fxNames = { 'None': `FX ${padFxIndex}`, 'Filter': 'FLTR', 'Delay': 'ECHO', 'Chorus': 'CHOR', 'Flanger': 'FLNG', 'Phaser': 'PHAS', 'Reverb': 'RVRB', 'Orbit': 'ORBT', 'TranceGate': 'GATE', 'NoiseSweep': 'NOIS', 'LoopRoll': 'ROLL', 'VinylBrake': 'STOP', 'Backspin': 'SPIN', 'Bitcrusher': '8BIT' };
-            btn.textContent = fxNames[type] || `FX ${padFxIndex}`;
+            const fxNames = { 'None': `FX ${slotIndex}`, 'Filter': 'FLTR', 'Delay': 'ECHO', 'Chorus': 'CHOR', 'Flanger': 'FLNG', 'Phaser': 'PHAS', 'Reverb': 'RVRB', 'Orbit': 'ORBT', 'TranceGate': 'GATE', 'NoiseSweep': 'NOIS', 'LoopRoll': 'ROLL', 'VinylBrake': 'STOP', 'Backspin': 'SPIN', 'Bitcrusher': '8BIT' };
+            btn.textContent = fxNames[type] || `FX ${slotIndex}`;
         }
 
         if (pData[fxKey] !== type && type !== 'None') {
@@ -3389,9 +4368,9 @@ function renderFxParams(selectEl, containerId) {
         fxDatabase[type].forEach((p, idx) => {
             let currentVal = p.def;
             if (pData && isPadSlot) {
-                if (idx === 0 && pData['fx'+padFxIndex+'p1'] !== undefined) currentVal = pData['fx'+padFxIndex+'p1'];
-                if (idx === 1 && pData['fx'+padFxIndex+'p2'] !== undefined) currentVal = pData['fx'+padFxIndex+'p2'];
-                if (idx === 2 && pData['fx'+padFxIndex+'p3'] !== undefined) currentVal = pData['fx'+padFxIndex+'p3'];
+                if (idx === 0 && pData['fx'+slotIndex+'p1'] !== undefined) currentVal = pData['fx'+slotIndex+'p1'];
+                if (idx === 1 && pData['fx'+slotIndex+'p2'] !== undefined) currentVal = pData['fx'+slotIndex+'p2'];
+                if (idx === 2 && pData['fx'+slotIndex+'p3'] !== undefined) currentVal = pData['fx'+slotIndex+'p3'];
             }
 
             let displayVal = currentVal;
@@ -3424,8 +4403,8 @@ function renderFxParams(selectEl, containerId) {
         attachSliderEvents(container);
     }
     
-    if (window.FX_ENGINE && containerId.startsWith('fx-params-')) { 
-        window.FX_ENGINE.loadEffect(parseInt(containerId.replace('fx-params-', '')) - 1, type); 
+    if (window.FX_ENGINE && isMasterSlot) { 
+        window.FX_ENGINE.loadEffect(parseInt(slotIndex) - 1, type); 
     }
 }
 
@@ -3433,8 +4412,13 @@ function attachSliderEvents(parentContainer) {
     const sliders = parentContainer.querySelectorAll('.fx-dynamic-slider');
     sliders.forEach(slider => {
         const valSpan = slider.parentElement.querySelector('.set-range-val');
-        const unit = slider.dataset.unit; const defVal = slider.dataset.def;
-        const slotId = slider.dataset.slot; const paramIdx = slider.dataset.param;
+        const unit = slider.dataset.unit; 
+        const defVal = slider.dataset.def;
+        const slotId = slider.dataset.slot; 
+        const paramIdx = slider.dataset.param;
+
+        let isMixer = slotId.startsWith('mix-fx-params-');
+        let isPad = slotId.startsWith('pad-insert-fx-') || (isMixer && typeof mixState !== 'undefined' && mixState.mode !== 'master');
 
         const formatDisplay = (val) => {
             if (unit === 'Hz_div100') return (val / 100).toFixed(2) + 'Hz';
@@ -3447,20 +4431,38 @@ function attachSliderEvents(parentContainer) {
 
         const updateValue = (val) => {
             valSpan.textContent = formatDisplay(val);
-            if (slotId.startsWith('pad-insert-fx-')) {
-                let padFxIdx = slotId.replace('pad-insert-fx-', '');
+            if (isPad) {
+                let padFxIdx = slotId.replace(/[^0-9]/g, '');
                 let pData = padData[globalSettings.padBank][currentEditingPad];
                 if (paramIdx === '0') pData['fx'+padFxIdx+'p1'] = parseFloat(val);
                 if (paramIdx === '1') pData['fx'+padFxIdx+'p2'] = parseFloat(val);
                 if (paramIdx === '2') pData['fx'+padFxIdx+'p3'] = parseFloat(val);
                 
-                // ЖИВОЕ ОБНОВЛЕНИЕ ЗВУКА БЕЗ ПЕРЕСОЗДАНИЯ!
                 if (pData['liveUpdateFx'+padFxIdx]) {
                     pData['liveUpdateFx'+padFxIdx](
                         pData['fx'+padFxIdx+'p1'],
                         pData['fx'+padFxIdx+'p2'],
                         pData['fx'+padFxIdx+'p3']
                     );
+                }
+            }
+            
+            // ЗЕРКАЛЬНАЯ СИНХРОНИЗАЦИЯ ПОЛЗУНКОВ-БЛИЗНЕЦОВ
+            let twinSlotId = '';
+            let slotNum = slotId.replace(/[^0-9]/g, '');
+            if (isMixer) {
+                twinSlotId = mixState.mode === 'master' ? 'fx-params-' + slotNum : 'pad-insert-fx-' + slotNum;
+            } else {
+                twinSlotId = 'mix-fx-params-' + slotNum;
+            }
+            
+            const twinContainer = document.getElementById(twinSlotId);
+            if (twinContainer) {
+                const twinSlider = twinContainer.querySelector(`.fx-dynamic-slider[data-param="${paramIdx}"]`);
+                if (twinSlider && twinSlider.value !== val) {
+                    twinSlider.value = val;
+                    const twinValSpan = twinSlider.parentElement.querySelector('.set-range-val');
+                    if (twinValSpan) twinValSpan.textContent = formatDisplay(val);
                 }
             }
         };
@@ -3875,13 +4877,16 @@ function buildPadInsertFx(ctx, pData, inputNode) {
        }
        
        const trimStartSlider = document.getElementById('pad-trim-start-slider');
-       trimStartSlider.value = data.trimStart; updateSetRangeLabel(trimStartSlider, '%');
+       if (trimStartSlider) { trimStartSlider.value = data.trimStart; updateSetRangeLabel(trimStartSlider, '%'); }
+       
        const fadeInSlider = document.getElementById('pad-fade-in-slider');
-       fadeInSlider.value = data.fadeIn; updateSetRangeLabel(fadeInSlider, 'ms');
+       if (fadeInSlider) { fadeInSlider.value = data.fadeIn; updateSetRangeLabel(fadeInSlider, 'ms'); }
+       
        const trimEndSlider = document.getElementById('pad-trim-end-slider');
-       trimEndSlider.value = data.trimEnd; updateSetRangeLabel(trimEndSlider, '%');
+       if (trimEndSlider) { trimEndSlider.value = data.trimEnd; updateSetRangeLabel(trimEndSlider, '%'); }
+       
        const fadeOutSlider = document.getElementById('pad-fade-out-slider');
-       fadeOutSlider.value = data.fadeOut; updateSetRangeLabel(fadeOutSlider, 'ms');
+       if (fadeOutSlider) { fadeOutSlider.value = data.fadeOut; updateSetRangeLabel(fadeOutSlider, 'ms'); }
        for(let i=1; i<=4; i++) {
            const fxSel = document.getElementById('pad-fx-select-' + i);
            if (fxSel) { fxSel.value = data['fx'+i] || 'None'; renderFxParams(fxSel, 'pad-insert-fx-' + i); }
@@ -3889,6 +4894,7 @@ function buildPadInsertFx(ctx, pData, inputNode) {
               
        updateMiniPadsVisuals();
        drawWaveform();
+       if (typeof loadMixerUI === 'function') loadMixerUI();
     }
 
     function savePadData(key, value) { 
@@ -3907,42 +4913,97 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         updateMainPadsVisuals();
     }
 
-    function selectSetPad(padElement, padId) {
-        vibrate(30);
-        document.querySelectorAll('.set-pad-mini').forEach(p => p.classList.remove('active'));
-        padElement.classList.add('active');
-        currentEditingPad = padId; 
-        loadPadData(); 
-    }
-    let resetPadState = false; let resetPadTimeout;
-    function confirmResetPadBank(btn) {
-        if (!resetPadState) {
-            vibrate(30); resetPadState = true; btn.textContent = "TAP AGAIN TO CONFIRM"; btn.style.backgroundColor = "#ff0000"; btn.style.color = "#ffffff";
-            resetPadTimeout = setTimeout(() => { resetPadState = false; btn.textContent = "Reset Pad Bank"; btn.style.backgroundColor = ""; btn.style.color = ""; }, 3000);
+    let pendingPatternLoad = null;
+    let pendingPatternSourceEl = null;
+
+    // Функция "взведения" паттерна перед загрузкой
+    function armPatternLoad(data, element, isArp = false) {
+        if (navigator.vibrate) navigator.vibrate(30);
+
+        // Если уже был взведен другой паттерн, сбрасываем его визуал
+        if (pendingPatternSourceEl) {
+            pendingPatternSourceEl.style.borderColor = '';
+            pendingPatternSourceEl.style.backgroundColor = '';
+            if (pendingPatternSourceEl.classList.contains('pad-action-btn')) {
+                pendingPatternSourceEl.innerHTML = pendingPatternSourceEl.dataset.oldText;
+            } else {
+                pendingPatternSourceEl.querySelector('.pattern-preset-name').innerHTML = pendingPatternSourceEl.dataset.oldText;
+            }
+        }
+
+        pendingPatternLoad = data;
+        pendingPatternSourceEl = element;
+
+        // Сохраняем оригинальный текст
+        const oldText = isArp ? element.innerHTML : element.querySelector('.pattern-preset-name').innerHTML;
+        element.dataset.oldText = oldText;
+
+        // Включаем "боевой" режим (оранжевый цвет)
+        element.style.borderColor = '#ffaa00';
+        element.style.backgroundColor = '#331a00';
+        
+        if (isArp) {
+            element.innerHTML = '❗ SELECT PAD ABOVE';
         } else {
-            vibrate([50, 50]); clearTimeout(resetPadTimeout); resetPadState = false;
-            for(let i=1; i<=12; i++) padData[globalSettings.padBank][i] = { mode: 'One-Shot', pitch: 0, trimStart: 0, fadeIn: 0, trimEnd: 100, fadeOut: 0, send: 100, buffer: null, fileName: '', fx1: 'None', fx1On: true, fx1Mix: 100, fx1p1: 50, fx1p2: 50, fx1p3: 50, fx2: 'None', fx2On: true, fx2Mix: 100, fx2p1: 50, fx2p2: 50, fx2p3: 50, fx3: 'None', fx3On: true, fx3Mix: 100, fx3p1: 50, fx3p2: 50, fx3p3: 50, fx4: 'None', fx4On: true, fx4Mix: 100, fx4p1: 50, fx4p2: 50, fx4p3: 50 };
-            loadPadData(); 
-            updateMainPadsVisuals();
-            btn.textContent = "BANK CLEARED!"; btn.style.backgroundColor = "#00ff00"; btn.style.color = "#003300";
-            setTimeout(() => { btn.textContent = "Reset Pad Bank"; btn.style.backgroundColor = ""; btn.style.color = ""; }, 2000);
+            element.querySelector('.pattern-preset-name').innerHTML = '<span style="color:#ffaa00">❗ SELECT PAD</span>';
+        }
+
+        // Подсвечиваем блок мини-пэдов
+        const padSelector = document.querySelector('.set-pad-selector');
+        if(padSelector) {
+            padSelector.style.boxShadow = '0 0 15px #ffaa00';
+            padSelector.style.border = '1px solid #ffaa00';
+            padSelector.style.borderRadius = '8px';
+            setTimeout(() => {
+                padSelector.style.boxShadow = '';
+                padSelector.style.border = '';
+            }, 2000); // мигнет и останется ждать
         }
     }
 
-    let resetFxState = false; let resetFxTimeout;
-    function confirmResetFxBank(btn) {
-        if (!resetFxState) {
-            vibrate(30); resetFxState = true; btn.textContent = "TAP AGAIN TO CONFIRM"; btn.style.backgroundColor = "#ff0000"; btn.style.color = "#ffffff";
-            resetFxTimeout = setTimeout(() => { resetFxState = false; btn.textContent = "Reset FX Bank"; btn.style.backgroundColor = ""; btn.style.color = ""; }, 3000);
-        } else {
-            vibrate([50, 50]); clearTimeout(resetFxTimeout); resetFxState = false;
-            document.getElementById('fx-select-1').value = 'Filter'; renderFxParams(document.getElementById('fx-select-1'), 'fx-params-1');
-            document.getElementById('fx-select-2').value = 'Delay'; renderFxParams(document.getElementById('fx-select-2'), 'fx-params-2');
-            document.getElementById('fx-select-3').value = 'Reverb'; renderFxParams(document.getElementById('fx-select-3'), 'fx-params-3');
-            document.getElementById('fx-select-4').value = 'Flanger'; renderFxParams(document.getElementById('fx-select-4'), 'fx-params-4');
-            btn.textContent = "BANK CLEARED!"; btn.style.backgroundColor = "#00ff00"; btn.style.color = "#003300";
-            setTimeout(() => { btn.textContent = "Reset FX Bank"; btn.style.backgroundColor = ""; btn.style.color = ""; }, 2000);
+    // Измененная функция клика по мини-пэду
+    function selectSetPad(padElement, padId) {
+        if (navigator.vibrate) navigator.vibrate(30);
+        document.querySelectorAll('.set-pad-mini').forEach(p => p.classList.remove('active'));
+        padElement.classList.add('active');
+        currentEditingPad = padId; 
+        
+        // ЕСЛИ БЫЛ ВЗВЕДЕН ПАТТЕРН - ЗАГРУЖАЕМ ЕГО В ЭТОТ ПЭД!
+        if (pendingPatternLoad) {
+            loadPatternToSequencer(pendingPatternLoad);
+            
+            if (pendingPatternSourceEl) {
+                // Красим в зеленый (Успех)
+                pendingPatternSourceEl.style.borderColor = '#00ff00';
+                pendingPatternSourceEl.style.backgroundColor = '#003300';
+                
+                if (pendingPatternSourceEl.classList.contains('pad-action-btn')) {
+                    pendingPatternSourceEl.innerHTML = `LOADED TO PAD ${padId} ✓`;
+                } else {
+                    pendingPatternSourceEl.querySelector('.pattern-preset-name').innerHTML = `<span style="color:#55ff55">PAD ${padId} ✓</span>`;
+                }
+                
+                // Возвращаем как было через 1.5 сек
+                setTimeout(() => {
+                    if(pendingPatternSourceEl) {
+                        pendingPatternSourceEl.style.borderColor = '';
+                        pendingPatternSourceEl.style.backgroundColor = '';
+                        if (pendingPatternSourceEl.classList.contains('pad-action-btn')) {
+                            pendingPatternSourceEl.innerHTML = pendingPatternSourceEl.dataset.oldText;
+                        } else {
+                            pendingPatternSourceEl.querySelector('.pattern-preset-name').innerHTML = pendingPatternSourceEl.dataset.oldText;
+                        }
+                        pendingPatternSourceEl = null;
+                    }
+                }, 1500);
+            }
+            
+            pendingPatternLoad = null;
+            loadPadData(); 
+            return;
         }
+
+        loadPadData(); 
     }
     
 
@@ -5416,6 +6477,7 @@ if (btnMainTap) {
             if (textEl) textEl.textContent = Math.round(val) + unit;
             
             savePadData(paramName, val);
+            if (typeof syncVisualKnob === 'function') syncVisualKnob(paramName, val);
         };
 
         knob.addEventListener('touchstart', (e) => {
@@ -6491,9 +7553,15 @@ if (loopLenSelect) {
 }
 
 function updateGlobalScreen() {
+    // Старый экран в общих настройках
     const screen = document.getElementById('set-global-screen');
     if (screen) {
         screen.innerHTML = `BPM: ${globalSettings.bpm} &ensp; METRO: ${globalSettings.metronome ? 'ON' : 'OFF'}<br>QUANTIZE: ${globalSettings.quantize} &ensp; PRE-ROLL: ${globalSettings.preroll ? 'ON' : 'OFF'}`;
+    }
+    // Новый экран-кнопка в Pattern Studio
+    const psScreen = document.getElementById('ps-global-screen');
+    if (psScreen) {
+        psScreen.innerHTML = `BPM: ${globalSettings.bpm} &nbsp;|&nbsp; Q: ${globalSettings.quantize} &nbsp;|&nbsp; METRO: ${globalSettings.metronome ? 'ON' : 'OFF'}`;
     }
 }
 
@@ -6617,6 +7685,566 @@ document.querySelectorAll('.pad-fx-mix-knob').forEach(knob => {
             wetNode.gain.setTargetAtTime(mix, now, 0.02);
         }
     }, {passive: false});
+});
+// ============================================
+// MIXER, SOLO/MUTE & VU METERS LOGIC
+// ============================================
+let mixState = { mode: 'pad' };
+let metersAnimFrame = null;
+let masterMixSettings = { vol_master: 100, atk_master: 0, rel_master: 0, eqLow: 0, eqMid: 0, eqHigh: 0 };
+
+if (window.FX_ENGINE && !FX_ENGINE.masterAnalyser) {
+    FX_ENGINE.masterAnalyser = audioCtx.createAnalyser();
+    FX_ENGINE.masterAnalyser.fftSize = 64;
+    if(FX_ENGINE.masterLimiter) FX_ENGINE.masterLimiter.connect(FX_ENGINE.masterAnalyser);
+}
+
+function toggleMixMode(mode) {
+    vibrate(30);
+    const pData = padData[globalSettings.padBank][currentEditingPad];
+    
+    if (mode === 'solo' && mixState.mode === 'pad') {
+        pData.isSolo = !pData.isSolo;
+        document.getElementById('mix-btn-solo').classList.toggle('active-solo', pData.isSolo);
+        updateLivePadGains();
+        updateMiniPadsVisuals();
+        return;
+    }
+    if (mode === 'mute' && mixState.mode === 'pad') {
+        pData.isMuted = !pData.isMuted;
+        document.getElementById('mix-btn-mute').classList.toggle('active-mute', pData.isMuted);
+        updateLivePadGains();
+        updateMiniPadsVisuals();
+        return;
+    }
+
+    mixState.mode = mode === mixState.mode ? 'pad' : mode;
+    
+    document.querySelectorAll('.mix-btn').forEach(b => b.classList.remove('active-master', 'active-meters'));
+    if (mixState.mode === 'master') document.getElementById('mix-btn-master').classList.add('active-master');
+    if (mixState.mode === 'meters') document.getElementById('mix-btn-meters').classList.add('active-meters');
+    
+    loadMixerUI();
+}
+
+function updateLivePadGains() {
+    const now = audioCtx.currentTime;
+    const isAnySolo = Object.values(padData[globalSettings.padBank]).some(p => p.isSolo);
+    
+    for(let i=1; i<=12; i++) {
+        const p = padData[globalSettings.padBank][i];
+        if (p.activeGain) {
+            let vol = (p.volume !== undefined ? p.volume : 100) / 100;
+            if (p.isMuted) vol = 0;
+            if (isAnySolo && !p.isSolo) vol = 0;
+            p.activeGain.gain.setTargetAtTime(vol, now, 0.02);
+        }
+    }
+}
+
+const originalUpdateMiniPadsVisuals = updateMiniPadsVisuals;
+updateMiniPadsVisuals = function() {
+    originalUpdateMiniPadsVisuals();
+    document.querySelectorAll('.ps-ribbon-pad').forEach((p, idx) => {
+        const pId = idx + 1;
+        const pData = padData[globalSettings.padBank][pId];
+        p.classList.remove('is-muted', 'is-solo');
+        if (pData.isMuted) p.classList.add('is-muted');
+        if (pData.isSolo) p.classList.add('is-solo');
+    });
+};
+// --- ЗЕРКАЛЬНАЯ СИНХРОНИЗАЦИЯ КРУТИЛОК ---
+function syncVisualKnob(param, val) {
+    // Обновляем крутилки в Микшере
+    if (typeof mixState !== 'undefined') {
+        if (mixState.mode === 'pad') {
+            if (param === 'volume') updateKnobUI('mix-knob-4', val);
+            if (param === 'send') updateKnobUI('mix-knob-5', val);
+            if (param === 'eqLow') updateKnobUI('mix-knob-1', val);
+            if (param === 'eqMid') updateKnobUI('mix-knob-2', val);
+            if (param === 'eqHigh') updateKnobUI('mix-knob-3', val);
+        } else if (mixState.mode === 'master') {
+            if (param === 'vol_master') updateKnobUI('mix-knob-4', val);
+            if (param === 'atk_master') updateKnobUI('mix-knob-5', val);
+            if (param === 'rel_master') updateKnobUI('mix-knob-6', val);
+        }
+    }
+    // Обновляем крутилки в Settings
+    if (param === 'volume') {
+        updateKnobUI('knob-vol', val);
+        // Синхронизируем крутилку под VU-метром (если она отрисована)
+        const meterKnob = document.querySelector(`.meter-vol-knob[data-pad="${currentEditingPad}"]`);
+        if (meterKnob) {
+            const percent = val / 150;
+            const line = meterKnob.querySelector('.main-knob-line');
+            if (line) line.style.transform = `rotate(${-130 + percent * 260}deg)`;
+            const textEl = meterKnob.nextElementSibling;
+            if (textEl) textEl.textContent = Math.round(val) + '%';
+        }
+    }
+    if (param === 'pitch') updateKnobUI('knob-pitch', val);
+    if (param === 'send') updateKnobUI('knob-send', val);
+    
+    // Обновляем ползунки Мастера в Settings
+    if (param === 'atk_master') {
+        const el = document.getElementById('fx-global-attack');
+        if (el && el.value != val) { el.value = val; if(typeof updateSetRangeLabel === 'function') updateSetRangeLabel(el, 'ms'); }
+    }
+    if (param === 'rel_master') {
+        const el = document.getElementById('fx-global-release');
+        if (el && el.value != val) { el.value = val; if(typeof updateSetRangeLabel === 'function') updateSetRangeLabel(el, 'ms'); }
+    }
+}
+
+function updateKnobUI(id, val) {
+    const knob = document.getElementById(id);
+    if (!knob) return;
+    const min = parseFloat(knob.dataset.min);
+    const max = parseFloat(knob.dataset.max);
+    const unit = knob.dataset.unit;
+    const percent = (val - min) / (max - min);
+    const line = knob.querySelector('.main-knob-line');
+    if (line) line.style.transform = `rotate(${-130 + (percent * 260)}deg)`;
+    let textId = id.replace('mix-knob-', 'mix-val-').replace('knob-', 'val-');
+    const textEl = document.getElementById(textId);
+    if (textEl) textEl.textContent = Math.round(val) + (unit === 'semitones' ? ' ST' : unit);
+}
+
+// Привязка системных ползунков Мастера к микшеру
+window.addEventListener('DOMContentLoaded', () => {
+    const atkSlider = document.getElementById('fx-global-attack');
+    if(atkSlider) atkSlider.addEventListener('input', (e) => {
+        masterMixSettings.atk_master = parseFloat(e.target.value);
+        syncVisualKnob('atk_master', e.target.value);
+    });
+    const relSlider = document.getElementById('fx-global-release');
+    if(relSlider) relSlider.addEventListener('input', (e) => {
+        masterMixSettings.rel_master = parseFloat(e.target.value);
+        syncVisualKnob('rel_master', e.target.value);
+    });
+});
+
+function loadMixerUI() {
+    const settingsArea = document.getElementById('mix-settings-area');
+    const metersArea = document.getElementById('mix-meters-area');
+    const pData = padData[globalSettings.padBank][currentEditingPad];
+    
+    if (mixState.mode === 'meters') {
+        if (settingsArea) settingsArea.style.display = 'none';
+        if (metersArea) metersArea.style.display = 'block';
+        startMeters();
+        return;
+    }
+    
+    if (settingsArea) settingsArea.style.display = 'block';
+    if (metersArea) metersArea.style.display = 'none';
+    stopMeters();
+
+    const btnSolo = document.getElementById('mix-btn-solo');
+    const btnMute = document.getElementById('mix-btn-mute');
+    if (btnSolo) btnSolo.classList.toggle('active-solo', !!pData.isSolo);
+    if (btnMute) btnMute.classList.toggle('active-mute', !!pData.isMuted);
+
+    if (mixState.mode === 'master') {
+        const title = document.getElementById('mix-fx-title');
+        if (title) title.textContent = 'Global Master FX';
+        if (btnSolo) btnSolo.style.opacity = '0.3';
+        if (btnMute) btnMute.style.opacity = '0.3';
+        
+        setupMixKnob(1, 'LOW', 'eqLow', -12, 12, 0, ' dB', masterMixSettings);
+        setupMixKnob(2, 'MID', 'eqMid', -12, 12, 0, ' dB', masterMixSettings);
+        setupMixKnob(3, 'HIGH', 'eqHigh', -12, 12, 0, ' dB', masterMixSettings);
+        setupMixKnob(4, 'MST VOL', 'vol_master', 0, 150, 100, '%', masterMixSettings);
+        setupMixKnob(5, 'FX ATTK', 'atk_master', 0, 1000, 0, 'ms', masterMixSettings);
+        
+        const knob6 = document.getElementById('mix-knob-container-6');
+        if (knob6) knob6.style.display = 'flex';
+        setupMixKnob(6, 'FX REL', 'rel_master', 0, 2000, 0, 'ms', masterMixSettings);
+        
+        loadMixFxSelects('master');
+    } else {
+        const title = document.getElementById('mix-fx-title');
+        if (title) title.textContent = `Pad ${currentEditingPad} Insert FX`;
+        if (btnSolo) btnSolo.style.opacity = '1';
+        if (btnMute) btnMute.style.opacity = '1';
+        
+        setupMixKnob(1, 'LOW', 'eqLow', -12, 12, 0, ' dB', pData);
+        setupMixKnob(2, 'MID', 'eqMid', -12, 12, 0, ' dB', pData);
+        setupMixKnob(3, 'HIGH', 'eqHigh', -12, 12, 0, ' dB', pData);
+        setupMixKnob(4, 'VOLUME', 'volume', 0, 150, 100, '%', pData);
+        setupMixKnob(5, 'FX SEND', 'send', 0, 100, 100, '%', pData);
+        
+        const knob6 = document.getElementById('mix-knob-container-6');
+        if (knob6) knob6.style.display = 'none';
+        
+        loadMixFxSelects('pad');
+    }
+}
+
+function setupMixKnob(idx, label, param, min, max, def, unit, targetObj) {
+    document.getElementById(`mix-lbl-${idx}`).textContent = label;
+    const knob = document.getElementById(`mix-knob-${idx}`);
+    knob.dataset.param = param; knob.dataset.min = min; knob.dataset.max = max; knob.dataset.unit = unit;
+    knob.dataset.def = def;
+    
+    let val = targetObj[param] !== undefined ? targetObj[param] : def;
+    const percent = (val - min) / (max - min);
+    knob.querySelector('.main-knob-line').style.transform = `rotate(${-130 + (percent * 260)}deg)`;
+    document.getElementById(`mix-val-${idx}`).textContent = Math.round(val) + unit;
+}
+
+// Привязка обработчиков на все 6 крутилок (1 раз)
+document.querySelectorAll('.mix-knob').forEach(knob => {
+    let startY = 0; let startVal = 0;
+    
+    knob.addEventListener('touchstart', (e) => {
+        e.stopPropagation(); startY = e.touches[0].clientY;
+        const param = knob.dataset.param;
+        const def = parseFloat(knob.dataset.def);
+        const targetObj = mixState.mode === 'master' ? masterMixSettings : padData[globalSettings.padBank][currentEditingPad];
+        
+        startVal = targetObj[param] !== undefined ? targetObj[param] : def;
+        const label = document.getElementById(knob.id.replace('knob', 'lbl')).textContent;
+        showOnSmartScreen(label, Math.round(startVal) + knob.dataset.unit);
+        
+        const scroller = document.getElementById('mix-settings-area');
+        if (scroller) { scroller.style.touchAction = 'none'; scroller.style.overflowY = 'hidden'; }
+    }, {passive: false});
+
+    knob.addEventListener('touchmove', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const param = knob.dataset.param;
+        const min = parseFloat(knob.dataset.min);
+        const max = parseFloat(knob.dataset.max);
+        const unit = knob.dataset.unit;
+        
+        let newVal = startVal + (startY - e.touches[0].clientY) * 0.25; 
+        if (newVal < min) newVal = min; if (newVal > max) newVal = max;
+        newVal = Math.round(newVal);
+        
+        const targetObj = mixState.mode === 'master' ? masterMixSettings : padData[globalSettings.padBank][currentEditingPad];
+        targetObj[param] = newVal;
+        
+        const percent = (newVal - min) / (max - min);
+        knob.querySelector('.main-knob-line').style.transform = `rotate(${-130 + percent * 260}deg)`;
+        document.getElementById(knob.id.replace('knob', 'val')).textContent = newVal + unit;
+        
+        const label = document.getElementById(knob.id.replace('knob', 'lbl')).textContent;
+        showOnSmartScreen(label, newVal + unit);
+        if (typeof syncVisualKnob === 'function') syncVisualKnob(param, newVal);
+        
+        const now = audioCtx.currentTime;
+        if (mixState.mode === 'master') {
+            if (param === 'vol_master' && FX_ENGINE.outputGain) FX_ENGINE.outputGain.gain.setTargetAtTime(newVal / 100, now, 0.02);
+            if (param === 'eqLow' && FX_ENGINE.masterEqLow) FX_ENGINE.masterEqLow.gain.setTargetAtTime(newVal, now, 0.02);
+            if (param === 'eqMid' && FX_ENGINE.masterEqMid) FX_ENGINE.masterEqMid.gain.setTargetAtTime(newVal, now, 0.02);
+            if (param === 'eqHigh' && FX_ENGINE.masterEqHigh) FX_ENGINE.masterEqHigh.gain.setTargetAtTime(newVal, now, 0.02);
+        } else {
+            if (param === 'volume' && targetObj.activeGain) targetObj.activeGain.gain.setTargetAtTime(newVal / 100, now, 0.02);
+            if (param === 'eqLow' && targetObj.activeEqLow) targetObj.activeEqLow.gain.setTargetAtTime(newVal, now, 0.02);
+            if (param === 'eqMid' && targetObj.activeEqMid) targetObj.activeEqMid.gain.setTargetAtTime(newVal, now, 0.02);
+            if (param === 'eqHigh' && targetObj.activeEqHigh) targetObj.activeEqHigh.gain.setTargetAtTime(newVal, now, 0.02);
+            if (param === 'send' && targetObj.fxDry && targetObj.fxWet) {
+                targetObj.fxDry.gain.setTargetAtTime(1.0 - (newVal / 100), now, 0.02);
+                targetObj.fxWet.gain.setTargetAtTime(newVal / 100, now, 0.02);
+            }
+        }
+    }, {passive: false});
+    
+    const releaseLock = () => {
+        const scroller = document.getElementById('mix-settings-area');
+        if (scroller) { scroller.style.touchAction = 'pan-y'; scroller.style.overflowY = 'auto'; }
+    };
+
+    let lastTap = 0;
+    knob.addEventListener('touchend', (e) => {
+        releaseLock();
+        const now = Date.now();
+        if (now - lastTap < 300) { 
+            vibrate(30);
+            const param = knob.dataset.param;
+            const def = parseFloat(knob.dataset.def);
+            const targetObj = mixState.mode === 'master' ? masterMixSettings : padData[globalSettings.padBank][currentEditingPad];
+            targetObj[param] = def;
+            
+            const min = parseFloat(knob.dataset.min);
+            const max = parseFloat(knob.dataset.max);
+            const percent = (def - min) / (max - min);
+            knob.querySelector('.main-knob-line').style.transform = `rotate(${-130 + percent * 260}deg)`;
+            document.getElementById(knob.id.replace('knob', 'val')).textContent = def + knob.dataset.unit;
+            knob.dispatchEvent(new Event('touchmove'));
+        }
+        lastTap = now;
+    });
+    knob.addEventListener('touchcancel', releaseLock);
+});
+
+// Хак для проброса мастер настроек Atk/Rel в старые модули
+const oldTriggerAttack = window.FX_ENGINE.triggerAttack;
+window.FX_ENGINE.triggerAttack = function(oldMs) { oldTriggerAttack.call(this, masterMixSettings.atk_master || 0); };
+const oldTriggerRelease = window.FX_ENGINE.triggerRelease;
+window.FX_ENGINE.triggerRelease = function(oldMs) { oldTriggerRelease.call(this, masterMixSettings.rel_master || 0); };
+
+const fxOptionsHTML = `<option value="None">None</option><option value="Filter">Filter (LP/HP)</option><option value="Delay">Delay / Echo</option><option value="Flanger">Flanger (Jet Sweep)</option><option value="Reverb">Reverb (Arena)</option>`;
+
+function loadMixFxSelects() {
+    const target = mixState.mode === 'master' ? 'master' : 'pad';
+    for(let i=1; i<=4; i++) {
+        const sel = document.getElementById('mix-fx-sel-' + i);
+        if(!sel) continue;
+        sel.innerHTML = fxOptionsHTML;
+        if (target === 'master') {
+            sel.value = window.FX_ENGINE ? (window.FX_ENGINE.slots[i-1].type || 'None') : 'None';
+        } else {
+            sel.value = padData[globalSettings.padBank][currentEditingPad]['fx'+i] || 'None';
+        }
+        
+        // Рендерим в правильные контейнеры микшера
+        if (typeof renderFxParams === 'function') {
+            renderFxParams(sel, 'mix-fx-params-' + i);
+        }
+    }
+}
+
+// Привязка селекторов МИКШЕРА (перенаправляем выбор на страницу Settings)
+document.querySelectorAll('.mix-fx-sel').forEach((sel, idx) => {
+    sel.addEventListener('change', (e) => {
+        const slot = idx + 1;
+        const target = mixState.mode === 'master' ? 'master' : 'pad';
+        
+        if (target === 'pad') {
+            const setSel = document.getElementById('pad-fx-select-' + slot);
+            if (setSel) { 
+                setSel.value = e.target.value; 
+                setSel.dispatchEvent(new Event('change')); // Имитируем клик в Settings
+            }
+        } else {
+            const setSel = document.getElementById('fx-select-' + slot);
+            if (setSel) { 
+                setSel.value = e.target.value; 
+                setSel.dispatchEvent(new Event('change')); // Имитируем клик в Settings
+            }
+        }
+    });
+});
+
+// Слушаем изменения в Settings и автоматически обновляем Микшер
+window.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[id^="pad-fx-select-"], [id^="fx-select-"]').forEach(sel => {
+        sel.addEventListener('change', () => {
+            if (typeof loadMixFxSelects === 'function') loadMixFxSelects();
+        });
+    });
+});
+
+function getRMS(analyser) {
+    if (!analyser) return 0;
+    const data = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(data);
+    let sum = 0; for(let i=0; i<data.length; i++) sum += data[i]*data[i];
+    return Math.sqrt(sum / data.length);
+}
+
+function drawVUMeter(ctx, width, height, rmsL, rmsR) {
+    ctx.clearRect(0, 0, width, height);
+    const segHeight = 4; const gap = 2;
+    const totalSegs = Math.floor(height / (segHeight + gap));
+    
+    const levelL = Math.max(0, Math.min(1, (rmsL * 4.0))); 
+    const levelR = Math.max(0, Math.min(1, (rmsR * 4.0)));
+    
+    const activeSegsL = Math.floor(levelL * totalSegs);
+    const activeSegsR = Math.floor(levelR * totalSegs);
+
+    const colW = (width - 4) / 2;
+    for(let i=0; i<totalSegs; i++) {
+        const y = height - (i * (segHeight + gap)) - segHeight;
+        let color = i > totalSegs * 0.8 ? '#ff0000' : (i > totalSegs * 0.6 ? '#ffff00' : '#00ff00');
+        
+        ctx.fillStyle = i < activeSegsL ? color : '#111';
+        ctx.fillRect(0, y, colW, segHeight);
+        
+        ctx.fillStyle = i < activeSegsR ? color : '#111';
+        ctx.fillRect(colW + 4, y, colW, segHeight);
+    }
+}
+
+window.lastActivePadsStr = "";
+
+function startMeters() {
+    const padsCanvas = document.getElementById('vu-pads-canvas');
+    const masterCanvas = document.getElementById('vu-master-canvas');
+    if (!padsCanvas || !masterCanvas) return;
+    
+    const pCtx = padsCanvas.getContext('2d');
+    const mCtx = masterCanvas.getContext('2d');
+    
+    function loop() {
+        if (mixState.mode !== 'meters') return;
+        
+        const activePads = [];
+        for(let i=1; i<=12; i++) {
+            if (padData[globalSettings.padBank][i].fileName) activePads.push(i);
+        }
+        
+        const padWidth = 40; const padGap = 10;
+        padsCanvas.width = activePads.length * (padWidth + padGap);
+        padsCanvas.height = padsCanvas.parentElement.clientHeight;
+        
+        // НОВОЕ: Проверяем, изменился ли состав загруженных пэдов
+        const currentActiveStr = globalSettings.padBank + ':' + activePads.join(',');
+        if (window.lastActivePadsStr !== currentActiveStr) {
+            window.lastActivePadsStr = currentActiveStr;
+            rebuildMetersKnobs(activePads, padWidth, padGap);
+        }
+        
+        activePads.forEach((padId, idx) => {
+            const p = padData[globalSettings.padBank][padId];
+            const rms = p.analyser ? getRMS(p.analyser) : 0;
+            
+            pCtx.save();
+            pCtx.translate(idx * (padWidth + padGap), 0);
+            
+            pCtx.fillStyle = '#666'; pCtx.font = '9px monospace'; pCtx.textAlign = 'center';
+            pCtx.fillText(`P${padId}`, padWidth/2, padsCanvas.height - 2);
+            
+            drawVUMeter(pCtx, padWidth, padsCanvas.height - 15, rms, rms);
+            pCtx.restore();
+        });
+
+        masterCanvas.width = masterCanvas.parentElement.clientWidth;
+        masterCanvas.height = masterCanvas.parentElement.clientHeight - 15;
+        const mRms = window.FX_ENGINE && window.FX_ENGINE.masterAnalyser ? getRMS(window.FX_ENGINE.masterAnalyser) : 0;
+        drawVUMeter(mCtx, masterCanvas.width, masterCanvas.height, mRms, mRms);
+
+        metersAnimFrame = requestAnimationFrame(loop);
+    }
+    loop();
+}
+
+function stopMeters() {
+    cancelAnimationFrame(metersAnimFrame);
+}
+
+// --- НОВОЕ: ГЕНЕРАТОР КРУТИЛОК ДЛЯ МЕТРОВ ---
+function rebuildMetersKnobs(activePads, padWidth, padGap) {
+    const container = document.getElementById('vu-knobs-container');
+    if (!container) return;
+    container.innerHTML = '';
+    container.style.width = (activePads.length * (padWidth + padGap)) + 'px';
+    
+    activePads.forEach((padId, idx) => {
+        const pData = padData[globalSettings.padBank][padId];
+        const vol = pData.volume !== undefined ? pData.volume : 100;
+        const percent = vol / 150;
+        const angle = -130 + (percent * 260);
+        
+        // Центрируем крутилку (28px) в слоте (40px)
+        const leftPos = idx * (padWidth + padGap) + (padWidth - 28) / 2; 
+        
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'absolute';
+        wrapper.style.left = leftPos + 'px';
+        wrapper.style.top = '0';
+        wrapper.style.width = '28px';
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
+        wrapper.style.alignItems = 'center';
+        
+        wrapper.innerHTML = `
+            <div class="main-knob meter-vol-knob" data-pad="${padId}" style="width:28px; height:28px; min-height:28px; border-width: 1px;">
+                <div class="main-knob-line" style="transform: rotate(${angle}deg); height: 10px; bottom: 50%;"></div>
+            </div>
+            <div class="fx-val-text" style="font-size: 9px; margin-top: 2px;">${Math.round(vol)}%</div>
+        `;
+        container.appendChild(wrapper);
+    });
+    
+    attachMetersKnobsEvents();
+}
+
+function attachMetersKnobsEvents() {
+    document.querySelectorAll('.meter-vol-knob').forEach(knob => {
+        let startY = 0; let startVal = 0;
+        const padId = knob.dataset.pad;
+        
+        knob.addEventListener('touchstart', (e) => {
+            e.stopPropagation(); startY = e.touches[0].clientY;
+            const pData = padData[globalSettings.padBank][padId];
+            startVal = pData.volume !== undefined ? pData.volume : 100;
+            
+            const scroller = document.getElementById('vu-scroll-container');
+            if (scroller) { scroller.style.touchAction = 'none'; scroller.style.overflowX = 'hidden'; }
+            showOnSmartScreen(`PAD ${padId} VOL`, Math.round(startVal) + '%');
+        }, {passive: false});
+
+        knob.addEventListener('touchmove', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            let newVal = startVal + (startY - e.touches[0].clientY) * 0.4; 
+            if (newVal < 0) newVal = 0; if (newVal > 150) newVal = 150;
+            newVal = Math.round(newVal);
+            
+            const pData = padData[globalSettings.padBank][padId];
+            pData.volume = newVal;
+            
+            const percent = newVal / 150;
+            knob.querySelector('.main-knob-line').style.transform = `rotate(${-130 + percent * 260}deg)`;
+            knob.nextElementSibling.textContent = newVal + '%';
+            showOnSmartScreen(`PAD ${padId} VOL`, newVal + '%');
+            
+            // Меняем звук на лету
+            if (pData.activeGain) {
+                const now = audioCtx.currentTime;
+                let vol = newVal / 100;
+                if (pData.isMuted) vol = 0;
+                const isAnySolo = Object.values(padData[globalSettings.padBank]).some(p => p.isSolo);
+                if (isAnySolo && !pData.isSolo) vol = 0;
+                pData.activeGain.gain.setTargetAtTime(vol, now, 0.02);
+            }
+            
+            // Если этот пэд сейчас выбран в интерфейсе микшера, синхронизируем главные ручки
+            if (padId == currentEditingPad) {
+                if (typeof syncVisualKnob === 'function') syncVisualKnob('volume', newVal);
+            }
+        }, {passive: false});
+        
+        const releaseLock = () => {
+            const scroller = document.getElementById('vu-scroll-container');
+            if (scroller) { scroller.style.touchAction = 'pan-x'; scroller.style.overflowX = 'auto'; }
+        };
+        
+        let lastTap = 0;
+        knob.addEventListener('touchend', (e) => {
+            releaseLock();
+            const now = Date.now();
+            if (now - lastTap < 300) { 
+                vibrate(30); const def = 100;
+                const pData = padData[globalSettings.padBank][padId];
+                pData.volume = def;
+                
+                knob.querySelector('.main-knob-line').style.transform = `rotate(-130deg)`;
+                knob.nextElementSibling.textContent = '100%';
+                showOnSmartScreen(`PAD ${padId} VOL`, '100%');
+                
+                if (pData.activeGain) {
+                    let vol = def / 100;
+                    if (pData.isMuted) vol = 0;
+                    const isAnySolo = Object.values(padData[globalSettings.padBank]).some(p => p.isSolo);
+                    if (isAnySolo && !pData.isSolo) vol = 0;
+                    pData.activeGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.02);
+                }
+                if (padId == currentEditingPad) {
+                    if (typeof syncVisualKnob === 'function') syncVisualKnob('volume', def);
+                }
+            }
+            lastTap = now;
+        });
+        knob.addEventListener('touchcancel', releaseLock);
+    });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(loadMixerUI, 600);
 });
 </script>
 </body>
