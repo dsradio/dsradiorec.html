@@ -1580,7 +1580,7 @@ top: 2px; }
                             <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-3">FX 3</button><div class="fx-mini-knob" data-fx="3"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-3">100%</div></div></div><div class="fx-arrow">➔</div>
                             <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-4">FX 4</button><div class="fx-mini-knob" data-fx="4"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-4">100%</div></div></div>
                         </div>
-                        <div class="rec-section" style="margin-top: 25px;">
+                        <div class="rec-section" style="margin-top: 10px;">
                             <div class="rec-btn-group"><button class="pad-action-btn" id="btn-fx-tap">TAP</button><button class="pad-action-btn" id="btn-fx-source">SOURCE</button></div>
                             <div class="display-screen" style="flex-direction: row; justify-content: space-around; padding: 0 8px;">
                                 <div class="screen-text-inner" id="fx-screen" style="flex: 1;">BPM: ---<br>SRC: MASTER<br><span style="color:#ff3333">BANK A</span></div>
@@ -1590,14 +1590,13 @@ top: 2px; }
                         </div>
 
                         <!-- ПОСТОЯННАЯ ПАНЕЛЬ НАСТРОЕК ЭФФЕКТА -->
-                        <div id="fx-slot-settings" style="display: block; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 10px; margin: 10px 5px 0 5px; overflow-y: auto;">
-                            <div style="color: #00ffff; font-size: 10px; font-weight: bold; margin-bottom: 8px;">НАСТРОЙКИ СЛОТА <span id="fx-active-slot-name">1</span></div>
-                            
-                            <!-- Контейнеры ползунков (переключаются через JS) -->
-                            <div id="fx-slot-wrapper-1" style="display: block;"><div id="fx-params-1" class="dynamic-params-container"></div></div>
-                            <div id="fx-slot-wrapper-2" style="display: none;"><div id="fx-params-2" class="dynamic-params-container"></div></div>
-                            <div id="fx-slot-wrapper-3" style="display: none;"><div id="fx-params-3" class="dynamic-params-container"></div></div>
-                            <div id="fx-slot-wrapper-4" style="display: none;"><div id="fx-params-4" class="dynamic-params-container"></div></div>
+                        <!-- margin-top: -15px подтягивает контейнер вплотную к кнопкам -->
+                        <div id="fx-slot-settings" style="display: block; flex: 1; margin: -15px 5px 0 5px; overflow-y: auto;">
+                            <!-- height: 100% заставляет серый фон занять всю оставшуюся высоту экрана -->
+                            <div id="fx-slot-wrapper-1" style="display: block; height: 100%;"><div id="fx-params-1" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
+                            <div id="fx-slot-wrapper-2" style="display: none; height: 100%;"><div id="fx-params-2" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
+                            <div id="fx-slot-wrapper-3" style="display: none; height: 100%;"><div id="fx-params-3" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
+                            <div id="fx-slot-wrapper-4" style="display: none; height: 100%;"><div id="fx-params-4" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
                         </div>
                         
                         <!-- === ЗАГЛУШКА ДЛЯ APPLE 🤷‍♂️ === -->
@@ -8250,10 +8249,6 @@ let activeMacroSlot = 1;
 function selectFxSlot(slotIdx) {
     if (navigator.vibrate) navigator.vibrate(30);
     activeMacroSlot = slotIdx;
-    
-    // Меняем цифру в заголовке
-    const titleSpan = document.getElementById('fx-active-slot-name');
-    if (titleSpan) titleSpan.textContent = slotIdx;
     
     // Подсвечиваем кнопки SELECT (1-4)
     for (let i = 1; i <= 4; i++) {
