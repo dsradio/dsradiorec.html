@@ -160,8 +160,8 @@
         .set-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #ff6600; cursor: pointer; box-shadow: 0 0 5px rgba(255,102,0,0.5); }
         .set-range-val { font-family: monospace; font-size: 13px; color: #ff8800; font-weight: bold; width: 55px; text-align: right; flex-shrink: 0; }
 
-        .dynamic-params-container { padding: 8px 10px; background: #0d0d0d; border-radius: 6px; border-left: 2px solid #333; margin-top: 5px; display: none; }
-        .dynamic-params-container.show { display: flex; flex-direction: column; gap: 10px; }
+        .dynamic-params-container { padding: 8px 10px; background: #0d0d0d; border-radius: 6px; border: none; margin-top: 5px; display: none; }
+        .dynamic-params-container.show { display: flex; flex-direction: column; gap: 2px; }
 
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #111; border: 1px solid #222; border-radius: 6px; margin-bottom: 6px; position: relative; transition: 0.2s; }
         .history-item.selected-row { border-color: #ff6600; background: #221100; }
@@ -4380,7 +4380,7 @@ function renderFxParams(selectEl, containerId) {
             else displayVal = currentVal + p.unit;
 
             html += `
-                <div class="set-row" style="margin-bottom: 8px;">
+                <div class="set-row" style="margin-bottom: 2px;">
                     <label style="font-size: 10px; color: #555;">${p.name}</label>
                     <div class="set-range-group">
                         <input type="range" class="set-range fx-dynamic-slider" 
