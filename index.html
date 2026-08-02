@@ -52,7 +52,21 @@
         .scroll-container { flex: 1; width: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; scroll-snap-type: y mandatory; }
 
         .top-radio-group { scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; width: 100%; height: 100vh; height: 100dvh; }
-        
+        /* === HARDWARE PREMIUM STYLES === */
+        .hardware-panel { 
+            background: linear-gradient(145deg, #1f1f1f 0%, #0a0a0a 100%); 
+            border: 1px solid #333; 
+            border-radius: 16px; 
+            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.05), 0 10px 40px rgba(0, 0, 0, 0.9); 
+            padding: 12px 10px !important; 
+        }
+        .hardware-inset { 
+            background: #050505; 
+            border: 1px solid #222; 
+            border-top: 2px solid #111; 
+            border-radius: 12px; 
+            box-shadow: inset 0 5px 20px rgba(0, 0, 0, 0.9); 
+        }        
         
         /* ИСПРАВЛЕНИЕ ВЫРАВНИВАНИЯ ЭКРАНОВ */
         .lower-section { scroll-snap-align: start; scroll-snap-stop: always; height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
@@ -68,21 +82,69 @@
 /* Убрали лишний отступ под заголовками */
 .fx-header { color: #ff6600; text-align: center; font-style: italic; font-weight: 900; font-size: 26px; margin-bottom: 5px; letter-spacing: 1px; flex-shrink: 0; }
 
-/* Пэды центрируются в пустом пространстве и пропорционально сжимаются */
-        .pads-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: auto; width: 100%; max-width: 44vh; flex-shrink: 0; }
-        .pad { border-radius: 15px; aspect-ratio: 1; border: 2px solid transparent; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s, border-color 0.2s; touch-action: none; }
-        .pad:active { transform: scale(0.95); }
-        .pad.blinking { animation: padBlink 0.8s infinite alternate; }
-        @keyframes padBlink { 0% { border-color: transparent; } 100% { border-color: #ffaa00; box-shadow: 0 0 10px rgba(255,170,0,0.5); } }
-        .pad.ready-to-rec { border-color: #ffff00; box-shadow: 0 0 15px rgba(255,255,0,0.6); } 
-        .pad.recording { border-color: #ff0000; box-shadow: 0 0 20px rgba(255,0,0,0.8); transform: scale(0.95); }
-        .pads-grid.bank-A .pad.has-sample { border-color: #0088ff; box-shadow: 0 0 15px rgba(0,136,255,0.8); }
-        .pads-grid.bank-B .pad.has-sample { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.8); }
-        .pads-grid.bank-C .pad.has-sample { border-color: #ff0000; box-shadow: 0 0 15px rgba(255,0,0,0.8); }
-        .pads-grid.bank-D .pad.has-sample { border-color: #cc00ff; box-shadow: 0 0 15px rgba(204,0,255,0.8); }
-        .pad-1 { background: radial-gradient(circle, #2a002a 10%, #ff00ff 100%); } .pad-2 { background: radial-gradient(circle, #330000 10%, #ff0000 100%); } .pad-3 { background: radial-gradient(circle, #331a00 10%, #ff8800 100%); } .pad-4 { background: radial-gradient(circle, #003333 10%, #00ffff 100%); } .pad-5 { background: radial-gradient(circle, #003300 10%, #00ff00 100%); } .pad-6 { background: radial-gradient(circle, #33111a 10%, #ff6688 100%); } .pad-7 { background: radial-gradient(circle, #1a001a 10%, #800080 100%); } .pad-8 { background: radial-gradient(circle, #000033 10%, #0000ff 100%); } .pad-9 { background: radial-gradient(circle, #333300 10%, #ffff00 100%); } .pad-10 { background: radial-gradient(circle, #003300 10%, #00ff00 100%); } .pad-11 { background: radial-gradient(circle, #330000 10%, #cc0000 100%); } .pad-12 { background: radial-gradient(circle, #2a002a 10%, #ff00ff 100%); }
+/* --- НОВЫЙ ДИЗАЙН: УМНЫЕ ПЭДЫ (OLED-ЭКРАНЫ) --- */
+.pads-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: auto; width: 100%; max-width: 44vh; flex-shrink: 0; }
 
-        .rec-section { display: flex; justify-content: space-between; align-items: stretch; padding: 0 5px; margin-top: 20px; height: 78px; flex-shrink: 0; transform: translateY(-20px); }
+/* УВЕЛИЧИЛИ РАМКУ: padding 7px (был 4), border 3px (был 2) */
+.pad { width: 100%; aspect-ratio: 1; border-radius: 14px; background: #111; padding: 7px; box-sizing: border-box; cursor: pointer; position: relative; transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s; border: 3px solid #222; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.pad:active { transform: scale(0.92); }
+
+/* Внутренний OLED Экранчик */
+.pad-screen { width: 100%; height: 100%; background: #020202; border-radius: 6px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 12px rgba(0,0,0,1); pointer-events: none; }
+.pad-wave { position: absolute; bottom: 0; left: 0; width: 100%; height: 60%; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 2px, transparent 2px, transparent 4px); clip-path: polygon(0% 100%, 0% 60%, 15% 30%, 30% 80%, 45% 10%, 60% 70%, 75% 40%, 90% 90%, 100% 50%, 100% 100%); z-index: 1; display: none; }
+.pad-title { font-size: 11px; font-weight: bold; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.9); font-family: monospace; }
+.badge-id { position: absolute; top: 4px; left: 4px; font-size: 10px; font-weight: bold; z-index: 2; font-family: monospace; }
+.badge-len { position: absolute; bottom: 4px; right: 4px; color: #ffaa00; background: #331a00; border: 1px solid #ffaa00; font-size: 8px; font-weight: bold; padding: 1px 3px; border-radius: 3px; z-index: 2; display: none; font-family: monospace; }
+
+/* Анимация мигания при ожидании загрузки */
+.pad.blinking { animation: padBlink 0.8s infinite alternate; }
+@keyframes padBlink { 0% { border-color: #222; box-shadow: none; } 100% { border-color: #ffaa00; box-shadow: 0 0 15px rgba(255,170,0,0.8), inset 0 0 8px #ffaa00; } }
+
+/* === БАНК А (СИНИЙ) === */
+.pads-grid.bank-A .pad.empty { border-color: #001a33; background: #000a14; }
+.pads-grid.bank-A .pad.empty .badge-id { color: #004488; }
+.pads-grid.bank-A .pad.empty .pad-title { color: #222; }
+
+.pads-grid.bank-A .pad.has-sample { border-color: #004488; background: #001122; box-shadow: 0 0 8px rgba(0,136,255,0.3), inset 0 0 5px #000; }
+.pads-grid.bank-A .pad.has-sample:active { border-color: #0088ff; background: #002244; box-shadow: 0 0 20px rgba(0,136,255,0.9), inset 0 0 10px #0088ff; }
+.pads-grid.bank-A .pad.has-sample .pad-title { color: #fff; }
+.pads-grid.bank-A .pad.has-sample .badge-id { color: #00ffff; }
+.pads-grid.bank-A .pad.has-sample .pad-wave { background: repeating-linear-gradient(90deg, rgba(0,136,255,0.3) 0px, rgba(0,136,255,0.3) 2px, transparent 2px, transparent 4px); }
+
+/* === БАНК B (ЗЕЛЕНЫЙ) === */
+.pads-grid.bank-B .pad.empty { border-color: #002200; background: #000a00; }
+.pads-grid.bank-B .pad.empty .badge-id { color: #005500; }
+.pads-grid.bank-B .pad.empty .pad-title { color: #222; }
+
+.pads-grid.bank-B .pad.has-sample { border-color: #004400; background: #001100; box-shadow: 0 0 8px rgba(0,255,0,0.3), inset 0 0 5px #000; }
+.pads-grid.bank-B .pad.has-sample:active { border-color: #00ff00; background: #002200; box-shadow: 0 0 20px rgba(0,255,0,0.9), inset 0 0 10px #00ff00; }
+.pads-grid.bank-B .pad.has-sample .pad-title { color: #fff; }
+.pads-grid.bank-B .pad.has-sample .badge-id { color: #55ff55; }
+.pads-grid.bank-B .pad.has-sample .pad-wave { background: repeating-linear-gradient(90deg, rgba(0,255,0,0.3) 0px, rgba(0,255,0,0.3) 2px, transparent 2px, transparent 4px); }
+
+/* === БАНК C (КРАСНЫЙ) === */
+.pads-grid.bank-C .pad.empty { border-color: #2a0000; background: #0a0000; }
+.pads-grid.bank-C .pad.empty .badge-id { color: #660000; }
+.pads-grid.bank-C .pad.empty .pad-title { color: #222; }
+
+.pads-grid.bank-C .pad.has-sample { border-color: #440000; background: #110000; box-shadow: 0 0 8px rgba(255,0,0,0.3), inset 0 0 5px #000; }
+.pads-grid.bank-C .pad.has-sample:active { border-color: #ff0000; background: #220000; box-shadow: 0 0 20px rgba(255,0,0,0.9), inset 0 0 10px #ff0000; }
+.pads-grid.bank-C .pad.has-sample .pad-title { color: #fff; }
+.pads-grid.bank-C .pad.has-sample .badge-id { color: #ff5555; }
+.pads-grid.bank-C .pad.has-sample .pad-wave { background: repeating-linear-gradient(90deg, rgba(255,0,0,0.3) 0px, rgba(255,0,0,0.3) 2px, transparent 2px, transparent 4px); }
+
+/* === БАНК D (ФИОЛЕТОВЫЙ) === */
+.pads-grid.bank-D .pad.empty { border-color: #1a002a; background: #05000a; }
+.pads-grid.bank-D .pad.empty .badge-id { color: #440066; }
+.pads-grid.bank-D .pad.empty .pad-title { color: #222; }
+
+.pads-grid.bank-D .pad.has-sample { border-color: #330044; background: #11001a; box-shadow: 0 0 8px rgba(204,0,255,0.3), inset 0 0 5px #000; }
+.pads-grid.bank-D .pad.has-sample:active { border-color: #cc00ff; background: #220033; box-shadow: 0 0 20px rgba(204,0,255,0.9), inset 0 0 10px #cc00ff; }
+.pads-grid.bank-D .pad.has-sample .pad-title { color: #fff; }
+.pads-grid.bank-D .pad.has-sample .badge-id { color: #e680ff; }
+.pads-grid.bank-D .pad.has-sample .pad-wave { background: repeating-linear-gradient(90deg, rgba(204,0,255,0.3) 0px, rgba(204,0,255,0.3) 2px, transparent 2px, transparent 4px); }
+
+        .rec-section { display: flex; justify-content: space-between; align-items: stretch; padding: 0 5px; margin-top: 0; height: 78px; flex-shrink: 0; }
 
         .rec-btn-group { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; width: 75px; height: 100%; }
         .pad-action-btn { width: 100%; height: 35px; background-color: #111; border: 2px solid #333; border-radius: 8px; color: #ddd; font-size: 10px; font-weight: bold; cursor: pointer; transition: 0.1s; touch-action: manipulation; }
@@ -160,7 +222,7 @@
         .set-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #ff6600; cursor: pointer; box-shadow: 0 0 5px rgba(255,102,0,0.5); }
         .set-range-val { font-family: monospace; font-size: 13px; color: #ff8800; font-weight: bold; width: 55px; text-align: right; flex-shrink: 0; }
 
-        .dynamic-params-container { padding: 8px 10px; background: #0d0d0d; border-radius: 6px; border: none; margin-top: 5px; display: none; }
+        .dynamic-params-container { padding: 0; background: transparent; border: none; margin-top: 0; display: none; }
         .dynamic-params-container.show { display: flex; flex-direction: column; gap: 2px; }
 
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #111; border: 1px solid #222; border-radius: 6px; margin-bottom: 6px; position: relative; transition: 0.2s; }
@@ -1382,106 +1444,164 @@ top: 2px; }
                                 </div>
                             </div>
 <!-- ============================================== -->
-                          <!-- === НАСТРОЙКИ ГЛОБАЛЬНЫХ ЭФФЕКТОВ === -->
-                                <div class="set-section">
-                                    <div class="set-header" onclick="toggleSetSection(this)">FX Banks Setup</div>
-                                    <div class="set-content">
-                                        <div class="set-row">
-                                            <label>Master FX Gain (Global)</label>
-                                            <div class="set-range-group"><input type="range" class="set-range" min="0" max="100" value="80" oninput="updateSetRangeLabel(this, '%')"><span class="set-range-val">80%</span></div>
-                                        </div>
-                                        <!-- === 🔻 НАЧАЛО ВСТАВКИ: Глобальная Атака и Релиз 🔻 === -->
-<div class="set-row" style="margin-top: 15px;">
-    <label style="color: #ff6600;">FX Global Attack</label>
-    <div class="set-range-group">
-        <input type="range" class="set-range" id="fx-global-attack" min="0" max="1000" value="0" step="10" oninput="updateSetRangeLabel(this, 'ms')">
-        <span class="set-range-val">0ms</span>
-    </div>
-</div>
-<div class="set-row">
-    <label style="color: #ff6600;">FX Global Release</label>
-    <div class="set-range-group">
-        <input type="range" class="set-range" id="fx-global-release" min="0" max="2000" value="0" step="10" oninput="updateSetRangeLabel(this, 'ms')">
-        <span class="set-range-val">0ms</span>
-    </div>
-</div>
-<!-- === 🔺 КОНЕЦ ВСТАВКИ: Глобальная Атака и Релиз 🔺 === -->
-                                        <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 15px 0;">
-                                        <div class="set-tabs">
-                                            <button class="set-tab-btn active-red" id="set-fx-bank-a-btn" onclick="switchSetTab('fx-bank', 'A')">Bank A</button>
-                                            <button class="set-tab-btn" id="set-fx-bank-b-btn" onclick="switchSetTab('fx-bank', 'B')">Bank B</button>
-                                        </div>
-                                        <div class="set-row">
-    <label>FX 1 Slot</label>
-    <select class="set-control" id="fx-select-1" onchange="renderFxParams(this, 'fx-params-1')">
-        <option value="None">None</option>
-        <option value="Filter" selected>Filter (LP/HP)</option>
-        <option value="Delay">Delay / Echo</option>
-        <option value="Flanger">Flanger (Jet Sweep)</option>
-        <option value="Reverb">Reverb (Arena)</option>
-    </select>
-    
-</div>
-
-<div class="set-row">
-    <label>FX 2 Slot</label>
-    <select class="set-control" id="fx-select-2" onchange="renderFxParams(this, 'fx-params-2')">
-        <option value="None">None</option>
-        <option value="Filter">Filter (LP/HP)</option>
-        <option value="Delay" selected>Delay / Echo</option>
-        <option value="Flanger">Flanger (Jet Sweep)</option>
-        <option value="Reverb">Reverb (Arena)</option>
-    </select>
-    
-</div>
-
-<div class="set-row">
-    <label>FX 3 Slot</label>
-    <select class="set-control" id="fx-select-3" onchange="renderFxParams(this, 'fx-params-3')">
-        <option value="None">None</option>
-        <option value="Filter">Filter (LP/HP)</option>
-        <option value="Delay">Delay / Echo</option>
-        <option value="Flanger">Flanger (Jet Sweep)</option>
-        <option value="Reverb" selected>Reverb (Arena)</option>
-    </select>
-    
-</div>
-
-<div class="set-row">
-    <label>FX 4 Slot</label>
-    <select class="set-control" id="fx-select-4" onchange="renderFxParams(this, 'fx-params-4')">
-        <option value="None">None</option>
-        <option value="Filter">Filter (LP/HP)</option>
-        <option value="Delay">Delay / Echo</option>
-        <option value="Flanger" selected>Flanger (Jet Sweep)</option>
-        <option value="Reverb">Reverb (Arena)</option>
-    </select>
-    
-</div>
-                                        <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 15px 0;">
-                                        <button class="pad-action-btn red-mode" style="width:100%; height: 32px; border-radius: 6px;" onclick="confirmResetFxBank(this)">Reset FX Bank</button>
-                                    </div>
-                                </div>
-                                <!-- ========================================= -->  
+                            
                                 
                             <div class="set-section">
-                                <div class="set-header" onclick="toggleSetSection(this)">Mic & Records</div>
-                                <div class="set-content">
-                                    <button class="fs-btn" id="btn-mic-dictaphone" style="margin-top: 0; margin-bottom: 12px; border-color: #ff3333; color: #ff5555; background: #220000;">[ 🔴 START RECORDING ]</button>
-                                    
-                                    <div id="recording-history-container" style="max-height: 180px; overflow-y: auto; padding-right: 3px; scrollbar-width: none;">
-                                        </div>
-                                </div>
-                            </div>
+    <div class="set-header" onclick="toggleSetSection(this)">📁 My Saved Records</div>
+    <div class="set-content">
+        <div id="recording-history-container" style="max-height: 180px; overflow-y: auto; padding-right: 3px; scrollbar-width: none;">
+            <!-- Список файлов будет генерироваться здесь -->
+        </div>
+    </div>
+</div>
 
                             <div class="set-section">
-                                <div class="set-header" onclick="toggleSetSection(this)" style="color: #ff66ff; border-color: #aa00ff;">Voice to MIDI Engine</div>
-                                <div class="set-content">
-                                    <div style="font-size: 11px; color: #888; text-align: center; padding: 20px 0; border: 1px dashed #333; border-radius: 6px;">
-                                        [ V2M Engine UI & Settings pending ]
-                                    </div>
-                                </div>
-                            </div>
+    <div class="set-header" onclick="toggleSetSection(this); setTimeout(() => { const kb = document.getElementById('v2m-keyboard-scroll'); if(kb) kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2; }, 50);" style="color: #ff66ff; border-color: #aa00ff;">Voice to MIDI Engine</div>
+    <div class="set-content" style="padding: 10px;">
+        
+        <!-- ЭКРАН 1: AUDIO WAVEFORM & PLAYHEAD -->
+        <div style="background: #050505; border: 2px solid #222; border-radius: 6px; height: 70px; margin-bottom: 8px; position: relative; overflow: hidden; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+            <!-- Ритмическая сетка -->
+            <div style="position: absolute; width: 100%; height: 100%; background-image: linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 25% 100%, 6.25% 100%;"></div>
+            <canvas id="v2m-wave-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+            <div id="v2m-playhead" style="position: absolute; top: 0; bottom: 0; left: 0%; width: 2px; background: #ff003c; box-shadow: 0 0 8px #ff003c; z-index: 5; display: none;"></div>
+            <div style="position: absolute; top: 4px; left: 6px; font-size: 9px; color: #ff003c; font-weight: bold; letter-spacing: 1px;">AUDIO INPUT</div>
+            <div style="position: absolute; top: 4px; right: 6px; font-size: 9px; color: #777; font-weight: bold; letter-spacing: 1px;" id="v2m-len-display">LEN: 16</div>
+        </div>
+
+        <!-- ЭКРАН 2: LIVE KEYS (5 октав, только названия нот без цифр, строго по центру) -->
+        <style>
+            #v2m-keyboard-scroll::-webkit-scrollbar {
+                height: 5px;
+            }
+            #v2m-keyboard-scroll::-webkit-scrollbar-track {
+                background: #111;
+                border-radius: 0 0 4px 4px;
+            }
+            #v2m-keyboard-scroll::-webkit-scrollbar-thumb {
+                background: #00ffff55;
+                border-radius: 3px;
+            }
+            #v2m-keyboard-scroll::-webkit-scrollbar-thumb:hover {
+                background: #00ffffaa;
+            }
+        </style>
+        <div id="v2m-keyboard-scroll" style="background: #050505; border: 2px solid #222; border-radius: 6px; height: 95px; margin-bottom: 15px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8); overflow-x: auto; overflow-y: hidden; position: relative; -webkit-overflow-scrolling: touch;">
+            <div style="position: sticky; left: 5px; top: 4px; font-size: 9px; color: #00ffff; font-weight: bold; letter-spacing: 1px; z-index: 10; pointer-events: none; margin-bottom: -12px;">DETECTED NOTES</div>
+            <!-- Широкий контейнер на 5 октав -->
+            <div style="width: 500%; height: 74px; display: flex; padding-top: 15px; box-sizing: border-box;">
+                
+                <!-- ОКТАВА 1 -->
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
+
+                <!-- ОКТАВА 2 -->
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
+
+                <!-- ОКТАВА 3 (Центральная) -->
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
+
+                <!-- ОКТАВА 4 -->
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
+
+                <!-- ОКТАВА 5 -->
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
+                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
+
+            </div>
+        </div>
+
+        <!-- V2M SETTINGS -->
+        <div class="set-row" style="margin-bottom: 12px;">
+            <div style="display: flex; gap: 8px;">
+                <button class="pad-action-btn active-mode" id="v2m-metro-btn" style="flex: 1; height: 32px; border-color: #aa00ff; color: #ff66ff; background: #2a0033;" onclick="vibrate(30); this.classList.toggle('active-mode'); this.textContent = this.classList.contains('active-mode') ? 'METRO: ON' : 'METRO: OFF';">METRO: ON</button>
+                <select class="set-control" id="v2m-quantize" style="flex: 1; height: 32px; padding: 0 5px;">
+                    <option>Q: 1/4</option><option>Q: 1/8</option><option selected>Q: 1/16</option><option>Q: OFF</option>
+                </select>
+                <select class="set-control" id="v2m-length" style="flex: 1; height: 32px; padding: 0 5px;" onchange="document.getElementById('v2m-len-display').textContent = 'LEN: ' + this.value">
+                    <option value="16" selected>LEN: 16</option>
+                    <option value="32">LEN: 32</option>
+                    <option value="64">LEN: 64</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="set-row" style="margin-bottom: 20px;">
+            <label style="color: #ff66ff; display: block; margin-bottom: 4px; white-space: nowrap;">
+                V2M TEMPO (BPM)&nbsp;&nbsp;&nbsp;<span class="set-range-val" style="color: #ff66ff;">130 BPM</span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="set-range-group" style="flex: 1; margin: 0;">
+                    <input type="range" class="set-range" min="60" max="200" value="130" style="width: 100%;" oninput="updateSetRangeLabel(this, ' BPM')">
+                </div>
+                <button class="pad-action-btn" style="width: 75px; height: 32px; border-color: #00ffff; color: #00ffff; font-size: 12px; font-weight: bold; letter-spacing: 1px;" onclick="vibrate(30)">TAP</button>
+            </div>
+        </div>
+
+        <!-- TRANSPORT & ACTIONS -->
+<div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+    <button class="pad-action-btn red-mode" id="v2m-rec-btn" style="height: 40px; font-size: 10px;">🎙️ REC VOICE</button>
+    <button class="pad-action-btn" id="v2m-play-midi-btn" style="height: 40px; background: #002200; border-color: #00aa00; color: #55ff55; font-size: 10px;">▶ MIDI</button>
+    <button class="pad-action-btn" id="v2m-play-voice-btn" style="height: 40px; background: #002200; border-color: #00aa00; color: #55ff55; font-size: 10px;">▶ VOICE</button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; position: relative;">
+    <button class="pad-action-btn" id="v2m-load-btn" style="height: 35px; border-color: #555; color: #aaa; font-size: 10px;" onclick="document.getElementById('v2m-file-input').click(); vibrate(30);">📂 LOAD</button>
+    <button class="pad-action-btn active-mode" id="v2m-assign-btn" style="height: 35px; border-color: #aa00ff; color: #ff66ff; background: #2a0033; font-size: 10px;" onclick="toggleV2mPadAssign()">📥 PAD</button>
+    <button class="pad-action-btn" style="height: 35px; color: #aaa; border-color: #444; font-size: 10px;">💾 MIDI</button>
+    <button class="pad-action-btn" style="height: 35px; color: #aaa; border-color: #444; font-size: 10px;">💾 WAV</button>
+
+    <!-- Скрытый инпут для выбора аудиофайла с телефона/ПК -->
+    <input type="file" id="v2m-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, audio/mpeg, audio/wav">
+
+    <!-- Всплывающая сетка пэдов с выбором банка -->
+    <div id="v2m-pad-popup" style="display: none; position: absolute; bottom: 42px; left: 0; width: 100%; background: #0a0a0a; border: 2px solid #aa00ff; border-radius: 8px; padding: 10px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.95);">
+        <div style="font-size: 10px; color: #ff66ff; text-align: center; margin-bottom: 8px; font-weight: bold; letter-spacing: 1px;">SELECT TARGET PAD</div>
+        
+        <!-- Мини-банки -->
+        <div class="set-tabs" style="margin-bottom: 10px;">
+            <button class="set-tab-btn active-blue" id="v2m-bank-a" onclick="switchV2mBank('A')">A</button>
+            <button class="set-tab-btn" id="v2m-bank-b" onclick="switchV2mBank('B')">B</button>
+            <button class="set-tab-btn" id="v2m-bank-c" onclick="switchV2mBank('C')">C</button>
+            <button class="set-tab-btn" id="v2m-bank-d" onclick="switchV2mBank('D')">D</button>
+        </div>
+
+        <div class="set-pad-selector" id="v2m-popup-grid" style="margin-bottom: 0;">
+            <!-- JS генерирует 12 пэдов -->
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
 
                             <div class="set-section" style="margin-bottom: 20px;">
     <div class="set-header" onclick="toggleSetSection(this)">About</div>
@@ -1500,77 +1620,94 @@ top: 2px; }
 
                 <div class="swiper-slide slide-pads">
                     <div class="fx-container">
-                        <div class="fx-header">Pad Section</div>
-                        <div class="pads-grid">
-                            <button class="pad pad-1" data-id="1"></button><button class="pad pad-2" data-id="2"></button><button class="pad pad-3" data-id="3"></button>
-                            <button class="pad pad-4" data-id="4"></button><button class="pad pad-5" data-id="5"></button><button class="pad pad-6" data-id="6"></button>
-                            <button class="pad pad-7" data-id="7"></button><button class="pad pad-8" data-id="8"></button><button class="pad pad-9" data-id="9"></button>
-                            <button class="pad pad-10" data-id="10"></button><button class="pad pad-11" data-id="11"></button><button class="pad pad-12" data-id="12"></button>
+                        <!-- УРОВЕНЬ 1: ГЛОБАЛЬНЫЕ КНОПКИ -->
+                        <div class="seq-header-new" style="margin-bottom: 12px; border-bottom: none; padding-bottom: 0; flex-shrink: 0;">
+                            <button class="seq-top-btn red-btn" onclick="openQuickRecorder()">🎙️ IDEAS</button>
+                            <button class="seq-top-btn orange-btn" id="btn-global-rec">🔴 REC SESSION</button>
+                            <button class="seq-top-btn blue-btn" onclick="document.getElementById('patternStudioModal').style.display='flex'">✎ STUDIO</button>
+                            <button class="seq-top-btn tap-btn" id="btn-main-tap">TAP: 130</button>
                         </div>
-                        <!-- НОВЫЙ БЛОК: СЕКВЕНСОР И ТРАНСПОРТ -->
-                        <div id="sequencer-section">
-                            <!-- OLED Экран -->
+
+                        <!-- УРОВЕНЬ 2: РЕЖИМЫ ПЭДОВ -->
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 15px; flex-shrink: 0;">
+                            <button class="pad-action-btn" id="mode-btn-grid" style="height: 35px; border-color: #555; color: #aaa;">Q: 1/16 ▼</button>
+                            <button class="pad-action-btn" id="btn-load" style="height: 35px; border-color: #ffaa00; color: #cc8800; background: #221100;">📂 LOAD</button>
+                            <button class="pad-action-btn" id="mode-btn-mute" style="height: 35px; border-color: #ff0000; color: #cc0000; background: #220000;">🔇 MUTE</button>
+                            <button class="pad-action-btn" id="mode-btn-solo" style="height: 35px; border-color: #00ff00; color: #00cc00; background: #002200;">🎧 SOLO</button>
+                        </div>
+                        <div class="pads-grid">
+    <div class="pad empty" data-id="1"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P1</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="2"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P2</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="3"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P3</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="4"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P4</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="5"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P5</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="6"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P6</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="7"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P7</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="8"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P8</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="9"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P9</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="10"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P10</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="11"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P11</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+    <div class="pad empty" data-id="12"><div class="pad-screen"><div class="pad-wave"></div><div class="badge-id">P12</div><div class="pad-title">[EMPTY]</div><div class="badge-len">L: 16</div></div></div>
+</div>
+                       
+                        <!-- OLED Экран с шапкой и полосой прогресса -->
                             <div id="seq-screen">
                                 <div class="seq-header-new">
-    <button class="seq-top-btn red-btn">🎙️ V2M</button>
-    <button class="seq-top-btn orange-btn">💾 SAVE</button>
-    <button class="seq-top-btn blue-btn" onclick="document.getElementById('patternStudioModal').style.display='flex'">✎ EDIT</button>
-    <button class="seq-top-btn tap-btn" id="btn-bpm-tap"> TAP: 130</button>
-</div>
+                                    <button class="seq-top-btn red-btn" onclick="openQuickRecorder()">🎙️ IDEAS</button>
+                                    <button class="seq-top-btn orange-btn" id="btn-global-rec">💾 SAVE</button>
+                                    <button class="seq-top-btn blue-btn" onclick="document.getElementById('patternStudioModal').style.display='flex'">✎ STUDIO</button>
+                                    <button class="seq-top-btn tap-btn" id="btn-bpm-tap"> TAP: 130</button>
+                                </div>
                                 
-                                <!-- Сетка шагов -->
-                                <div class="seq-grid">
-                                    <div class="seq-step active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
-                                    <div class="seq-step highlight active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
-                                    <div class="seq-step highlight active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step active"></div>
-                                    <div class="seq-step highlight"></div> <div class="seq-step active"></div> <div class="seq-step"></div> <div class="seq-step"></div>
-                                </div>
-                                <div class="seq-grid" style="margin-top: 5px;">
-                                    <div class="seq-step active"></div> <div class="seq-step"></div> <div class="seq-step active"></div> <div class="seq-step"></div>
-                                    <div class="seq-step highlight active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step"></div>
-                                    <div class="seq-step highlight active"></div> <div class="seq-step"></div> <div class="seq-step"></div> <div class="seq-step active"></div>
-                                    <div class="seq-step highlight"></div> <div class="seq-step"></div> <div class="seq-step active"></div> <div class="seq-step active"></div>
+                                <!-- ПОЛОСА ПРОГРЕССА ЛУПЕРА -->
+                                <div style="height: 14px; background: #111; border-radius: 4px; border: 1px solid #333; margin-top: 10px; position: relative; overflow: hidden;">
+                                    <div id="looper-playhead" style="position: absolute; top: 0; bottom: 0; left: 0; width: 0%; background: rgba(0, 255, 255, 0.2); border-right: 2px solid #00ffff; box-shadow: 0 0 10px #00ffff;"></div>
                                 </div>
                             </div>
 
-                            <!-- 8 Хардверных кнопок -->
-                            <div id="seq-controls">
-                                <button class="ctrl-btn rec-btn" id="btn-rec-loop">⏺ REC</button>
-                                <button class="ctrl-btn play-btn" id="btn-play-loop">▶ PLAY</button>
-                                <!-- НОВАЯ КНОПКА KEY / SEQ ВМЕСТО TAP -->
-                                <button class="ctrl-btn key-btn" id="btn-seq-key">KEY / SEQ</button>
-                                <button class="ctrl-btn" id="btn-seq-select">SELECT</button>
-
-                                <button class="ctrl-btn shift-btn" id="btn-seq-shift">SHIFT</button>
-                                <button class="ctrl-btn" id="btn-load">LOAD</button>
-                                <button class="ctrl-btn solo-btn" id="btn-seq-solo">SOLO</button>
-                                <button class="ctrl-btn mute-btn" id="btn-seq-mute">MUTE</button>
+                            <!-- 4 КНОПКИ УПРАВЛЕНИЯ ЛУПЕРОМ -->
+                            <div id="seq-controls" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px;">
+                                <button class="ctrl-btn rec-btn" id="btn-rec-loop" style="font-size: 11px; padding: 12px 0;">⏺ DUB</button>
+                                <button class="ctrl-btn play-btn" id="btn-play-loop" style="font-size: 11px; padding: 12px 0;">▶ PLAY</button>
+                                <button class="ctrl-btn" id="btn-loop-undo" style="font-size: 11px; padding: 12px 0; background: #222; color: #aaa;">↩ UNDO</button>
+                                <button class="ctrl-btn" id="btn-loop-clear" style="font-size: 11px; padding: 12px 0; background: #330000; color: #ff5555; border: 1px solid #550000;">🗑️ CLR</button>
                             </div>
+                            
                             <input type="file" id="hidden-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, .aiff, audio/mpeg, audio/wav">
-                        </div>
                     </div>
                 </div>
-<!-- === СЛАЙД: XY-ТАЧПАД И ГЛОБАЛЬНЫЕ ЭФФЕКТЫ === -->
-                <div class="swiper-slide slide-fx">
-                    <div class="fx-container" style="position: relative;">
+                <!-- === СЛАЙД: XY-ТАЧПАД И ГЛОБАЛЬНЫЕ ЭФФЕКТЫ === -->
+                <div class="swiper-slide slide-fx" style="padding: 0;">
+                    <!-- border-radius: 0 и border: none убирают рамки, растягивая панель в края экрана -->
+                    <div class="fx-container hardware-panel" style="position: relative; height: 100%; border-radius: 0; border: none; padding: 10px 5px 20px 5px !important;">
                         <!-- СТУДИЙНЫЙ ЭКРАН ВЫБОРА И ЗНАЧЕНИЙ -->
                         <div style="display: flex; justify-content: space-between; align-items: center; background: #050505; border: 2px solid #222; border-radius: 8px; padding: 6px; margin-bottom: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
-                            <div style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;" onclick="selectFxSlot(1)">
-                                <div class="fx-val-text" id="fx-val-1" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
-                                <div id="fx-select-btn-1" style="font-size: 8px; color: #ff6600; font-weight: bold; letter-spacing: 1px; margin-top: 2px; text-shadow: 0 0 8px rgba(255, 102, 0, 0.8);">SELECT</div>
+                            <div class="macro-slot-btn" data-slot="1" style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;">
+                                <div class="fx-val-text" id="fx-val-1" style="font-size: 15px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div id="fx-select-btn-1" style="font-size: 10px; color: #ff6600; font-weight: bold; letter-spacing: 1px; margin-top: 2px; text-shadow: 0 0 8px rgba(255, 102, 0, 0.8);">SELECT</div>
                             </div>
-                            <div style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;" onclick="selectFxSlot(2)">
-                                <div class="fx-val-text" id="fx-val-2" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
-                                <div id="fx-select-btn-2" style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            <div class="macro-slot-btn" data-slot="2" style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;">
+                                <div class="fx-val-text" id="fx-val-2" style="font-size: 15px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div id="fx-select-btn-2" style="font-size: 10px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
                             </div>
-                            <div style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;" onclick="selectFxSlot(3)">
-                                <div class="fx-val-text" id="fx-val-3" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
-                                <div id="fx-select-btn-3" style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            <div class="macro-slot-btn" data-slot="3" style="flex: 1; text-align: center; border-right: 1px solid #333; cursor: pointer;">
+                                <div class="fx-val-text" id="fx-val-3" style="font-size: 15px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div id="fx-select-btn-3" style="font-size: 10px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
                             </div>
-                            <div style="flex: 1; text-align: center; cursor: pointer;" onclick="selectFxSlot(4)">
-                                <div class="fx-val-text" id="fx-val-4" style="font-size: 13px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
-                                <div id="fx-select-btn-4" style="font-size: 8px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
+                            <div class="macro-slot-btn" data-slot="4" style="flex: 1; text-align: center; cursor: pointer;">
+                                <div class="fx-val-text" id="fx-val-4" style="font-size: 15px; margin: 0; color: #00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.5);">100%</div>
+                                <div id="fx-select-btn-4" style="font-size: 10px; color: #666; font-weight: bold; letter-spacing: 1px; margin-top: 2px;">SELECT</div>
                             </div>
+                        </div>
+
+                        <!-- КОНТЕКСТНОЕ МЕНЮ ВЫБОРА ЭФФЕКТОВ -->
+                        <div id="fx-context-menu" class="history-dropdown" style="width: 140px; z-index: 999999; text-align: center;">
+                            <div style="font-size: 9px; color: #888; margin-bottom: 5px; font-weight: bold; text-transform: uppercase;">SELECT EFFECT</div>
+                            <button class="history-dropdown-btn" onclick="assignFxToSlot('None')">NONE</button>
+                            <button class="history-dropdown-btn" onclick="assignFxToSlot('Filter')">FILTER</button>
+                            <button class="history-dropdown-btn" onclick="assignFxToSlot('Delay')">DELAY</button>
+                            <button class="history-dropdown-btn" onclick="assignFxToSlot('Flanger')">FLANGER</button>
+                            <button class="history-dropdown-btn" onclick="assignFxToSlot('Reverb')">REVERB</button>
                         </div>
                         <div class="xy-pad" id="xy-pad"><div class="xy-crosshair-v" id="xy-v"></div><div class="xy-crosshair-h" id="xy-h"></div><div class="xy-touch-point" id="xy-touch-point"></div><div id="xy-trails"></div></div>
                         <!-- ОЧИЩЕННЫЕ КРУТИЛКИ (БЕЗ ТЕКСТА И КНОПОК ВНИЗУ) -->
@@ -1580,19 +1717,17 @@ top: 2px; }
                             <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-3">FX 3</button><div class="fx-mini-knob" data-fx="3"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-3">100%</div></div></div><div class="fx-arrow">➔</div>
                             <div class="fx-unit"><button class="fx-mini-btn" id="fx-btn-4">FX 4</button><div class="fx-mini-knob" data-fx="4"><div class="fx-mini-knob-line"></div><div class="knob-popup" id="popup-4">100%</div></div></div>
                         </div>
-                        <div class="rec-section" style="margin-top: 10px;">
+                        <div class="rec-section" style="margin-top: -3px; margin-bottom: 7px; position: relative; z-index: 2;">
                             <div class="rec-btn-group"><button class="pad-action-btn" id="btn-fx-tap">TAP</button><button class="pad-action-btn" id="btn-fx-source">SOURCE</button></div>
-                            <div class="display-screen" style="flex-direction: row; justify-content: space-around; padding: 0 8px;">
-                                <div class="screen-text-inner" id="fx-screen" style="flex: 1;">BPM: ---<br>SRC: MASTER<br><span style="color:#ff3333">BANK A</span></div>
-                                <div style="font-size: 16px; color: #666; cursor: pointer; display: flex; align-items: center;" onclick="openFxGlobalSettings()">⚙️</div>
+                            <div class="display-screen" style="padding: 6px 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);">
+                                <div class="screen-text-inner" id="fx-screen" style="width: 100%; height: 100%; text-align: left;"></div>
                             </div>
                             <div class="rec-btn-group"><button class="pad-action-btn" id="btn-fx-hold">HOLD</button><button class="pad-action-btn" id="btn-fx-bank">BANK A/B</button></div>
                         </div>
 
-                        <!-- ПОСТОЯННАЯ ПАНЕЛЬ НАСТРОЕК ЭФФЕКТА -->
-                        <!-- margin-top: -15px подтягивает контейнер вплотную к кнопкам -->
-                        <div id="fx-slot-settings" style="display: block; flex: 1; margin: -15px 5px 0 5px; overflow-y: auto;">
-                            <!-- height: 100% заставляет серый фон занять всю оставшуюся высоту экрана -->
+                        <!-- ПОСТОЯННАЯ ПАНЕЛЬ НАСТРОЕК ЭФФЕКТА (БЕЗ ПОДЛОЖКИ И ВПЛОТНУЮ) -->
+                        <div id="fx-slot-settings" style="display: block; flex: 1; margin: 0; padding: 0 5px; overflow-y: auto; position: relative; z-index: 1;">
+                            <!-- Контейнеры ползунков -->
                             <div id="fx-slot-wrapper-1" style="display: block; height: 100%;"><div id="fx-params-1" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
                             <div id="fx-slot-wrapper-2" style="display: none; height: 100%;"><div id="fx-params-2" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
                             <div id="fx-slot-wrapper-3" style="display: none; height: 100%;"><div id="fx-params-3" class="dynamic-params-container" style="margin-top: 0; height: 100%;"></div></div>
@@ -1832,7 +1967,112 @@ top: 2px; }
 
 <audio id="radio-stream" preload="metadata" crossorigin="anonymous"></audio>
 <!-- === ОКНА РАДИО И ПЛЕЕР КОНЕЦ === -->  
- <!-- === PATTERN STUDIO MODAL === -->
+ <!-- === MODAL: FX CHAIN MANAGER === -->
+<div id="fx-manager-modal" class="modal-overlay">
+    <div class="modal-window" style="height: 85vh; max-height: 700px; padding: 15px 15px 20px 15px;">
+        <div class="menu-header">
+            <div class="menu-header-bar" onclick="closeFxGlobalSettings()"></div>
+            <span style="margin-top: 15px;">FX SETTINGS</span>
+        </div>
+        <div class="modal-body">
+            
+            <div style="display: flex; gap: 8px;">
+                    <div style="flex: 2; position: relative;">
+                        <!-- Кнопка-обманка, выглядящая как список -->
+                        <button class="set-control" id="user-chain-select-btn" style="height: 35px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleFxChainDropdown(event)">
+                            <span id="user-chain-select-text" style="color: #ccc; font-weight: bold; font-size: 11px;">-- LOAD PRESET --</span>
+                            <span style="color: #666; font-size: 10px;">▼</span>
+                        </button>
+                        <!-- Кастомный выпадающий список (скроллится при переполнении) -->
+                        <div id="fx-chain-dropdown" style="display: none; position: absolute; top: 40px; left: 0; width: 100%; max-height: 160px; overflow-y: auto; background: #1a1a1a; border: 1px solid #444; border-radius: 6px; z-index: 999999; box-shadow: 0 10px 30px rgba(0,0,0,0.9); flex-direction: column; padding: 5px; gap: 2px;">
+                            <button class="history-dropdown-btn" style="width: 100%; text-align: left; font-size: 11px; padding: 10px 8px;" onclick="selectFxChainOption('chain1', 'USER CHAIN 1')">USER CHAIN 1</button>
+                            <button class="history-dropdown-btn" style="width: 100%; text-align: left; font-size: 11px; padding: 10px 8px;" onclick="selectFxChainOption('chain2', 'USER CHAIN 2')">USER CHAIN 2</button>
+                            <button class="history-dropdown-btn" style="width: 100%; text-align: left; font-size: 11px; padding: 10px 8px;" onclick="selectFxChainOption('chain3', 'USER CHAIN 3')">USER CHAIN 3</button>
+                        </div>
+                    </div>
+                    <button class="pad-action-btn active-mode" style="flex: 1; height: 35px; border-radius: 6px;" onclick="saveUserFxChain(this)">SAVE</button>
+                </div>
+
+            <div class="set-row" style="margin-top: 15px;">
+                <label>MASTER FX GAIN (GLOBAL)</label>
+                <div class="set-range-group"><input type="range" class="set-range" min="0" max="100" value="80" oninput="updateSetRangeLabel(this, '%')"><span class="set-range-val">80%</span></div>
+            </div>
+            
+            <div class="set-row" style="margin-top: 15px;">
+                <label style="color: #ff6600;">FX GLOBAL ATTACK</label>
+                <div class="set-range-group">
+                    <input type="range" class="set-range" id="fx-global-attack" min="0" max="1000" value="0" step="10" oninput="updateSetRangeLabel(this, 'ms')">
+                    <span class="set-range-val">0ms</span>
+                </div>
+            </div>
+            <div class="set-row" style="margin-bottom: 15px;">
+                <label style="color: #ff6600;">FX GLOBAL RELEASE</label>
+                <div class="set-range-group">
+                    <input type="range" class="set-range" id="fx-global-release" min="0" max="2000" value="0" step="10" oninput="updateSetRangeLabel(this, 'ms')">
+                    <span class="set-range-val">0ms</span>
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px dashed #333; margin: 15px 0;">
+            
+            <label style="font-size: 11px; color: #777; font-weight: bold; display: block; margin-bottom: 5px; text-transform: uppercase;">TARGET BANK</label>
+            <div class="set-tabs" style="margin-bottom: 15px;">
+                <button class="set-tab-btn active-red" id="set-fx-bank-a-btn" onclick="switchSetTab('fx-bank', 'A')">BANK A</button>
+                <button class="set-tab-btn" id="set-fx-bank-b-btn" onclick="switchSetTab('fx-bank', 'B')">BANK B</button>
+            </div>
+
+            <div class="set-row">
+                <label>FX 1 SLOT</label>
+                <select class="set-control" id="fx-select-1" onchange="renderFxParams(this, 'fx-params-1')">
+                    <option value="None">None</option>
+                    <option value="Filter" selected>Filter (LP/HP)</option>
+                    <option value="Delay">Delay / Echo</option>
+                    <option value="Flanger">Flanger (Jet Sweep)</option>
+                    <option value="Reverb">Reverb (Arena)</option>
+                </select>
+            </div>
+            <div class="set-row">
+                <label>FX 2 SLOT</label>
+                <select class="set-control" id="fx-select-2" onchange="renderFxParams(this, 'fx-params-2')">
+                    <option value="None">None</option>
+                    <option value="Filter">Filter (LP/HP)</option>
+                    <option value="Delay" selected>Delay / Echo</option>
+                    <option value="Flanger">Flanger (Jet Sweep)</option>
+                    <option value="Reverb">Reverb (Arena)</option>
+                </select>
+            </div>
+            <div class="set-row">
+                <label>FX 3 SLOT</label>
+                <select class="set-control" id="fx-select-3" onchange="renderFxParams(this, 'fx-params-3')">
+                    <option value="None">None</option>
+                    <option value="Filter">Filter (LP/HP)</option>
+                    <option value="Delay">Delay / Echo</option>
+                    <option value="Flanger">Flanger (Jet Sweep)</option>
+                    <option value="Reverb" selected>Reverb (Arena)</option>
+                </select>
+            </div>
+            <div class="set-row">
+                <label>FX 4 SLOT</label>
+                <select class="set-control" id="fx-select-4" onchange="renderFxParams(this, 'fx-params-4')">
+                    <option value="None">None</option>
+                    <option value="Filter">Filter (LP/HP)</option>
+                    <option value="Delay">Delay / Echo</option>
+                    <option value="Flanger" selected>Flanger (Jet Sweep)</option>
+                    <option value="Reverb">Reverb (Arena)</option>
+                </select>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 15px 0;">
+            <button class="pad-action-btn red-mode" style="width:100%; height: 35px; border-radius: 6px; margin-bottom: 20px;" onclick="confirmResetFxBank(this)">RESET FX BANK</button>
+            
+        </div>
+        <div class="menu-footer">
+            <button onclick="closeFxGlobalSettings()">CLOSE</button>
+        </div>
+    </div>
+</div>
+<!-- ============================== -->
+<!-- === PATTERN STUDIO MODAL === -->
 <div id="patternStudioModal" class="modal-overlay">
     <div class="modal-window pattern-studio-window">
         
@@ -2393,7 +2633,26 @@ top: 2px; }
         </div>
     </div>
 </div>
-
+<!-- === QUICK RECORDER MODAL === -->
+<div id="quick-recorder-modal" class="modal-overlay" style="z-index: 1000000; display: none;">
+    <div class="gate-content" style="width: 85%; max-width: 350px; padding: 20px; background: #050505; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="font-family: 'MatrixType Display', monospace; color: #ff003c; font-size: 18px; text-transform: uppercase;">QUICK RECORDER</div>
+            <div id="qr-pulse" style="width: 10px; height: 10px; background: #333; border-radius: 50%;"></div>
+        </div>
+        
+        <div id="qr-timer" style="font-family: 'DSEG14 Classic', monospace; color: #ff003c; font-size: 28px; text-shadow: 0 0 10px #ff003c; margin: 15px 0;">00:00.00</div>
+        
+        <div style="width: 100%; height: 70px; background: #0a000a; border: 2px solid #220000; border-radius: 8px; margin-bottom: 20px; overflow: hidden; position: relative;">
+            <canvas id="qr-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="pad-action-btn" style="flex: 1; height: 45px; font-size: 12px; color: #aaa; border-color: #444;" onclick="closeQuickRecorder(false)">✕ CANCEL</button>
+            <button id="qr-action-btn" class="pad-action-btn red-mode" style="flex: 1.5; height: 45px; font-size: 12px; font-weight: bold; letter-spacing: 1px;" onclick="startQuickRecording()">🔴 START REC</button>
+        </div>
+    </div>
+</div>
 
 <script>
     // Генерация 64 ячеек сетки
@@ -4809,13 +5068,34 @@ function buildPadInsertFx(ctx, pData, inputNode) {
         if (padsGrid) {
             padsGrid.className = `pads-grid bank-${globalSettings.padBank}`;
         }
+        
         document.querySelectorAll('.pad').forEach(p => {
             const pId = p.dataset.id;
             const pData = padData[globalSettings.padBank][pId];
+            
+            const titleEl = p.querySelector('.pad-title');
+            const waveEl = p.querySelector('.pad-wave');
+            const lenEl = p.querySelector('.badge-len');
+
             if (pData && pData.fileName) {
+                p.classList.remove('empty');
                 p.classList.add('has-sample');
+                
+                // Формируем красивое короткое имя
+                let shortName = pData.fileName.substring(0, 8).toUpperCase();
+                if (shortName.startsWith('MIC_')) shortName = 'MIC REC';
+                titleEl.textContent = shortName;
+                
+                waveEl.style.display = 'block';
+                lenEl.style.display = 'block';
+                // Длину сетки пока ставим 16 (позже сделаем её настройку, как ты и просил)
+                lenEl.textContent = 'L: 16';
             } else {
+                p.classList.add('empty');
                 p.classList.remove('has-sample');
+                titleEl.textContent = '[EMPTY]';
+                waveEl.style.display = 'none';
+                lenEl.style.display = 'none';
             }
         });
     }
@@ -5909,92 +6189,188 @@ function clickDeviceBtn() {
         allPads.forEach(p => p.classList.remove('blinking', 'ready-to-rec')); 
     }
 
-    // --- НАСТОЯЩИЙ СТУДИЙНЫЙ ДИКТОФОН С СЕКУНДОМЕРОМ НА OLED ---
-    const btnDictaphone = document.getElementById('btn-mic-dictaphone');
-    if (btnDictaphone) {
-        btnDictaphone.addEventListener('click', async () => {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            if (!isDictaphoneRecording) {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    showOnSmartScreen("ERROR", "API BLOCKED");
-                    return;
-                }
-                try {
-                    activeMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                } catch (err) {
-                    showOnSmartScreen("ERROR", "MIC DENIED");
-                    return;
-                }
-                
-                mediaRecorder = new MediaRecorder(activeMicStream);
-                audioChunks = [];
-                mediaRecorder.ondataavailable = ev => { if (ev.data.size > 0) audioChunks.push(ev.data); };
-                
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(audioChunks); audioChunks = [];
-                    try {
-                        const arrayBuffer = await blob.arrayBuffer();
-                        const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                        const recName = `MIC_${String(micRecCount).padStart(2, '0')}`;
-                        micRecCount++;
-                        
-                        recordingHistory.push({ name: recName, buffer: decodedBuffer });
-                        renderRecordingHistory();
-                        showOnSmartScreen("SAVED", recName);
-                    } catch(err) {
-                        showOnSmartScreen("ERROR", "REC FAILED");
-                    }
-                    if (activeMicStream) { activeMicStream.getTracks().forEach(t => t.stop()); activeMicStream = null; }
-                    mediaRecorder = null;
-                };
-                
-                mediaRecorder.start();
-                isDictaphoneRecording = true;
-                vibrate(50);
-                
-                // Перекрашиваем кнопку в активный режим
-                btnDictaphone.innerHTML = '[ ■ STOP RECORDING ]';
-                btnDictaphone.style.borderColor = '#ff0000';
-                btnDictaphone.style.color = '#ff3333';
-                btnDictaphone.style.background = '#330000';
-                
-                // Активируем верхний экран и замораживаем его автовыключение
-                clearTimeout(smartScreenTimeout);
-                smartScreenContainer.classList.add('active-val');
-                
-                const startTime = audioCtx.currentTime;
-                // Запуск бегущего счётчика времени (Минуты:Секунды.Миллисекунды)
-                dictaphoneInterval = setInterval(() => {
-                    const elapsed = audioCtx.currentTime - startTime;
-                    const min = Math.floor(elapsed / 60).toString().padStart(2, '0');
-                    const sec = Math.floor(elapsed % 60).toString().padStart(2, '0');
-                    const ms = Math.floor((elapsed % 1) * 100).toString().padStart(2, '0');
-                    
-                    smartScreen.innerHTML = `<span style="color:#ff003c; text-shadow: 0 0 8px #ff003c;">🔴 REC:</span> ${min}:${sec}.${ms}`;
-                }, 40);
-                
-            } else {
-                // Остановка записи
-                isDictaphoneRecording = false;
-                clearInterval(dictaphoneInterval);
-                vibrate([30, 50]);
-                
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                    mediaRecorder.stop();
-                }
-                
-                btnDictaphone.innerHTML = '[ 🔴 START RECORDING ]';
-                btnDictaphone.style = '';
-                
-                // Плавно возвращаем экран в рабочее состояние через 1.5 секунды
-                smartScreenTimeout = setTimeout(() => {
-                    smartScreenContainer.classList.remove('active-val');
-                    updateGlobalScreen();
-                }, 1500);
-            }
-        });
+    // ============================================
+// QUICK RECORDER LOGIC (IDEAS) - FOOLPROOF VERSION
+// ============================================
+let qrMediaRecorder = null;
+let qrChunks = [];
+let qrStream = null;
+let qrTimerInterval = null;
+let qrStartTime = 0;
+let qrAnimFrame = null;
+let qrAnalyser = null;
+let qrDataArray = null;
+
+// 1. Просто открываем окно (без запроса микрофона)
+function openQuickRecorder() {
+    vibrate(30);
+    const modal = document.getElementById('quick-recorder-modal');
+    if (!modal) {
+        alert("ОШИБКА: HTML окна Quick Recorder не найден!");
+        return;
     }
+    
+    // ЖЕЛЕЗОБЕТОННО вытаскиваем окно поверх всего интерфейса
+    if (modal.parentNode !== document.body) {
+        document.body.appendChild(modal);
+    }
+
+    modal.style.display = 'flex';
+    document.getElementById('qr-timer').textContent = "00:00.00";
+    document.getElementById('qr-timer').style.fontSize = "28px";
+    
+    const btn = document.getElementById('qr-action-btn');
+    btn.innerHTML = "🔴 START REC";
+    btn.onclick = startQuickRecording;
+    
+    const pulse = document.getElementById('qr-pulse');
+    pulse.style.background = '#333';
+    pulse.style.boxShadow = 'none';
+    pulse.style.animation = 'none';
+    
+    // Рисуем пустую линию
+    drawQRWave(true);
+}
+
+// 2. Начинаем запись только по нажатию кнопки START внутри окна
+async function startQuickRecording() {
+    vibrate(30);
+    const timer = document.getElementById('qr-timer');
+    const btn = document.getElementById('qr-action-btn');
+    const pulse = document.getElementById('qr-pulse');
+    
+    timer.style.fontSize = "16px";
+    timer.textContent = "REQUESTING MIC...";
+
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error("API Not Supported");
+        }
+        qrStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        timer.style.fontSize = "14px";
+        timer.innerHTML = "MIC DENIED OR<br>NOT SECURE (HTTPS)";
+        showOnSmartScreen("ERROR", "MIC ACCESS DENIED");
+        return;
+    }
+
+    // Микрофон получен! Запускаем визуал
+    timer.style.fontSize = "28px";
+    timer.textContent = "00:00.00";
+    
+    pulse.style.background = '#ff003c';
+    pulse.style.boxShadow = '0 0 10px #ff003c';
+    pulse.style.animation = 'padBlink 0.5s infinite alternate';
+    
+    btn.innerHTML = "💾 SAVE & CLOSE";
+    btn.onclick = () => closeQuickRecorder(true);
+
+    // Подключаем анализ волны
+    const source = audioCtx.createMediaStreamSource(qrStream);
+    qrAnalyser = audioCtx.createAnalyser();
+    qrAnalyser.fftSize = 256;
+    source.connect(qrAnalyser);
+    qrDataArray = new Uint8Array(qrAnalyser.frequencyBinCount);
+
+    qrMediaRecorder = new MediaRecorder(qrStream);
+    qrChunks = [];
+    qrMediaRecorder.ondataavailable = e => { if (e.data.size > 0) qrChunks.push(e.data); };
+    
+    qrMediaRecorder.start();
+    qrStartTime = audioCtx.currentTime;
+    
+    qrTimerInterval = setInterval(() => {
+        const elapsed = audioCtx.currentTime - qrStartTime;
+        const min = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const sec = Math.floor(elapsed % 60).toString().padStart(2, '0');
+        const ms = Math.floor((elapsed % 1) * 100).toString().padStart(2, '0');
+        timer.textContent = `${min}:${sec}.${ms}`;
+    }, 40);
+
+    drawQRWave(false);
+}
+
+function drawQRWave(isIdle = false) {
+    const canvas = document.getElementById('qr-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.parentElement.clientWidth;
+    const h = canvas.height = canvas.parentElement.clientHeight;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ff003c';
+    ctx.beginPath();
+    
+    if (isIdle || !qrAnalyser) {
+        ctx.moveTo(0, h / 2);
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
+        return;
+    }
+    
+    qrAnalyser.getByteTimeDomainData(qrDataArray);
+    const sliceWidth = w * 1.0 / qrAnalyser.frequencyBinCount;
+    let x = 0;
+    for (let i = 0; i < qrAnalyser.frequencyBinCount; i++) {
+        const v = qrDataArray[i] / 128.0;
+        const y = v * h / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+    }
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+    
+    qrAnimFrame = requestAnimationFrame(() => drawQRWave(false));
+}
+
+function closeQuickRecorder(save) {
+    vibrate(30);
+    document.getElementById('quick-recorder-modal').style.display = 'none';
+    clearInterval(qrTimerInterval);
+    cancelAnimationFrame(qrAnimFrame);
+    
+    document.getElementById('qr-pulse').style.animation = 'none';
+    
+    if (qrMediaRecorder && qrMediaRecorder.state !== 'inactive') {
+        if (save) {
+            qrMediaRecorder.onstop = async () => {
+                if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+                
+                const blob = new Blob(qrChunks);
+                qrChunks = [];
+                try {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    
+                    const d = new Date();
+                    const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const month = months[d.getMonth()];
+                    const hr = String(d.getHours()).padStart(2, '0');
+                    const mn = String(d.getMinutes()).padStart(2, '0');
+                    const recName = `IDEA_${day}-${month}_${hr}-${mn}`;
+                    
+                    recordingHistory.push({ name: recName, buffer: decodedBuffer });
+                    renderRecordingHistory();
+                    
+                    showOnSmartScreen("IDEA SAVED", "CHECK RECORDS");
+                } catch(err) {
+                    showOnSmartScreen("ERROR", "DECODE FAILED");
+                }
+            };
+        } else {
+            qrMediaRecorder.onstop = () => {
+                if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+                qrChunks = [];
+            };
+        }
+        qrMediaRecorder.stop();
+    }
+}
 
     // === ОБНОВЛЕНИЕ ЭКРАНА ПЭДОВ ===
 function updatePadScreen(statusText) {
@@ -6576,7 +6952,34 @@ if (btnMainTap) {
     function renderFxScreen() { 
         if(!fxScreen) return; 
         const bnkColor = fxState.bank === 'A' ? '#ff3333' : '#33ff33'; 
-        fxScreen.innerHTML = `BPM: ${fxState.bpm}<br>SRC: ${fxState.source}<br><span style="color:${bnkColor}">BANK ${fxState.bank}</span>`; 
+        
+        fxScreen.style.fontFamily = "'MatrixType Display', monospace";
+        fxScreen.style.fontSize = "15px";
+        fxScreen.style.lineHeight = "1.3";
+        fxScreen.style.display = "flex";
+        fxScreen.style.flexDirection = "column";
+        fxScreen.style.justifyContent = "space-between";
+        fxScreen.style.height = "100%";
+        
+        fxScreen.innerHTML = `
+            <div style="display:flex; justify-content: space-between; width:100%;">
+                <span style="color:#777;">BPM</span>
+                <span style="color:#00ffff; text-shadow: 0 0 5px rgba(0,255,255,0.8);">${fxState.bpm}</span>
+            </div>
+            <div style="display:flex; justify-content: space-between; width:100%;">
+                <span style="color:#777;">SRC</span>
+                <span style="color:#ffcc00; text-shadow: 0 0 5px rgba(255,204,0,0.8);">${fxState.source}</span>
+            </div>
+            <div style="display:flex; justify-content: space-between; align-items: flex-end; width:100%; margin-top: auto;">
+                <span style="color:${bnkColor}; text-shadow: 0 0 8px ${bnkColor}; font-size: 14px;">BANK ${fxState.bank}</span>
+                <span onclick="event.stopPropagation(); openFxGlobalSettings();" style="display:flex; align-items:center; color:#00ffff; font-size: 14px; cursor: pointer; letter-spacing: 1px; text-shadow: 0 0 5px rgba(0,255,255,0.8); border-bottom: 1px solid #007777; padding-bottom: 1px;">
+                    <svg width="12" height="12" viewBox="0 0 5 5" fill="#00ffff" style="margin-right: 6px; margin-bottom: 1px; filter: drop-shadow(0 0 3px #00ffff); shape-rendering: crispEdges;">
+                        <path d="M2 0h1v1h-1z M1 1h3v1h-3z M0 2h2v1h-2z M3 2h2v1h-2z M1 3h3v1h-3z M2 4h1v1h-1z" />
+                    </svg>
+                    EDIT
+                </span>
+            </div>
+        `; 
     } 
     renderFxScreen();
 
@@ -8270,10 +8673,420 @@ function selectFxSlot(slotIdx) {
         }
     }
 }
+// --- ДОЛГОЕ НАЖАТИЕ ДЛЯ ВЫБОРА ЭФФЕКТА ---
+let fxLongPressTimer;
+let isFxLongPress = false;
+let contextFxSlotId = null;
 
+window.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.macro-slot-btn').forEach(btn => {
+        const slotId = btn.dataset.slot;
+        let startX = 0, startY = 0;
+
+        const startPress = (e) => {
+            const touch = e.touches ? e.touches[0] : e;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            isFxLongPress = false;
+            
+            clearTimeout(fxLongPressTimer);
+            fxLongPressTimer = setTimeout(() => {
+                isFxLongPress = true;
+                if (navigator.vibrate) navigator.vibrate(50);
+                showFxContextMenu(e, slotId, btn);
+            }, 400); // 400 миллисекунд для долгого нажатия
+        };
+
+        const movePress = (e) => {
+            if (!fxLongPressTimer) return;
+            const touch = e.touches ? e.touches[0] : e;
+            // Отменяем длинное нажатие, если палец дернулся больше чем на 10px
+            if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) {
+                clearTimeout(fxLongPressTimer);
+                fxLongPressTimer = null;
+            }
+        };
+
+        const cancelPress = () => {
+            clearTimeout(fxLongPressTimer);
+            fxLongPressTimer = null;
+        };
+
+        const handleTap = (e) => {
+            cancelPress();
+            // Если длинного нажатия не случилось — срабатывает обычный клик
+            if (!isFxLongPress) {
+                selectFxSlot(parseInt(slotId));
+            } else {
+                // Иначе блокируем клик, чтобы менюшка не исчезла мгновенно
+                if (e && e.cancelable) e.preventDefault();
+            }
+        };
+
+        // Подключаем мобильные и ПК-события
+        btn.addEventListener('touchstart', startPress, {passive: false});
+        btn.addEventListener('touchmove', movePress, {passive: true});
+        btn.addEventListener('touchend', handleTap, {passive: false});
+        btn.addEventListener('touchcancel', cancelPress);
+
+        btn.addEventListener('mousedown', startPress);
+        btn.addEventListener('mousemove', movePress);
+        btn.addEventListener('mouseup', handleTap);
+        btn.addEventListener('mouseleave', cancelPress);
+    });
+});
+
+function showFxContextMenu(e, slotId, element) {
+    contextFxSlotId = slotId;
+    const menu = document.getElementById('fx-context-menu');
+    
+    // Прячем другие менюшки, если они вдруг открыты
+    document.querySelectorAll('.history-dropdown').forEach(m => m.classList.remove('show'));
+    
+    menu.classList.add('show');
+    const rect = element.getBoundingClientRect();
+    
+    // Базовое центрирование (70 — это половина ширины меню 140px)
+    let menuLeft = rect.left + (rect.width / 2) - 70;
+    
+    // Защита от вылезания за левый край экрана (оставляем зазор 10px)
+    if (menuLeft < 10) {
+        menuLeft = 10;
+    }
+    // Защита от вылезания за правый край экрана (ширина экрана минус ширина меню минус зазор)
+    if (menuLeft + 140 > window.innerWidth - 10) {
+        menuLeft = window.innerWidth - 150;
+    }
+    
+    menu.style.top = (rect.bottom + 8) + 'px';
+    menu.style.left = menuLeft + 'px';
+}
+
+function assignFxToSlot(type) {
+    if (navigator.vibrate) navigator.vibrate(30);
+    document.getElementById('fx-context-menu').classList.remove('show');
+    
+    // Дергаем скрытый селект — он сам пересчитает аудио-ноды и отрисует ползунки!
+    const sel = document.getElementById('fx-select-' + contextFxSlotId);
+    if (sel) {
+        sel.value = type;
+        sel.dispatchEvent(new Event('change'));
+    }
+    
+    // Если мы поменяли эффект не в том слоте, на котором сейчас находимся,
+    // автоматически переключаем интерфейс на него, чтобы сразу крутить настройки
+    if (activeMacroSlot !== parseInt(contextFxSlotId)) {
+        selectFxSlot(parseInt(contextFxSlotId));
+    }
+    
+    if (typeof showOnSmartScreen === 'function') {
+        showOnSmartScreen(`SLOT ${contextFxSlotId}`, type.toUpperCase());
+    }
+}
 // Убеждаемся, что при старте приложения выбран первый слот
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => selectFxSlot(1), 300);
+});
+// --- FX CHAIN MANAGER LOGIC ---
+function openFxGlobalSettings() {
+    if(navigator.vibrate) navigator.vibrate(30);
+    document.getElementById('fx-manager-modal').style.display = 'flex';
+}
+
+function closeFxGlobalSettings() {
+    if(navigator.vibrate) navigator.vibrate(30);
+    document.getElementById('fx-manager-modal').style.display = 'none';
+}
+
+// --- ЛОГИКА КАСТОМНОГО СПИСКА ПРЕСЕТОВ ---
+let currentSelectedChainId = "";
+
+function toggleFxChainDropdown(e) {
+    if(e) e.stopPropagation();
+    if(navigator.vibrate) navigator.vibrate(20);
+    const dropdown = document.getElementById('fx-chain-dropdown');
+    dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function selectFxChainOption(chainId, chainName) {
+    if(navigator.vibrate) navigator.vibrate(30);
+    currentSelectedChainId = chainId;
+    
+    // Меняем текст на кнопке и красим в белый
+    const textSpan = document.getElementById('user-chain-select-text');
+    if (textSpan) {
+        textSpan.textContent = chainName;
+        textSpan.style.color = '#fff';
+    }
+    
+    document.getElementById('fx-chain-dropdown').style.display = 'none';
+    
+    // Запускаем логику загрузки (пока визуально)
+    loadUserFxChain(chainId, chainName);
+}
+
+// Закрываем меню, если кликнули мимо
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('fx-chain-dropdown');
+    if (dropdown && dropdown.style.display === 'flex' && !e.target.closest('#user-chain-select-btn') && !e.target.closest('#fx-chain-dropdown')) {
+        dropdown.style.display = 'none';
+    }
+});
+
+function saveUserFxChain(btn) {
+    const chainId = currentSelectedChainId;
+    
+    if (!chainId) {
+        if(navigator.vibrate) navigator.vibrate([50, 50]);
+        btn.textContent = 'SELECT FIRST!';
+        btn.style.backgroundColor = '#550000';
+        btn.style.color = '#ff3333';
+        setTimeout(() => {
+            btn.textContent = 'SAVE';
+            btn.style.backgroundColor = '';
+            btn.style.color = '';
+        }, 1500);
+        return;
+    }
+
+    if(navigator.vibrate) navigator.vibrate(50);
+    
+    btn.textContent = 'SAVED ✓';
+    btn.style.backgroundColor = '#003300';
+    btn.style.borderColor = '#00ff00';
+    btn.style.color = '#55ff55';
+    
+    setTimeout(() => {
+        btn.textContent = 'SAVE';
+        btn.style.backgroundColor = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        
+        // Сбрасываем визуальный выбор, чтобы избежать случайной перезаписи
+        currentSelectedChainId = "";
+        const textSpan = document.getElementById('user-chain-select-text');
+        if (textSpan) {
+            textSpan.textContent = '-- SELECT PRESET --';
+            textSpan.style.color = '#ccc';
+        }
+    }, 1500);
+}
+
+function loadUserFxChain(chainId, chainName) {
+    if (!chainId) return;
+    
+    if (typeof showOnSmartScreen === 'function') {
+        showOnSmartScreen('PRESET', chainName + ' LOADED');
+    }
+}
+function toggleV2mPadAssign() {
+    vibrate(30);
+    const popup = document.getElementById('v2m-pad-popup');
+    const btn = document.getElementById('v2m-assign-btn');
+    
+    if (popup.style.display === 'none' || popup.style.display === '') {
+        // Открываем
+        popup.style.display = 'block';
+        btn.innerHTML = '✕ CANCEL';
+        btn.classList.add('red-mode');
+        btn.classList.remove('active-mode');
+        btn.style.borderColor = '#ff0000';
+        btn.style.color = '#ff3333';
+        btn.style.background = '#330000';
+        
+        renderV2mPadPopup();
+    } else {
+        // Закрываем
+        closeV2mPadAssign();
+    }
+}
+
+function closeV2mPadAssign() {
+    const popup = document.getElementById('v2m-pad-popup');
+    const btn = document.getElementById('v2m-assign-btn');
+    popup.style.display = 'none';
+    btn.innerHTML = '📥 TO PAD';
+    btn.className = 'pad-action-btn active-mode';
+    btn.style.borderColor = '#aa00ff';
+    btn.style.color = '#ff66ff';
+    btn.style.background = '#2a0033';
+}
+
+function renderV2mPadPopup() {
+    const grid = document.getElementById('v2m-popup-grid');
+    const bankSpan = document.getElementById('v2m-target-bank');
+    bankSpan.textContent = globalSettings.padBank;
+    
+    grid.className = `set-pad-selector bank-${globalSettings.padBank}`;
+    grid.innerHTML = '';
+    
+    const bankGlow = {
+        'A': '0 0 10px rgba(0, 136, 255, 0.8)',
+        'B': '0 0 10px rgba(0, 255, 0, 0.8)',
+        'C': '0 0 10px rgba(255, 0, 0, 0.8)',
+        'D': '0 0 10px rgba(204, 0, 255, 0.8)'
+    };
+
+    for(let i = 1; i <= 12; i++) {
+        const padDataRef = padData[globalSettings.padBank][i];
+        const pNode = document.createElement('div');
+        pNode.className = 'set-pad-mini';
+        pNode.textContent = 'P' + i;
+        
+        if (padDataRef.fileName) {
+            pNode.classList.add('has-sample');
+            pNode.style.boxShadow = bankGlow[globalSettings.padBank];
+        }
+        
+        pNode.onclick = () => {
+            vibrate([30, 50]);
+            
+            // TODO: Здесь будем сохранять MIDI/WAV в выбранный пэд
+            
+            closeV2mPadAssign();
+            const btn = document.getElementById('v2m-assign-btn');
+            btn.innerHTML = `✓ SAVED P${i}`;
+            btn.style.borderColor = '#00ff00';
+            btn.style.color = '#55ff55';
+            btn.style.background = '#003300';
+            
+            setTimeout(() => {
+                if(btn.innerHTML.includes('SAVED')) {
+                    btn.innerHTML = '📥 TO PAD';
+                    btn.style.borderColor = '#aa00ff';
+                    btn.style.color = '#ff66ff';
+                    btn.style.background = '#2a0033';
+                }
+            }, 1500);
+        };
+        
+        grid.appendChild(pNode);
+    }
+}
+function toggleV2mPadAssign() {
+    vibrate(30);
+    const popup = document.getElementById('v2m-pad-popup');
+    const btn = document.getElementById('v2m-assign-btn');
+    
+    if (popup.style.display === 'none' || popup.style.display === '') {
+        popup.style.display = 'block';
+        btn.innerHTML = '✕ CANCEL';
+        btn.classList.add('red-mode');
+        btn.classList.remove('active-mode');
+        btn.style.borderColor = '#ff0000';
+        btn.style.color = '#ff3333';
+        btn.style.background = '#330000';
+        renderV2mPadPopup();
+    } else {
+        closeV2mPadAssign();
+    }
+}
+
+function closeV2mPadAssign() {
+    const popup = document.getElementById('v2m-pad-popup');
+    const btn = document.getElementById('v2m-assign-btn');
+    popup.style.display = 'none';
+    btn.innerHTML = '📥 TO PAD';
+    btn.className = 'pad-action-btn active-mode';
+    btn.style.borderColor = '#aa00ff';
+    btn.style.color = '#ff66ff';
+    btn.style.background = '#2a0033';
+}
+
+function renderV2mPadPopup() {
+    const grid = document.getElementById('v2m-popup-grid');
+    
+    const colors = { 'A': 'active-blue', 'B': 'active-green', 'C': 'active-red', 'D': 'active-purple' };
+    ['A','B','C','D'].forEach(b => {
+        const btn = document.getElementById(`v2m-bank-${b.toLowerCase()}`);
+        if(btn) btn.className = `set-tab-btn ${globalSettings.padBank === b ? colors[b] : ''}`;
+    });
+
+    grid.className = `set-pad-selector bank-${globalSettings.padBank}`;
+    grid.innerHTML = '';
+    
+    const bankGlow = {
+        'A': '0 0 10px rgba(0, 136, 255, 0.8)',
+        'B': '0 0 10px rgba(0, 255, 0, 0.8)',
+        'C': '0 0 10px rgba(255, 0, 0, 0.8)',
+        'D': '0 0 10px rgba(204, 0, 255, 0.8)'
+    };
+
+    for(let i = 1; i <= 12; i++) {
+        const padDataRef = padData[globalSettings.padBank][i];
+        const pNode = document.createElement('div');
+        pNode.className = 'set-pad-mini';
+        pNode.textContent = 'P' + i;
+        
+        if (padDataRef.fileName) {
+            pNode.classList.add('has-sample');
+            pNode.style.boxShadow = bankGlow[globalSettings.padBank];
+        }
+        
+        pNode.onclick = () => {
+            vibrate([30, 50]);
+            
+            // TODO: Здесь будем сохранять MIDI/WAV в выбранный пэд
+            
+            closeV2mPadAssign();
+            const btn = document.getElementById('v2m-assign-btn');
+            btn.innerHTML = `✓ SAVED P${i}`;
+            btn.style.borderColor = '#00ff00';
+            btn.style.color = '#55ff55';
+            btn.style.background = '#003300';
+            
+            setTimeout(() => {
+                if(btn.innerHTML.includes('SAVED')) {
+                    btn.innerHTML = '📥 TO PAD';
+                    btn.style.borderColor = '#aa00ff';
+                    btn.style.color = '#ff66ff';
+                    btn.style.background = '#2a0033';
+                }
+            }, 1500);
+        };
+        
+        grid.appendChild(pNode);
+    }
+}
+
+function switchV2mBank(bank) {
+    switchPadBank(bank);
+    renderV2mPadPopup();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const v2mFileInput = document.getElementById('v2m-file-input');
+    if (v2mFileInput) {
+        v2mFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                
+                // Временно визуализируем успешную загрузку на кнопке REC VOICE
+                const recBtn = document.getElementById('v2m-rec-btn');
+                if (recBtn) {
+                    const oldText = recBtn.innerHTML;
+                    const oldBg = recBtn.style.background;
+                    const oldColor = recBtn.style.color;
+                    const oldBorder = recBtn.style.borderColor;
+                    
+                    recBtn.innerHTML = '✓ LOADED';
+                    recBtn.style.background = '#003300';
+                    recBtn.style.color = '#55ff55';
+                    recBtn.style.borderColor = '#00ff00';
+                    
+                    setTimeout(() => {
+                        recBtn.innerHTML = oldText;
+                        recBtn.style.background = oldBg;
+                        recBtn.style.color = oldColor;
+                        recBtn.style.borderColor = oldBorder;
+                    }, 2000);
+                }
+                
+                // TODO: Здесь мы будем декодировать файл, рисовать его волну
+                // и запускать процесс распознавания нот (V2M Engine)
+            }
+            e.target.value = ''; // Сбрасываем инпут
+        });
+    }
 });
 </script>
 </body>
