@@ -9422,8 +9422,12 @@ let v2mLastDrawX = 0;
 let v2mTapTimes = [];
 let v2mTapTimeout;
 
-// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM
+// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM (Исправлен лаг)
 if (v2mBpmSlider) {
+    // Блокируем глобальные тач-события, которые перехватывали слайдер
+    v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
+    v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
+
     v2mBpmSlider.addEventListener('input', (e) => {
         const newBpm = e.target.value;
         globalSettings.bpm = newBpm;
@@ -9438,19 +9442,16 @@ if (v2mBpmSlider) {
     });
 }
 
-// 2. ЛОГИКА TAP TEMPO ДЛЯ V2M
+// 2. ЛОГИКА TAP TEMPO ДЛЯ V2M (Исправлено двойное нажатие)
 if (v2mTapBtn) {
-    v2mTapBtn.addEventListener('click', () => {
+    v2mTapBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Убиваем задержку браузера (300ms)
+        e.stopPropagation();
+
         if (typeof vibrate === 'function') vibrate(30);
-        v2mTapBtn.style.background = '#00ffff';
-        v2mTapBtn.style.color = '#000';
-        v2mTapBtn.style.boxShadow = '0 0 10px #00ffff';
         
-        setTimeout(() => {
-            v2mTapBtn.style.background = '';
-            v2mTapBtn.style.color = '';
-            v2mTapBtn.style.boxShadow = '';
-        }, 100);
+        v2mTapBtn.classList.add('active-mode');
+        setTimeout(() => v2mTapBtn.classList.remove('active-mode'), 100);
 
         const now = Date.now();
         v2mTapTimes.push(now);
@@ -9479,7 +9480,7 @@ if (v2mTapBtn) {
             clearTimeout(v2mTapTimeout);
             v2mTapTimeout = setTimeout(() => { v2mTapTimes = []; }, 2000);
         }
-    });
+    }, {passive: false});
 }
 
 // 3. СИНХРОНИЗАЦИЯ КНОПКИ МЕТРОНОМА
@@ -9500,7 +9501,7 @@ if (v2mMetroBtn) {
     });
 }
 
-// 4. ЗАПИСЬ ГОЛОСА И ОТРИСОВКА ВОЛНЫ
+// 4. ЗАПИСЬ ГОЛОСА И ОТРИСОВКА ВОЛНЫ (Без жесткой заливки)
 if (v2mRecBtn) {
     v2mRecBtn.onclick = async function() {
         try {
@@ -9540,8 +9541,7 @@ if (v2mRecBtn) {
                 }
             }
 
-            v2mRecBtn.style.background = '#ff0000';
-            v2mRecBtn.style.color = '#fff';
+            v2mRecBtn.classList.add('active-mode');
             v2mRecBtn.innerHTML = 'RECORDING...';
             
             const canvas = document.getElementById('v2m-wave-canvas');
@@ -9574,8 +9574,7 @@ if (v2mRecBtn) {
                 if (playhead) playhead.style.display = 'none';
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
                 
-                v2mRecBtn.style.background = '';
-                v2mRecBtn.style.color = '';
+                v2mRecBtn.classList.remove('active-mode');
                 v2mRecBtn.innerHTML = '🎙️ REC VOICE';
 
                 try {
