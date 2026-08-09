@@ -1698,7 +1698,7 @@ top: 2px; }
         <div class="set-row" style="margin-bottom: 12px;">
             <div style="display: flex; gap: 8px;">
                 <div class="btn-cutout" style="flex: 1; height: 32px; padding: 2px;">
-                    <button class="btn-rubber led-purple active-mode" id="v2m-metro-btn" onclick="vibrate(30); this.classList.toggle('active-mode'); this.textContent = this.classList.contains('active-mode') ? 'METRO: ON' : 'METRO: OFF';">METRO: ON</button>
+                    <button class="btn-rubber led-purple" id="v2m-metro-btn">METRO: OFF</button>
                 </div>
                 <select class="set-control" id="v2m-quantize" style="flex: 1; height: 32px; padding: 0 5px;">
                     <option>Q: 1/4</option><option>Q: 1/8</option><option selected>Q: 1/16</option><option>Q: OFF</option>
@@ -1713,14 +1713,14 @@ top: 2px; }
         
         <div class="set-row" style="margin-bottom: 20px;">
             <label style="color: #ff66ff; display: block; margin-bottom: 4px; white-space: nowrap;">
-                V2M TEMPO (BPM)&nbsp;&nbsp;&nbsp;<span class="set-range-val" style="color: #ff66ff;">130 BPM</span>
+                V2M TEMPO (BPM)&nbsp;&nbsp;&nbsp;<span class="set-range-val" id="v2m-bpm-val" style="color: #ff66ff;">130 BPM</span>
             </label>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="set-range-group" style="flex: 1; margin: 0;">
-                    <input type="range" class="set-range" min="60" max="200" value="130" style="width: 100%;" oninput="updateSetRangeLabel(this, ' BPM')">
+                    <input type="range" class="set-range native-slider" id="v2m-bpm-slider" min="60" max="200" value="130" step="1" style="width: 100%;">
                 </div>
                 <div class="btn-cutout" style="width: 75px; height: 32px; padding: 2px;">
-                    <button class="btn-rubber led-cyan" onclick="vibrate(30)">TAP</button>
+                    <button class="btn-rubber led-cyan" id="v2m-tap-btn">TAP</button>
                 </div>
             </div>
         </div>
@@ -9397,180 +9397,94 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) RECORDING ENGINE
+// V2M TEMPO & METRO LOGIC
 // ============================================
-let v2mMediaRecorder = null;
-let v2mStream = null;
-let v2mChunks = [];
-let v2mAnalyser = null;
-let v2mDataArray = null;
-let v2mAnimFrame = null;
-let v2mStartTime = 0;
-let v2mDurationSec = 0;
-let v2mAudioBuffer = null;
-let v2mLastDrawX = 0;
+const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
+const v2mBpmVal = document.getElementById('v2m-bpm-val');
+const v2mTapBtn = document.getElementById('v2m-tap-btn');
+const v2mMetroBtn = document.getElementById('v2m-metro-btn');
 
-const v2mRecBtn = document.getElementById('v2m-rec-btn');
-const v2mCanvas = document.getElementById('v2m-wave-canvas');
-const v2mCtx = v2mCanvas ? v2mCanvas.getContext('2d') : null;
-const v2mPlayhead = document.getElementById('v2m-playhead');
-const v2mLengthSelect = document.getElementById('v2m-length');
-
-if (v2mRecBtn) {
-    v2mRecBtn.addEventListener('click', async () => {
-        if (audioCtx.state === 'suspended') await audioCtx.resume();
+// 1. Синхронизация ползунка BPM
+if (v2mBpmSlider) {
+    v2mBpmSlider.addEventListener('input', (e) => {
+        const newBpm = e.target.value;
+        globalSettings.bpm = newBpm;
+        if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
         
-        // Если уже пишем - принудительный стоп
-        if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
-            v2mMediaRecorder.stop();
-            return;
+        // Синхронизируем главный ползунок студии
+        const mainBpmSlider = document.getElementById('global-bpm-slider');
+        if (mainBpmSlider) {
+            mainBpmSlider.value = newBpm;
+            if (typeof updateSetRangeLabel === 'function') updateSetRangeLabel(mainBpmSlider, ' BPM');
         }
-
-        if (typeof vibrate === 'function') vibrate(50);
-        
-        // Читаем настройки сетки и темпа
-        const steps = parseInt(v2mLengthSelect.value.replace(/\D/g,'')) || 16;
-        const bpm = parseInt(globalSettings.bpm) || 130;
-        
-        // Математика: 16 шагов = 4 удара (beats) при сетке 1/16
-        const totalBeats = steps / 4;
-        const beatDurationSec = 60.0 / bpm;
-        v2mDurationSec = totalBeats * beatDurationSec;
-
-        try {
-            v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (err) {
-            if (typeof showOnSmartScreen === 'function') showOnSmartScreen("ERROR", "MIC DENIED");
-            return;
-        }
-
-        // Подготовка UI
-        v2mRecBtn.style.background = '#ff0000';
-        v2mRecBtn.style.color = '#fff';
-        v2mRecBtn.innerHTML = 'RECORDING...';
-        
-        if (v2mCanvas) {
-            v2mCanvas.width = v2mCanvas.parentElement.clientWidth;
-            v2mCanvas.height = v2mCanvas.parentElement.clientHeight;
-            v2mCtx.clearRect(0, 0, v2mCanvas.width, v2mCanvas.height);
-        }
-        
-        if (v2mPlayhead) {
-            v2mPlayhead.style.display = 'block';
-            v2mPlayhead.style.left = '0%';
-        }
-        v2mLastDrawX = 0;
-
-        // Подключаем живой анализатор
-        const source = audioCtx.createMediaStreamSource(v2mStream);
-        v2mAnalyser = audioCtx.createAnalyser();
-        v2mAnalyser.fftSize = 512;
-        source.connect(v2mAnalyser);
-        v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
-
-        // Запуск метронома, если он включен в глобальных настройках
-        if (globalSettings.metronome && typeof playMetroClick === 'function') {
-            const startMetroTime = audioCtx.currentTime;
-            for(let i = 0; i < totalBeats; i++) {
-                playMetroClick(startMetroTime + i * beatDurationSec, i % 4 === 0);
-            }
-        }
-
-        // Подготовка записи
-        v2mChunks = [];
-        v2mMediaRecorder = new MediaRecorder(v2mStream);
-        v2mMediaRecorder.ondataavailable = e => { if (e.data.size > 0) v2mChunks.push(e.data); };
-        
-        v2mMediaRecorder.onstop = async () => {
-            cancelAnimationFrame(v2mAnimFrame);
-            if (v2mPlayhead) v2mPlayhead.style.display = 'none';
-            if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
-            
-            v2mRecBtn.style.background = '';
-            v2mRecBtn.style.color = '';
-            v2mRecBtn.innerHTML = '🎙️ REC VOICE';
-
-            const blob = new Blob(v2mChunks);
-            const arrayBuffer = await blob.arrayBuffer();
-            try {
-                v2mAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                drawV2mFinalWave(v2mAudioBuffer);
-                if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "RECORD SAVED");
-            } catch(e) {
-                if (typeof showOnSmartScreen === 'function') showOnSmartScreen("ERROR", "DECODE FAILED");
-            }
-        };
-
-        v2mStartTime = audioCtx.currentTime;
-        v2mMediaRecorder.start();
-        drawV2mLiveWave();
+        if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
     });
 }
 
-function drawV2mLiveWave() {
-    if (!v2mCanvas || !v2mCtx || !v2mAnalyser) return;
-    
-    const now = audioCtx.currentTime;
-    const elapsed = now - v2mStartTime;
-    let progress = elapsed / v2mDurationSec;
-    
-    if (progress >= 1.0) {
-        progress = 1.0;
-        if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
-            v2mMediaRecorder.stop();
+// 2. Логика TAP TEMPO для V2M
+let v2mTapTimes = [];
+let v2mTapTimeout;
+if (v2mTapBtn) {
+    v2mTapBtn.addEventListener('click', () => {
+        if (typeof vibrate === 'function') vibrate(30);
+        v2mTapBtn.style.background = '#00ffff';
+        v2mTapBtn.style.color = '#000';
+        v2mTapBtn.style.boxShadow = '0 0 10px #00ffff';
+        
+        setTimeout(() => {
+            v2mTapBtn.style.background = '';
+            v2mTapBtn.style.color = '';
+            v2mTapBtn.style.boxShadow = '';
+        }, 100);
+
+        const now = Date.now();
+        v2mTapTimes.push(now);
+        if (v2mTapTimes.length > 4) v2mTapTimes.shift();
+        
+        if (v2mTapTimes.length > 1) {
+            let sum = 0;
+            for (let i = 1; i < v2mTapTimes.length; i++) {
+                sum += (v2mTapTimes[i] - v2mTapTimes[i-1]);
+            }
+            let newBpm = Math.round(60000 / (sum / (v2mTapTimes.length - 1)));
+            if (newBpm < 60) newBpm = 60;
+            if (newBpm > 200) newBpm = 200;
+            
+            globalSettings.bpm = newBpm;
+            if (v2mBpmSlider) v2mBpmSlider.value = newBpm;
+            if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
+            
+            // Синхронизируем студию
+            const mainBpmSlider = document.getElementById('global-bpm-slider');
+            if (mainBpmSlider) {
+                mainBpmSlider.value = newBpm;
+                if (typeof updateSetRangeLabel === 'function') updateSetRangeLabel(mainBpmSlider, ' BPM');
+            }
+            if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
+            
+            clearTimeout(v2mTapTimeout);
+            v2mTapTimeout = setTimeout(() => { v2mTapTimes = []; }, 2000);
         }
-    }
-    
-    if (v2mPlayhead) v2mPlayhead.style.left = (progress * 100) + '%';
-
-    const x = progress * v2mCanvas.width;
-    
-    // Получаем текущие данные громкости
-    v2mAnalyser.getByteTimeDomainData(v2mDataArray);
-    let min = 255, max = 0;
-    for(let i = 0; i < v2mDataArray.length; i++) {
-        if(v2mDataArray[i] < min) min = v2mDataArray[i];
-        if(v2mDataArray[i] > max) max = v2mDataArray[i];
-    }
-    
-    // Переводим 0..255 в диапазон -1..1
-    let normMin = (min / 128.0) - 1.0;
-    let normMax = (max / 128.0) - 1.0;
-    
-    const amp = v2mCanvas.height / 2;
-    v2mCtx.fillStyle = '#ff003c'; // Красный след при записи
-    
-    if (x > v2mLastDrawX) {
-        v2mCtx.fillRect(v2mLastDrawX, (1 + normMin) * amp, x - v2mLastDrawX + 1, Math.max(1, (normMax - normMin) * amp));
-        v2mLastDrawX = x;
-    }
-
-    if (progress < 1.0) {
-        v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
-    }
+    });
 }
 
-function drawV2mFinalWave(buffer) {
-    if (!v2mCanvas || !v2mCtx) return;
-    const w = v2mCanvas.width;
-    const h = v2mCanvas.height;
-    v2mCtx.clearRect(0, 0, w, h);
-    
-    const data = buffer.getChannelData(0);
-    const step = Math.ceil(data.length / w);
-    const amp = h / 2;
-    
-    v2mCtx.fillStyle = '#00ffff'; // Завершённая волна становится циановой
-    
-    for (let i = 0; i < w; i++) {
-        let min = 1.0, max = -1.0;
-        for (let j = 0; j < step; j++) {
-            const v = data[(i * step) + j];
-            if (v < min) min = v;
-            if (v > max) max = v;
+// 3. Синхронизация кнопки Метронома
+if (v2mMetroBtn) {
+    v2mMetroBtn.addEventListener('click', () => {
+        if (typeof vibrate === 'function') vibrate(30);
+        const isActive = v2mMetroBtn.classList.toggle('active-mode');
+        globalSettings.metronome = isActive;
+        v2mMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
+        
+        // Синхронизируем главную кнопку метронома
+        const mainMetroBtn = document.getElementById('btn-metro-toggle');
+        if (mainMetroBtn) {
+            if (isActive) mainMetroBtn.classList.add('active-mode');
+            else mainMetroBtn.classList.remove('active-mode');
+            mainMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
         }
-        v2mCtx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
-    }
+        if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
+    });
 }
 </script>
 </body>
