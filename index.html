@@ -9397,94 +9397,207 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M TEMPO & METRO LOGIC
+// V2M (VOICE TO MIDI) RECORDING ENGINE (FIXED V3)
 // ============================================
-const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
-const v2mBpmVal = document.getElementById('v2m-bpm-val');
-const v2mTapBtn = document.getElementById('v2m-tap-btn');
-const v2mMetroBtn = document.getElementById('v2m-metro-btn');
+let v2mMediaRecorder = null;
+let v2mStream = null;
+let v2mChunks = [];
+let v2mAnalyser = null;
+let v2mDataArray = null;
+let v2mAnimFrame = null;
+let v2mStartTime = 0;
+let v2mDurationSec = 0;
+let v2mAudioBuffer = null;
+let v2mLastDrawX = 0;
 
-// 1. Синхронизация ползунка BPM
-if (v2mBpmSlider) {
-    v2mBpmSlider.addEventListener('input', (e) => {
-        const newBpm = e.target.value;
-        globalSettings.bpm = newBpm;
-        if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
-        
-        // Синхронизируем главный ползунок студии
-        const mainBpmSlider = document.getElementById('global-bpm-slider');
-        if (mainBpmSlider) {
-            mainBpmSlider.value = newBpm;
-            if (typeof updateSetRangeLabel === 'function') updateSetRangeLabel(mainBpmSlider, ' BPM');
+const v2mRecBtn = document.getElementById('v2m-rec-btn');
+
+if (v2mRecBtn) {
+    // Используем жесткую привязку клика
+    v2mRecBtn.onclick = async function() {
+        try {
+            if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+            
+            // Если уже пишем - принудительный стоп
+            if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
+                v2mMediaRecorder.stop();
+                return;
+            }
+
+            if (typeof vibrate === 'function') vibrate(50);
+            
+            // Читаем элементы заново
+            const lenSelect = document.getElementById('v2m-length');
+            const steps = lenSelect ? parseInt(lenSelect.value.replace(/\D/g,'')) || 16 : 16;
+            const bpm = parseInt(globalSettings.bpm) || 130;
+            
+            // Математика: 16 шагов = 4 удара
+            const totalBeats = steps / 4;
+            const beatDurationSec = 60.0 / bpm;
+            v2mDurationSec = totalBeats * beatDurationSec;
+
+            // 1. Проверяем поддержку
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("ОШИБКА: Браузер не поддерживает запись аудио (нужен HTTPS).");
+                return;
+            }
+
+            // 2. Пытаемся получить доступ к микрофону
+            try {
+                v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (err) {
+                alert("ОШИБКА МИКРОФОНА: Нет доступа! Разрешите микрофон в настройках браузера/сайта.");
+                return;
+            }
+
+            // 3. Запускаем метроном, если он включен
+            if (globalSettings.metronome && typeof playMetroClick === 'function') {
+                const startMetroTime = audioCtx.currentTime;
+                for(let i = 0; i < totalBeats; i++) {
+                    playMetroClick(startMetroTime + i * beatDurationSec, i % 4 === 0);
+                }
+            }
+
+            // 4. Подготовка визуала записи
+            v2mRecBtn.style.background = '#ff0000';
+            v2mRecBtn.style.color = '#fff';
+            v2mRecBtn.innerHTML = 'RECORDING...';
+            
+            const canvas = document.getElementById('v2m-wave-canvas');
+            const ctx = canvas ? canvas.getContext('2d') : null;
+            if (canvas && ctx) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            const playhead = document.getElementById('v2m-playhead');
+            if (playhead) {
+                playhead.style.display = 'block';
+                playhead.style.left = '0%';
+            }
+            v2mLastDrawX = 0;
+
+            // 5. Подключаем живой анализатор
+            const source = audioCtx.createMediaStreamSource(v2mStream);
+            v2mAnalyser = audioCtx.createAnalyser();
+            v2mAnalyser.fftSize = 512;
+            source.connect(v2mAnalyser);
+            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
+
+            v2mChunks = [];
+            v2mMediaRecorder = new MediaRecorder(v2mStream);
+            v2mMediaRecorder.ondataavailable = e => { if (e.data.size > 0) v2mChunks.push(e.data); };
+            
+            // 6. Действия при остановке записи
+            v2mMediaRecorder.onstop = async () => {
+                cancelAnimationFrame(v2mAnimFrame);
+                if (playhead) playhead.style.display = 'none';
+                if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
+                
+                v2mRecBtn.style.background = '';
+                v2mRecBtn.style.color = '';
+                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+
+                try {
+                    const blob = new Blob(v2mChunks);
+                    
+                    // Самый надежный способ чтения (работает везде)
+                    const arrayBuffer = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(blob);
+                    });
+                    
+                    v2mAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    drawV2mFinalWave(v2mAudioBuffer);
+                    if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "RECORD SAVED");
+                } catch(e) {
+                    alert("Ошибка конвертации аудио: " + e.message);
+                    if (typeof showOnSmartScreen === 'function') showOnSmartScreen("ERROR", "DECODE FAILED");
+                }
+            };
+
+            // Запуск
+            v2mStartTime = audioCtx.currentTime;
+            v2mMediaRecorder.start();
+            drawV2mLiveWave();
+
+        } catch (globalError) {
+            alert("КРИТИЧЕСКАЯ ОШИБКА: " + globalError.message);
         }
-        if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
-    });
+    };
 }
 
-// 2. Логика TAP TEMPO для V2M
-let v2mTapTimes = [];
-let v2mTapTimeout;
-if (v2mTapBtn) {
-    v2mTapBtn.addEventListener('click', () => {
-        if (typeof vibrate === 'function') vibrate(30);
-        v2mTapBtn.style.background = '#00ffff';
-        v2mTapBtn.style.color = '#000';
-        v2mTapBtn.style.boxShadow = '0 0 10px #00ffff';
-        
-        setTimeout(() => {
-            v2mTapBtn.style.background = '';
-            v2mTapBtn.style.color = '';
-            v2mTapBtn.style.boxShadow = '';
-        }, 100);
-
-        const now = Date.now();
-        v2mTapTimes.push(now);
-        if (v2mTapTimes.length > 4) v2mTapTimes.shift();
-        
-        if (v2mTapTimes.length > 1) {
-            let sum = 0;
-            for (let i = 1; i < v2mTapTimes.length; i++) {
-                sum += (v2mTapTimes[i] - v2mTapTimes[i-1]);
-            }
-            let newBpm = Math.round(60000 / (sum / (v2mTapTimes.length - 1)));
-            if (newBpm < 60) newBpm = 60;
-            if (newBpm > 200) newBpm = 200;
-            
-            globalSettings.bpm = newBpm;
-            if (v2mBpmSlider) v2mBpmSlider.value = newBpm;
-            if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
-            
-            // Синхронизируем студию
-            const mainBpmSlider = document.getElementById('global-bpm-slider');
-            if (mainBpmSlider) {
-                mainBpmSlider.value = newBpm;
-                if (typeof updateSetRangeLabel === 'function') updateSetRangeLabel(mainBpmSlider, ' BPM');
-            }
-            if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
-            
-            clearTimeout(v2mTapTimeout);
-            v2mTapTimeout = setTimeout(() => { v2mTapTimes = []; }, 2000);
+function drawV2mLiveWave() {
+    const canvas = document.getElementById('v2m-wave-canvas');
+    if (!canvas || !v2mAnalyser) return;
+    const ctx = canvas.getContext('2d');
+    
+    const now = audioCtx.currentTime;
+    const elapsed = now - v2mStartTime;
+    let progress = elapsed / v2mDurationSec;
+    
+    // Автоматическая остановка, когда дошли до конца
+    if (progress >= 1.0) {
+        progress = 1.0;
+        if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
+            v2mMediaRecorder.stop();
         }
-    });
+    }
+    
+    const playhead = document.getElementById('v2m-playhead');
+    if (playhead) playhead.style.left = (progress * 100) + '%';
+
+    const x = progress * canvas.width;
+    v2mAnalyser.getByteTimeDomainData(v2mDataArray);
+    let min = 255, max = 0;
+    for(let i = 0; i < v2mDataArray.length; i++) {
+        if(v2mDataArray[i] < min) min = v2mDataArray[i];
+        if(v2mDataArray[i] > max) max = v2mDataArray[i];
+    }
+    
+    let normMin = (min / 128.0) - 1.0;
+    let normMax = (max / 128.0) - 1.0;
+    
+    const amp = canvas.height / 2;
+    ctx.fillStyle = '#ff003c'; 
+    
+    if (x > v2mLastDrawX) {
+        ctx.fillRect(v2mLastDrawX, (1 + normMin) * amp, x - v2mLastDrawX + 1, Math.max(1, (normMax - normMin) * amp));
+        v2mLastDrawX = x;
+    }
+
+    if (progress < 1.0) {
+        v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
+    }
 }
 
-// 3. Синхронизация кнопки Метронома
-if (v2mMetroBtn) {
-    v2mMetroBtn.addEventListener('click', () => {
-        if (typeof vibrate === 'function') vibrate(30);
-        const isActive = v2mMetroBtn.classList.toggle('active-mode');
-        globalSettings.metronome = isActive;
-        v2mMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
-        
-        // Синхронизируем главную кнопку метронома в студии
-        const mainMetroBtn = document.getElementById('btn-metro-toggle');
-        if (mainMetroBtn) {
-            if (isActive) mainMetroBtn.classList.add('active-mode');
-            else mainMetroBtn.classList.remove('active-mode');
-            mainMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
+function drawV2mFinalWave(buffer) {
+    const canvas = document.getElementById('v2m-wave-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    
+    const data = buffer.getChannelData(0);
+    const step = Math.ceil(data.length / w);
+    const amp = h / 2;
+    
+    ctx.fillStyle = '#00ffff'; 
+    for (let i = 0; i < w; i++) {
+        let min = 1.0, max = -1.0;
+        for (let j = 0; j < step; j++) {
+            const v = data[(i * step) + j];
+            if (v < min) min = v;
+            if (v > max) max = v;
         }
-        if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
-    });
+        ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+    }
 }
 </script>
 </body>
