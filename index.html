@@ -9397,10 +9397,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (TEMPO + REC + METRO)
+// V2M (VOICE TO MIDI) FULL ENGINE (PRO SYNC)
 // ============================================
 
-// --- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ ---
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
 const v2mBpmVal = document.getElementById('v2m-bpm-val');
 const v2mTapBtn = document.getElementById('v2m-tap-btn');
@@ -9408,29 +9407,28 @@ const v2mMetroBtn = document.getElementById('v2m-metro-btn');
 const v2mRecBtn = document.getElementById('v2m-rec-btn');
 const v2mLengthSelect = document.getElementById('v2m-length');
 
-// --- ПЕРЕМЕННЫЕ ЗАПИСИ И МЕТРОНОМА ---
 let v2mMediaRecorder = null;
 let v2mStream = null;
 let v2mChunks = [];
 let v2mAnalyser = null;
 let v2mDataArray = null;
 let v2mAnimFrame = null;
+let v2mPrerollFrame = null;
 let v2mStartTime = 0;
 let v2mDurationSec = 0;
 let v2mAudioBuffer = null;
 let v2mLastDrawX = 0;
 let v2mTapTimes = [];
 let v2mTapTimeout;
-let v2mMetroOscillators = []; // Хранилище для мгновенной остановки метронома
+let v2mMetroOscillators = []; 
 
-// 0. ФУНКЦИИ МЕТРОНОМА
+// 0. ФУНКЦИИ МЕТРОНОМА (ЖЕСТКИЙ КОНТРОЛЬ)
 function v2mPlayMetroClick(time, isHigh) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'triangle';
     osc.frequency.value = isHigh ? 880 : 440;
     
-    // Бронебойная настройка громкости для Safari/Chrome
     gain.gain.value = 0;
     gain.gain.setValueAtTime(0.5, time);
     gain.gain.linearRampToValueAtTime(0, time + 0.1);
@@ -9440,21 +9438,23 @@ function v2mPlayMetroClick(time, isHigh) {
     
     osc.start(time);
     osc.stop(time + 0.1);
-    v2mMetroOscillators.push(osc);
+    v2mMetroOscillators.push({ osc, gain });
 }
 
 function killV2mMetronome() {
     const now = audioCtx.currentTime;
-    v2mMetroOscillators.forEach(osc => {
+    v2mMetroOscillators.forEach(item => {
         try { 
-            osc.stop(now); 
-            osc.disconnect(); 
+            item.gain.gain.cancelScheduledValues(now);
+            item.gain.gain.setValueAtTime(0, now); // Мгновенный срез звука
+            item.osc.stop(now); 
+            item.osc.disconnect(); 
         } catch(e) {}
     });
     v2mMetroOscillators = [];
 }
 
-// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM
+// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM (Без лагов)
 if (v2mBpmSlider) {
     v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
     v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
@@ -9473,7 +9473,7 @@ if (v2mBpmSlider) {
     });
 }
 
-// 2. ЛОГИКА TAP TEMPO ДЛЯ V2M
+// 2. ЛОГИКА TAP TEMPO (Защита от фантомных кликов Android)
 if (v2mTapBtn) {
     v2mTapBtn.addEventListener('touchstart', (e) => {
         e.preventDefault(); 
@@ -9532,7 +9532,7 @@ if (v2mMetroBtn) {
     });
 }
 
-// 4. ЗАПИСЬ ГОЛОСА И МЕТРОНОМ
+// 4. ЗАПИСЬ ГОЛОСА И СИНХРОНИЗАЦИЯ
 if (v2mRecBtn) {
     v2mRecBtn.onclick = async function() {
         try {
@@ -9540,16 +9540,16 @@ if (v2mRecBtn) {
                 await audioCtx.resume();
             }
             
-            // Если находимся в преролле и юзер нажал стоп - отменяем запись
             if (v2mRecBtn.dataset.state === 'preroll') {
                 v2mRecBtn.dataset.state = 'idle';
+                cancelAnimationFrame(v2mPrerollFrame);
                 killV2mMetronome();
-                v2mRecBtn.classList.remove('active-mode');
+                v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                v2mRecBtn.classList.add('led-red');
                 v2mRecBtn.innerHTML = '🎙️ REC VOICE';
                 return;
             }
 
-            // Если уже пишем - принудительный стоп
             if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
                 v2mRecBtn.dataset.state = 'idle';
                 killV2mMetronome();
@@ -9565,115 +9565,118 @@ if (v2mRecBtn) {
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            // Если включен метроном, то даем 4 удара преролла
             const prerollBeats = globalSettings.metronome ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("ОШИБКА: Браузер не поддерживает запись аудио (нужен HTTPS).");
+                alert("ОШИБКА: Браузер не поддерживает запись аудио.");
                 return;
             }
 
             try {
                 v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (err) {
-                alert("ОШИБКА МИКРОФОНА: Нет доступа! Разрешите микрофон в настройках браузера/сайта.");
+                alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
                 return;
             }
+            
+            // Восстанавливаем контекст после запроса микрофона (важно для Android)
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // Очищаем старые клики и планируем новые
             killV2mMetronome();
             const now = audioCtx.currentTime;
+            const exactRecordTime = now + prerollTimeSec;
 
             if (globalSettings.metronome) {
-                // Стучим 4 удара преролла
                 for (let i = 0; i < prerollBeats; i++) {
                     v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
                 }
-                // И продолжаем стучать во время самой записи
                 for (let i = 0; i < totalBeats; i++) {
-                    v2mPlayMetroClick(now + prerollTimeSec + i * beatDurationSec, i % 4 === 0);
+                    v2mPlayMetroClick(exactRecordTime + i * beatDurationSec, i % 4 === 0);
                 }
             }
 
-            // Функция физического старта записи (срабатывает после преролла)
+            const canvas = document.getElementById('v2m-wave-canvas');
+            const ctx = canvas ? canvas.getContext('2d') : null;
+            if (canvas && ctx) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            const playhead = document.getElementById('v2m-playhead');
+            if (playhead) {
+                playhead.style.display = 'block';
+                playhead.style.left = '0%';
+            }
+            v2mLastDrawX = 0;
+
+            const source = audioCtx.createMediaStreamSource(v2mStream);
+            v2mAnalyser = audioCtx.createAnalyser();
+            v2mAnalyser.fftSize = 512;
+            source.connect(v2mAnalyser);
+            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
+
+            v2mChunks = [];
+            v2mMediaRecorder = new MediaRecorder(v2mStream);
+            v2mMediaRecorder.ondataavailable = e => { if (e.data.size > 0) v2mChunks.push(e.data); };
+            
+            v2mMediaRecorder.onstop = async () => {
+                v2mRecBtn.dataset.state = 'idle';
+                cancelAnimationFrame(v2mAnimFrame);
+                killV2mMetronome(); 
+                
+                if (playhead) playhead.style.display = 'none';
+                if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
+                
+                v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                v2mRecBtn.classList.add('led-red');
+                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+
+                try {
+                    const blob = new Blob(v2mChunks);
+                    const arrayBuffer = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(blob);
+                    });
+                    
+                    v2mAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    drawV2mFinalWave(v2mAudioBuffer);
+                    if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "RECORD SAVED");
+                } catch(e) {
+                    alert("Ошибка конвертации аудио: " + e.message);
+                }
+            };
+
             const startActualRecording = () => {
                 v2mRecBtn.dataset.state = 'recording';
-                v2mRecBtn.classList.add('active-mode');
+                v2mRecBtn.classList.remove('led-orange');
+                v2mRecBtn.classList.add('led-red', 'active-mode');
                 v2mRecBtn.innerHTML = 'RECORDING...';
-
-                // Очистка холста и старт бегунка происходит именно сейчас
-                const canvas = document.getElementById('v2m-wave-canvas');
-                const ctx = canvas ? canvas.getContext('2d') : null;
-                if (canvas && ctx) {
-                    canvas.width = canvas.parentElement.clientWidth;
-                    canvas.height = canvas.parentElement.clientHeight;
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
-                
-                const playhead = document.getElementById('v2m-playhead');
-                if (playhead) {
-                    playhead.style.display = 'block';
-                    playhead.style.left = '0%';
-                }
-                v2mLastDrawX = 0;
-
-                const source = audioCtx.createMediaStreamSource(v2mStream);
-                v2mAnalyser = audioCtx.createAnalyser();
-                v2mAnalyser.fftSize = 512;
-                source.connect(v2mAnalyser);
-                v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
-
-                v2mChunks = [];
-                v2mMediaRecorder = new MediaRecorder(v2mStream);
-                v2mMediaRecorder.ondataavailable = e => { if (e.data.size > 0) v2mChunks.push(e.data); };
-                
-                v2mMediaRecorder.onstop = async () => {
-                    v2mRecBtn.dataset.state = 'idle';
-                    cancelAnimationFrame(v2mAnimFrame);
-                    killV2mMetronome(); // Железно убиваем хвосты метронома
-                    
-                    if (playhead) playhead.style.display = 'none';
-                    if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
-                    
-                    // Снимаем подсветку
-                    v2mRecBtn.classList.remove('active-mode');
-                    v2mRecBtn.innerHTML = '🎙️ REC VOICE';
-
-                    try {
-                        const blob = new Blob(v2mChunks);
-                        const arrayBuffer = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsArrayBuffer(blob);
-                        });
-                        
-                        v2mAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                        drawV2mFinalWave(v2mAudioBuffer);
-                        if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "RECORD SAVED");
-                    } catch(e) {
-                        alert("Ошибка конвертации аудио: " + e.message);
-                    }
-                };
 
                 v2mStartTime = audioCtx.currentTime;
                 v2mMediaRecorder.start();
                 drawV2mLiveWave();
             };
 
-            // Логика запуска (преролл или сразу)
+            // СВЕРХТОЧНЫЙ ТАЙМЕР ПРЕРОЛЛА (Вместо setTimeout)
             if (prerollBeats > 0) {
                 v2mRecBtn.dataset.state = 'preroll';
-                v2mRecBtn.classList.add('active-mode');
+                v2mRecBtn.classList.remove('led-red');
+                v2mRecBtn.classList.add('led-orange', 'active-mode');
                 v2mRecBtn.innerHTML = 'PRE-ROLL...';
                 
-                setTimeout(() => {
-                    // Проверяем, не нажал ли юзер СТОП во время преролла
-                    if (v2mRecBtn.dataset.state === 'preroll') {
+                const pollPreroll = () => {
+                    if (v2mRecBtn.dataset.state !== 'preroll') return; 
+                    if (audioCtx.currentTime >= exactRecordTime) {
                         startActualRecording();
+                    } else {
+                        v2mPrerollFrame = requestAnimationFrame(pollPreroll);
                     }
-                }, prerollTimeSec * 1000);
+                };
+                pollPreroll();
             } else {
                 startActualRecording();
             }
@@ -9691,20 +9694,28 @@ function drawV2mLiveWave() {
     
     const now = audioCtx.currentTime;
     const elapsed = now - v2mStartTime;
-    let progress = elapsed / v2mDurationSec;
     
-    if (progress >= 1.0) {
-        progress = 1.0;
-        killV2mMetronome(); // Дополнительная защита на финише
+    // Компенсация аппаратной задержки микрофона (~150мс)
+    const visualLatencyComp = 0.15; 
+    let waveElapsed = elapsed - visualLatencyComp;
+    if (waveElapsed < 0) waveElapsed = 0;
+
+    let playheadProgress = elapsed / v2mDurationSec;
+    let waveProgress = waveElapsed / v2mDurationSec;
+    
+    if (playheadProgress >= 1.0) {
+        playheadProgress = 1.0;
+        waveProgress = 1.0;
+        killV2mMetronome();
         if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
             v2mMediaRecorder.stop();
         }
     }
     
     const playhead = document.getElementById('v2m-playhead');
-    if (playhead) playhead.style.left = (progress * 100) + '%';
+    if (playhead) playhead.style.left = (playheadProgress * 100) + '%';
 
-    const x = progress * canvas.width;
+    const x = waveProgress * canvas.width;
     v2mAnalyser.getByteTimeDomainData(v2mDataArray);
     let min = 255, max = 0;
     for(let i = 0; i < v2mDataArray.length; i++) {
@@ -9723,7 +9734,7 @@ function drawV2mLiveWave() {
         v2mLastDrawX = x;
     }
 
-    if (progress < 1.0) {
+    if (playheadProgress < 1.0) {
         v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
     }
 }
