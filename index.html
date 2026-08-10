@@ -9397,7 +9397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (PRO SYNC)
+// V2M (VOICE TO MIDI) FULL ENGINE (PRO SYNC + LATENCY COMP)
 // ============================================
 
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
@@ -9422,7 +9422,19 @@ let v2mTapTimes = [];
 let v2mTapTimeout;
 let v2mMetroOscillators = []; 
 
-// 0. ФУНКЦИИ МЕТРОНОМА (ЖЕСТКИЙ КОНТРОЛЬ)
+// 0. ФУНКЦИЯ ОБРЕЗКИ АУДИО (LATENCY COMPENSATION)
+function trimV2mAudioBuffer(ctx, buffer, trimSec) {
+    const trimFrames = Math.floor(trimSec * buffer.sampleRate);
+    if (trimFrames <= 0 || trimFrames >= buffer.length) return buffer;
+    const newLen = buffer.length - trimFrames;
+    const newBuf = ctx.createBuffer(buffer.numberOfChannels, newLen, buffer.sampleRate);
+    for (let i = 0; i < buffer.numberOfChannels; i++) {
+        newBuf.getChannelData(i).set(buffer.getChannelData(i).subarray(trimFrames));
+    }
+    return newBuf;
+}
+
+// 0.1 ФУНКЦИИ МЕТРОНОМА (Бронебойный запуск для Android)
 function v2mPlayMetroClick(time, isHigh) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -9430,8 +9442,10 @@ function v2mPlayMetroClick(time, isHigh) {
     osc.frequency.value = isHigh ? 880 : 440;
     
     gain.gain.value = 0;
-    gain.gain.setValueAtTime(0.5, time);
-    gain.gain.linearRampToValueAtTime(0, time + 0.1);
+    // Микро-рампа для Android, чтобы звук гарантированно пробился без щелчков
+    gain.gain.setValueAtTime(0, Math.max(0, time - 0.005)); 
+    gain.gain.linearRampToValueAtTime(0.5, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
     
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -9446,7 +9460,7 @@ function killV2mMetronome() {
     v2mMetroOscillators.forEach(item => {
         try { 
             item.gain.gain.cancelScheduledValues(now);
-            item.gain.gain.setValueAtTime(0, now); // Мгновенный срез звука
+            item.gain.gain.setValueAtTime(0, now); 
             item.osc.stop(now); 
             item.osc.disconnect(); 
         } catch(e) {}
@@ -9454,7 +9468,7 @@ function killV2mMetronome() {
     v2mMetroOscillators = [];
 }
 
-// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM (Без лагов)
+// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM
 if (v2mBpmSlider) {
     v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
     v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
@@ -9473,7 +9487,7 @@ if (v2mBpmSlider) {
     });
 }
 
-// 2. ЛОГИКА TAP TEMPO (Защита от фантомных кликов Android)
+// 2. ЛОГИКА TAP TEMPO
 if (v2mTapBtn) {
     v2mTapBtn.addEventListener('touchstart', (e) => {
         e.preventDefault(); 
@@ -9580,11 +9594,12 @@ if (v2mRecBtn) {
                 return;
             }
             
-            // Восстанавливаем контекст после запроса микрофона (важно для Android)
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
             killV2mMetronome();
-            const now = audioCtx.currentTime;
+            
+            // Запас 100мс для Android, чтобы аудио-шедулер успел проснуться
+            const now = audioCtx.currentTime + 0.1; 
             const exactRecordTime = now + prerollTimeSec;
 
             if (globalSettings.metronome) {
@@ -9642,7 +9657,12 @@ if (v2mRecBtn) {
                         reader.readAsArrayBuffer(blob);
                     });
                     
-                    v2mAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    
+                    // Аппаратная задержка микрофона (150ms). Отрезаем её из записанного аудио!
+                    const latencySec = 0.15; 
+                    v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
+                    
                     drawV2mFinalWave(v2mAudioBuffer);
                     if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "RECORD SAVED");
                 } catch(e) {
@@ -9656,12 +9676,13 @@ if (v2mRecBtn) {
                 v2mRecBtn.classList.add('led-red', 'active-mode');
                 v2mRecBtn.innerHTML = 'RECORDING...';
 
+                // Важно: стартуем отрисовку ровно с момента записи
                 v2mStartTime = audioCtx.currentTime;
                 v2mMediaRecorder.start();
                 drawV2mLiveWave();
             };
 
-            // СВЕРХТОЧНЫЙ ТАЙМЕР ПРЕРОЛЛА (Вместо setTimeout)
+            // Поллер старта (ждёт точного времени по аудиокарте)
             if (prerollBeats > 0) {
                 v2mRecBtn.dataset.state = 'preroll';
                 v2mRecBtn.classList.remove('led-red');
@@ -9678,7 +9699,17 @@ if (v2mRecBtn) {
                 };
                 pollPreroll();
             } else {
-                startActualRecording();
+                // Даже без преролла мы ждем 0.1 сек для стабильности Android
+                v2mRecBtn.dataset.state = 'preroll'; 
+                const pollStart = () => {
+                    if (v2mRecBtn.dataset.state !== 'preroll') return;
+                    if (audioCtx.currentTime >= exactRecordTime) {
+                        startActualRecording();
+                    } else {
+                        v2mPrerollFrame = requestAnimationFrame(pollStart);
+                    }
+                };
+                pollStart();
             }
 
         } catch (globalError) {
@@ -9695,7 +9726,7 @@ function drawV2mLiveWave() {
     const now = audioCtx.currentTime;
     const elapsed = now - v2mStartTime;
     
-    // Компенсация аппаратной задержки микрофона (~150мс)
+    // Визуальная компенсация задержки (~150мс)
     const visualLatencyComp = 0.15; 
     let waveElapsed = elapsed - visualLatencyComp;
     if (waveElapsed < 0) waveElapsed = 0;
