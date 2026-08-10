@@ -9397,8 +9397,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (ANDROID FIX V2)
+// V2M (VOICE TO MIDI) FULL ENGINE (ISOLATED & SYNCED)
 // ============================================
+
+// --- НЕЗАВИСИМЫЕ НАСТРОЙКИ V2M ---
+let v2mSettings = {
+    bpm: 130,
+    metronome: false
+};
 
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
 const v2mBpmVal = document.getElementById('v2m-bpm-val');
@@ -9435,7 +9441,6 @@ function trimV2mAudioBuffer(ctx, buffer, trimSec) {
 
 function v2mPlayMetroClick(time, isHigh) {
     const safeTime = Math.max(audioCtx.currentTime + 0.02, time);
-    
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'triangle';
@@ -9467,31 +9472,23 @@ function killV2mMetronome() {
     v2mMetroOscillators = [];
 }
 
+// 1. ИЗОЛИРОВАННЫЙ ПОЛЗУНОК BPM
 if (v2mBpmSlider) {
     v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
     v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
 
     v2mBpmSlider.addEventListener('input', (e) => {
-        const newBpm = e.target.value;
-        globalSettings.bpm = newBpm;
+        const newBpm = parseInt(e.target.value);
+        v2mSettings.bpm = newBpm;
         if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
-        
-        const mainBpmSlider = document.getElementById('global-bpm-slider');
-        if (mainBpmSlider) {
-            mainBpmSlider.value = newBpm;
-            if (typeof updateSetRangeLabel === 'function') updateSetRangeLabel(mainBpmSlider, ' BPM');
-        }
-        if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
     });
 }
 
+// 2. ИЗОЛИРОВАННЫЙ TAP TEMPO
 if (v2mTapBtn) {
     v2mTapBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault(); 
-        e.stopPropagation();
-
+        e.preventDefault(); e.stopPropagation();
         if (typeof vibrate === 'function') vibrate(30);
-        
         v2mTapBtn.classList.add('active-mode');
         setTimeout(() => v2mTapBtn.classList.remove('active-mode'), 100);
 
@@ -9508,16 +9505,9 @@ if (v2mTapBtn) {
             if (newBpm < 60) newBpm = 60;
             if (newBpm > 200) newBpm = 200;
             
-            globalSettings.bpm = newBpm;
+            v2mSettings.bpm = newBpm;
             if (v2mBpmSlider) v2mBpmSlider.value = newBpm;
             if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
-            
-            const mainBpmSlider = document.getElementById('global-bpm-slider');
-            if (mainBpmSlider) {
-                mainBpmSlider.value = newBpm;
-                if (typeof updateSetRangeLabel === 'function') updateSetRangeLabel(mainBpmSlider, ' BPM');
-            }
-            if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
             
             clearTimeout(v2mTapTimeout);
             v2mTapTimeout = setTimeout(() => { v2mTapTimes = []; }, 2000);
@@ -9525,24 +9515,17 @@ if (v2mTapBtn) {
     }, {passive: false});
 }
 
+// 3. ИЗОЛИРОВАННЫЙ МЕТРОНОМ
 if (v2mMetroBtn) {
     v2mMetroBtn.addEventListener('click', () => {
         if (typeof vibrate === 'function') vibrate(30);
         const isActive = v2mMetroBtn.classList.toggle('active-mode');
-        globalSettings.metronome = isActive;
+        v2mSettings.metronome = isActive;
         v2mMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
-        
-        const mainMetroBtn = document.getElementById('btn-metro-toggle');
-        if (mainMetroBtn) {
-            if (isActive) mainMetroBtn.classList.add('active-mode');
-            else mainMetroBtn.classList.remove('active-mode');
-            mainMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
-        }
-        if (typeof updateGlobalScreen === 'function') updateGlobalScreen();
     });
 }
 
-// 4. ЗАПИСЬ ГОЛОСА И СИНХРОНИЗАЦИЯ
+// 4. ЗАПИСЬ ГОЛОСА
 if (v2mRecBtn) {
     v2mRecBtn.onclick = async function() {
         try {
@@ -9570,12 +9553,13 @@ if (v2mRecBtn) {
             if (typeof vibrate === 'function') vibrate(50);
             
             const steps = v2mLengthSelect ? parseInt(v2mLengthSelect.value.replace(/\D/g,'')) || 16 : 16;
-            const bpm = parseInt(globalSettings.bpm) || 130;
+            const bpm = v2mSettings.bpm; // БЕРЕМ ИЗ ЛОКАЛЬНЫХ НАСТРОЕК
             const totalBeats = steps / 4;
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            const prerollBeats = globalSettings.metronome ? 4 : 0;
+            // ПРЕРОЛЛ ЗАВИСИТ ОТ ЛОКАЛЬНОГО МЕТРОНОМА
+            const prerollBeats = v2mSettings.metronome ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -9589,42 +9573,31 @@ if (v2mRecBtn) {
             v2mRecBtn.innerHTML = 'WAITING MIC...';
 
             try {
-                // ВОЗВРАЩАЕМ ЭХОПОДАВЛЕНИЕ (чтобы телефон вычитал метроном из голоса)
+                // ОТКЛЮЧАЕМ ПОДАВЛЕНИЕ, ЧТОБЫ ЗВУК ДИНАМИКА НЕ ГЛУШИЛСЯ
                 v2mStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        echoCancellation: true, 
-                        noiseSuppression: false, // Оставляем голос живым
+                        echoCancellation: false,
+                        noiseSuppression: false,
                         autoGainControl: false
                     } 
                 });
             } catch (err) {
-                v2mRecBtn.dataset.state = 'idle';
-                v2mRecBtn.classList.remove('active-mode', 'led-orange');
-                v2mRecBtn.classList.add('led-red');
-                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
-                alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
-                return;
+                try {
+                    v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch(fallbackErr) {
+                    v2mRecBtn.dataset.state = 'idle';
+                    v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                    v2mRecBtn.classList.add('led-red');
+                    v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+                    alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
+                    return;
+                }
             }
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            const source = audioCtx.createMediaStreamSource(v2mStream);
-            v2mAnalyser = audioCtx.createAnalyser();
-            v2mAnalyser.fftSize = 512;
-            source.connect(v2mAnalyser);
-            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
-
-            // ANDROID AEC WAKE-UP HACK: Пытаемся "пробить" алгоритм эхоподавления тихим щелчком
-            const wakeOsc = audioCtx.createOscillator();
-            const wakeGain = audioCtx.createGain();
-            wakeGain.gain.value = 0.01;
-            wakeOsc.connect(wakeGain);
-            wakeGain.connect(audioCtx.destination);
-            wakeOsc.start(audioCtx.currentTime);
-            wakeOsc.stop(audioCtx.currentTime + 0.1);
-
-            // Даем алгоритму 600мс на калибровку комнаты
-            await new Promise(r => setTimeout(r, 600));
+            // ЖЕСТКАЯ ПАУЗА ДЛЯ ANDROID (чтобы чип переключился)
+            await new Promise(r => setTimeout(r, 500));
 
             if (v2mRecBtn.dataset.state === 'idle') {
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
@@ -9632,11 +9605,10 @@ if (v2mRecBtn) {
             }
 
             killV2mMetronome();
-            
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
-            if (globalSettings.metronome) {
+            if (v2mSettings.metronome) {
                 for (let i = 0; i < prerollBeats; i++) {
                     v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
                 }
@@ -9662,6 +9634,12 @@ if (v2mRecBtn) {
                 playhead.style.left = '0%';
             }
             v2mLastDrawX = 0;
+
+            const source = audioCtx.createMediaStreamSource(v2mStream);
+            v2mAnalyser = audioCtx.createAnalyser();
+            v2mAnalyser.fftSize = 512;
+            source.connect(v2mAnalyser);
+            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
 
             v2mChunks = [];
             v2mMediaRecorder = new MediaRecorder(v2mStream);
@@ -9690,6 +9668,7 @@ if (v2mRecBtn) {
                     
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
+                    // Аппаратная задержка микрофона (150ms). Отрезаем её только здесь!
                     const latencySec = 0.15; 
                     v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     
@@ -9739,17 +9718,12 @@ function drawV2mLiveWave() {
     
     const now = audioCtx.currentTime;
     const elapsed = now - v2mStartTime;
-    
-    const visualLatencyComp = 0.15; 
-    let waveElapsed = elapsed - visualLatencyComp;
-    if (waveElapsed < 0) waveElapsed = 0;
 
-    let playheadProgress = elapsed / v2mDurationSec;
-    let waveProgress = waveElapsed / v2mDurationSec;
+    // Убрали отставание: прогресс волны и бегунка теперь 1:1
+    let progress = elapsed / v2mDurationSec;
     
-    if (playheadProgress >= 1.0) {
-        playheadProgress = 1.0;
-        waveProgress = 1.0;
+    if (progress >= 1.0) {
+        progress = 1.0;
         killV2mMetronome();
         if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
             v2mMediaRecorder.stop();
@@ -9757,9 +9731,9 @@ function drawV2mLiveWave() {
     }
     
     const playhead = document.getElementById('v2m-playhead');
-    if (playhead) playhead.style.left = (playheadProgress * 100) + '%';
+    if (playhead) playhead.style.left = (progress * 100) + '%';
 
-    const x = waveProgress * canvas.width;
+    const x = progress * canvas.width;
     v2mAnalyser.getByteTimeDomainData(v2mDataArray);
     let min = 255, max = 0;
     for(let i = 0; i < v2mDataArray.length; i++) {
@@ -9778,7 +9752,7 @@ function drawV2mLiveWave() {
         v2mLastDrawX = x;
     }
 
-    if (playheadProgress < 1.0) {
+    if (progress < 1.0) {
         v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
     }
 }
