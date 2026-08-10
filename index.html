@@ -9397,12 +9397,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (ISOLATED + AEC HACK)
+// V2M (VOICE TO MIDI) FULL ENGINE (PRO STUDIO REC)
 // ============================================
 
 let v2mSettings = {
     bpm: 130,
-    metronome: false
+    preroll: false // Теперь здесь только преролл
 };
 
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
@@ -9471,6 +9471,7 @@ function killV2mMetronome() {
     v2mMetroOscillators = [];
 }
 
+// 1. ИЗОЛИРОВАННЫЙ ПОЛЗУНОК BPM
 if (v2mBpmSlider) {
     v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
     v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
@@ -9482,6 +9483,7 @@ if (v2mBpmSlider) {
     });
 }
 
+// 2. ИЗОЛИРОВАННЫЙ TAP TEMPO
 if (v2mTapBtn) {
     v2mTapBtn.addEventListener('touchstart', (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -9512,15 +9514,20 @@ if (v2mTapBtn) {
     }, {passive: false});
 }
 
+// 3. ПЕРЕИМЕНОВАННАЯ КНОПКА PRE-ROLL
 if (v2mMetroBtn) {
+    v2mMetroBtn.textContent = 'PRE-ROLL: OFF'; // Дефолтное состояние
+    v2mMetroBtn.classList.remove('active-mode');
+    
     v2mMetroBtn.addEventListener('click', () => {
         if (typeof vibrate === 'function') vibrate(30);
         const isActive = v2mMetroBtn.classList.toggle('active-mode');
-        v2mSettings.metronome = isActive;
-        v2mMetroBtn.textContent = isActive ? 'METRO: ON' : 'METRO: OFF';
+        v2mSettings.preroll = isActive;
+        v2mMetroBtn.textContent = isActive ? 'PRE-ROLL: ON' : 'PRE-ROLL: OFF';
     });
 }
 
+// 4. ЗАПИСЬ ГОЛОСА
 if (v2mRecBtn) {
     v2mRecBtn.onclick = async function() {
         try {
@@ -9553,7 +9560,7 @@ if (v2mRecBtn) {
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            const prerollBeats = v2mSettings.metronome ? 4 : 0;
+            const prerollBeats = v2mSettings.preroll ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -9567,10 +9574,10 @@ if (v2mRecBtn) {
             v2mRecBtn.innerHTML = 'WAITING MIC...';
 
             try {
-                // ВКЛЮЧАЕМ ЭХОПОДАВЛЕНИЕ ОБРАТНО
+                // СТУДИЙНЫЙ РЕЖИМ: БЕЗ ЭХОПОДАВЛЕНИЯ
                 v2mStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        echoCancellation: true,
+                        echoCancellation: false,
                         noiseSuppression: false,
                         autoGainControl: false
                     } 
@@ -9590,17 +9597,8 @@ if (v2mRecBtn) {
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // AEC HACK: Пробиваем алгоритм эхоподавления тихим щелчком
-            const wakeOsc = audioCtx.createOscillator();
-            const wakeGain = audioCtx.createGain();
-            wakeGain.gain.value = 0.01;
-            wakeOsc.connect(wakeGain);
-            wakeGain.connect(audioCtx.destination);
-            wakeOsc.start(audioCtx.currentTime);
-            wakeOsc.stop(audioCtx.currentTime + 0.1);
-
-            // Ждем калибровки чипа 600мс
-            await new Promise(r => setTimeout(r, 600));
+            // Даем Android 400мс на ресинк аудиочипа без подавления
+            await new Promise(r => setTimeout(r, 400));
 
             if (v2mRecBtn.dataset.state === 'idle') {
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
@@ -9611,12 +9609,10 @@ if (v2mRecBtn) {
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
-            if (v2mSettings.metronome) {
+            if (v2mSettings.preroll) {
+                // Стучим только преролл
                 for (let i = 0; i < prerollBeats; i++) {
                     v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
-                }
-                for (let i = 0; i < totalBeats; i++) {
-                    v2mPlayMetroClick(exactRecordTime + i * beatDurationSec, i % 4 === 0);
                 }
                 v2mRecBtn.innerHTML = 'PRE-ROLL...';
             } else {
@@ -9671,8 +9667,8 @@ if (v2mRecBtn) {
                     
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
-                    // УВЕЛИЧИЛИ КОМПЕНСАЦИЮ ЗАДЕРЖКИ ДО 250мс
-                    const latencySec = 0.25; 
+                    // Аппаратная задержка микрофона (150ms)
+                    const latencySec = 0.15; 
                     v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     
                     drawV2mFinalWave(v2mAudioBuffer);
@@ -9722,10 +9718,16 @@ function drawV2mLiveWave() {
     const now = audioCtx.currentTime;
     const elapsed = now - v2mStartTime;
     
-    let progress = elapsed / v2mDurationSec;
+    const visualLatencyComp = 0.15; 
+    let waveElapsed = elapsed - visualLatencyComp;
+    if (waveElapsed < 0) waveElapsed = 0;
+
+    let playheadProgress = elapsed / v2mDurationSec;
+    let waveProgress = waveElapsed / v2mDurationSec;
     
-    if (progress >= 1.0) {
-        progress = 1.0;
+    if (playheadProgress >= 1.0) {
+        playheadProgress = 1.0;
+        waveProgress = 1.0;
         killV2mMetronome();
         if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
             v2mMediaRecorder.stop();
@@ -9733,9 +9735,9 @@ function drawV2mLiveWave() {
     }
     
     const playhead = document.getElementById('v2m-playhead');
-    if (playhead) playhead.style.left = (progress * 100) + '%';
+    if (playhead) playhead.style.left = (playheadProgress * 100) + '%';
 
-    const x = progress * canvas.width;
+    const x = waveProgress * canvas.width;
     v2mAnalyser.getByteTimeDomainData(v2mDataArray);
     let min = 255, max = 0;
     for(let i = 0; i < v2mDataArray.length; i++) {
@@ -9754,7 +9756,7 @@ function drawV2mLiveWave() {
         v2mLastDrawX = x;
     }
 
-    if (progress < 1.0) {
+    if (playheadProgress < 1.0) {
         v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
     }
 }
