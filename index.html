@@ -9397,7 +9397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (PRO SYNC + LATENCY COMP)
+// V2M (VOICE TO MIDI) FULL ENGINE (ANDROID FIX)
 // ============================================
 
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
@@ -9436,22 +9436,24 @@ function trimV2mAudioBuffer(ctx, buffer, trimSec) {
 
 // 0.1 ФУНКЦИИ МЕТРОНОМА (Бронебойный запуск для Android)
 function v2mPlayMetroClick(time, isHigh) {
+    // Гарантируем, что время всегда чуть в будущем (Android защита)
+    const safeTime = Math.max(audioCtx.currentTime + 0.02, time);
+    
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'triangle';
     osc.frequency.value = isHigh ? 880 : 440;
     
     gain.gain.value = 0;
-    // Микро-рампа для Android, чтобы звук гарантированно пробился без щелчков
-    gain.gain.setValueAtTime(0, Math.max(0, time - 0.005)); 
-    gain.gain.linearRampToValueAtTime(0.5, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+    gain.gain.setValueAtTime(0, safeTime); 
+    gain.gain.linearRampToValueAtTime(0.5, safeTime + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.1);
     
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     
-    osc.start(time);
-    osc.stop(time + 0.1);
+    osc.start(safeTime);
+    osc.stop(safeTime + 0.15);
     v2mMetroOscillators.push({ osc, gain });
 }
 
@@ -9579,7 +9581,8 @@ if (v2mRecBtn) {
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            const prerollBeats = globalSettings.metronome ? 4 : 0;
+            // Преролл работает от настройки Preroll (а не Metronome)
+            const prerollBeats = globalSettings.preroll ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -9587,25 +9590,53 @@ if (v2mRecBtn) {
                 return;
             }
 
+            // Мгновенный фидбек для юзера, чтобы кнопка не зависала во время запроса микрофона
+            if (prerollBeats > 0) {
+                v2mRecBtn.dataset.state = 'preroll';
+                v2mRecBtn.classList.remove('led-red');
+                v2mRecBtn.classList.add('led-orange', 'active-mode');
+                v2mRecBtn.innerHTML = 'PRE-ROLL...';
+            } else {
+                v2mRecBtn.dataset.state = 'recording';
+                v2mRecBtn.classList.remove('led-orange');
+                v2mRecBtn.classList.add('led-red', 'active-mode');
+                v2mRecBtn.innerHTML = 'RECORDING...';
+            }
+
             try {
                 v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (err) {
+                v2mRecBtn.dataset.state = 'idle';
+                v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                v2mRecBtn.classList.add('led-red');
+                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
                 alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
                 return;
             }
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
+            // ANDROID HACK: Даем чипу 300мс на ресинк (синхронизацию частот) после открытия микрофона
+            await new Promise(r => setTimeout(r, 300));
+
+            // Если за эти 300мс юзер успел нажать СТОП - выходим
+            if (v2mRecBtn.dataset.state === 'idle') {
+                if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
+                return;
+            }
+
             killV2mMetronome();
-            
-            // Запас 100мс для Android, чтобы аудио-шедулер успел проснуться
-            const now = audioCtx.currentTime + 0.1; 
+            const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
-            if (globalSettings.metronome) {
+            // Планируем преролл (если включен)
+            if (globalSettings.preroll) {
                 for (let i = 0; i < prerollBeats; i++) {
                     v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
                 }
+            }
+            // Планируем стук во время самой записи (если включен метроном)
+            if (globalSettings.metronome) {
                 for (let i = 0; i < totalBeats; i++) {
                     v2mPlayMetroClick(exactRecordTime + i * beatDurationSec, i % 4 === 0);
                 }
@@ -9671,24 +9702,19 @@ if (v2mRecBtn) {
             };
 
             const startActualRecording = () => {
+                if (v2mRecBtn.dataset.state === 'idle') return;
                 v2mRecBtn.dataset.state = 'recording';
                 v2mRecBtn.classList.remove('led-orange');
                 v2mRecBtn.classList.add('led-red', 'active-mode');
                 v2mRecBtn.innerHTML = 'RECORDING...';
 
-                // Важно: стартуем отрисовку ровно с момента записи
                 v2mStartTime = audioCtx.currentTime;
                 v2mMediaRecorder.start();
                 drawV2mLiveWave();
             };
 
-            // Поллер старта (ждёт точного времени по аудиокарте)
+            // СВЕРХТОЧНЫЙ ТАЙМЕР ПРЕРОЛЛА (Ждет точного времени от аудиокарты)
             if (prerollBeats > 0) {
-                v2mRecBtn.dataset.state = 'preroll';
-                v2mRecBtn.classList.remove('led-red');
-                v2mRecBtn.classList.add('led-orange', 'active-mode');
-                v2mRecBtn.innerHTML = 'PRE-ROLL...';
-                
                 const pollPreroll = () => {
                     if (v2mRecBtn.dataset.state !== 'preroll') return; 
                     if (audioCtx.currentTime >= exactRecordTime) {
@@ -9699,17 +9725,7 @@ if (v2mRecBtn) {
                 };
                 pollPreroll();
             } else {
-                // Даже без преролла мы ждем 0.1 сек для стабильности Android
-                v2mRecBtn.dataset.state = 'preroll'; 
-                const pollStart = () => {
-                    if (v2mRecBtn.dataset.state !== 'preroll') return;
-                    if (audioCtx.currentTime >= exactRecordTime) {
-                        startActualRecording();
-                    } else {
-                        v2mPrerollFrame = requestAnimationFrame(pollStart);
-                    }
-                };
-                pollStart();
+                startActualRecording();
             }
 
         } catch (globalError) {
