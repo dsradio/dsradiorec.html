@@ -9542,6 +9542,7 @@ if (v2mMetroBtn) {
     });
 }
 
+// 4. ЗАПИСЬ ГОЛОСА И СИНХРОНИЗАЦИЯ
 if (v2mRecBtn) {
     v2mRecBtn.onclick = async function() {
         try {
@@ -9588,44 +9589,42 @@ if (v2mRecBtn) {
             v2mRecBtn.innerHTML = 'WAITING MIC...';
 
             try {
-                // ОТКЛЮЧАЕМ СИСТЕМНОЕ ПОДАВЛЕНИЕ ANDROID (Студийный режим)
+                // ВОЗВРАЩАЕМ ЭХОПОДАВЛЕНИЕ (чтобы телефон вычитал метроном из голоса)
                 v2mStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
+                        echoCancellation: true, 
+                        noiseSuppression: false, // Оставляем голос живым
                         autoGainControl: false
                     } 
                 });
             } catch (err) {
-                // Запасной вариант для старых браузеров
-                try {
-                    v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                } catch(fallbackErr) {
-                    v2mRecBtn.dataset.state = 'idle';
-                    v2mRecBtn.classList.remove('active-mode', 'led-orange');
-                    v2mRecBtn.classList.add('led-red');
-                    v2mRecBtn.innerHTML = '🎙️ REC VOICE';
-                    alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
-                    return;
-                }
+                v2mRecBtn.dataset.state = 'idle';
+                v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                v2mRecBtn.classList.add('led-red');
+                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+                alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
+                return;
             }
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // ПРОБУЖДЕНИЕ АУДИОТРАКТА СРАЗУ ПОСЛЕ ЗАПРОСА
             const source = audioCtx.createMediaStreamSource(v2mStream);
             v2mAnalyser = audioCtx.createAnalyser();
             v2mAnalyser.fftSize = 512;
             source.connect(v2mAnalyser);
             v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
 
-            // Кидаем "глухой" провод на выход, чтобы Android активировал аудиокарту
-            const dummyGain = audioCtx.createGain();
-            dummyGain.gain.value = 0;
-            source.connect(dummyGain);
-            dummyGain.connect(audioCtx.destination);
+            // ANDROID AEC WAKE-UP HACK: Пытаемся "пробить" алгоритм эхоподавления тихим щелчком
+            const wakeOsc = audioCtx.createOscillator();
+            const wakeGain = audioCtx.createGain();
+            wakeGain.gain.value = 0.01;
+            wakeOsc.connect(wakeGain);
+            wakeGain.connect(audioCtx.destination);
+            wakeOsc.start(audioCtx.currentTime);
+            wakeOsc.stop(audioCtx.currentTime + 0.1);
 
-            await new Promise(r => setTimeout(r, 400));
+            // Даем алгоритму 600мс на калибровку комнаты
+            await new Promise(r => setTimeout(r, 600));
 
             if (v2mRecBtn.dataset.state === 'idle') {
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
@@ -9633,6 +9632,7 @@ if (v2mRecBtn) {
             }
 
             killV2mMetronome();
+            
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
