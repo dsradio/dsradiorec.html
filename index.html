@@ -9397,7 +9397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
     // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (ANDROID FIX)
+// V2M (VOICE TO MIDI) FULL ENGINE (ANDROID FIX V2)
 // ============================================
 
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
@@ -9422,7 +9422,6 @@ let v2mTapTimes = [];
 let v2mTapTimeout;
 let v2mMetroOscillators = []; 
 
-// 0. ФУНКЦИЯ ОБРЕЗКИ АУДИО (LATENCY COMPENSATION)
 function trimV2mAudioBuffer(ctx, buffer, trimSec) {
     const trimFrames = Math.floor(trimSec * buffer.sampleRate);
     if (trimFrames <= 0 || trimFrames >= buffer.length) return buffer;
@@ -9434,9 +9433,7 @@ function trimV2mAudioBuffer(ctx, buffer, trimSec) {
     return newBuf;
 }
 
-// 0.1 ФУНКЦИИ МЕТРОНОМА (Бронебойный запуск для Android)
 function v2mPlayMetroClick(time, isHigh) {
-    // Гарантируем, что время всегда чуть в будущем (Android защита)
     const safeTime = Math.max(audioCtx.currentTime + 0.02, time);
     
     const osc = audioCtx.createOscillator();
@@ -9470,7 +9467,6 @@ function killV2mMetronome() {
     v2mMetroOscillators = [];
 }
 
-// 1. СИНХРОНИЗАЦИЯ ПОЛЗУНКА BPM
 if (v2mBpmSlider) {
     v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
     v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
@@ -9489,7 +9485,6 @@ if (v2mBpmSlider) {
     });
 }
 
-// 2. ЛОГИКА TAP TEMPO
 if (v2mTapBtn) {
     v2mTapBtn.addEventListener('touchstart', (e) => {
         e.preventDefault(); 
@@ -9530,7 +9525,6 @@ if (v2mTapBtn) {
     }, {passive: false});
 }
 
-// 3. СИНХРОНИЗАЦИЯ КНОПКИ МЕТРОНОМА
 if (v2mMetroBtn) {
     v2mMetroBtn.addEventListener('click', () => {
         if (typeof vibrate === 'function') vibrate(30);
@@ -9548,7 +9542,6 @@ if (v2mMetroBtn) {
     });
 }
 
-// 4. ЗАПИСЬ ГОЛОСА И СИНХРОНИЗАЦИЯ
 if (v2mRecBtn) {
     v2mRecBtn.onclick = async function() {
         try {
@@ -9581,7 +9574,6 @@ if (v2mRecBtn) {
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            // ЛОГИКА: ПРЕРОЛЛ ЗАВИСИТ ОТ МЕТРОНОМА
             const prerollBeats = globalSettings.metronome ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
@@ -9590,26 +9582,49 @@ if (v2mRecBtn) {
                 return;
             }
 
-            // Визуально показываем, что пошел процесс (кнопка оранжевая - ждем)
             v2mRecBtn.dataset.state = 'preroll';
             v2mRecBtn.classList.remove('led-red');
             v2mRecBtn.classList.add('led-orange', 'active-mode');
             v2mRecBtn.innerHTML = 'WAITING MIC...';
 
             try {
-                v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // ОТКЛЮЧАЕМ СИСТЕМНОЕ ПОДАВЛЕНИЕ ANDROID (Студийный режим)
+                v2mStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    } 
+                });
             } catch (err) {
-                v2mRecBtn.dataset.state = 'idle';
-                v2mRecBtn.classList.remove('active-mode', 'led-orange');
-                v2mRecBtn.classList.add('led-red');
-                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
-                alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
-                return;
+                // Запасной вариант для старых браузеров
+                try {
+                    v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch(fallbackErr) {
+                    v2mRecBtn.dataset.state = 'idle';
+                    v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                    v2mRecBtn.classList.add('led-red');
+                    v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+                    alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
+                    return;
+                }
             }
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // ANDROID HACK: Ждем 400мс ПОСЛЕ активации микрофона, чтобы чип пришел в себя!
+            // ПРОБУЖДЕНИЕ АУДИОТРАКТА СРАЗУ ПОСЛЕ ЗАПРОСА
+            const source = audioCtx.createMediaStreamSource(v2mStream);
+            v2mAnalyser = audioCtx.createAnalyser();
+            v2mAnalyser.fftSize = 512;
+            source.connect(v2mAnalyser);
+            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
+
+            // Кидаем "глухой" провод на выход, чтобы Android активировал аудиокарту
+            const dummyGain = audioCtx.createGain();
+            dummyGain.gain.value = 0;
+            source.connect(dummyGain);
+            dummyGain.connect(audioCtx.destination);
+
             await new Promise(r => setTimeout(r, 400));
 
             if (v2mRecBtn.dataset.state === 'idle') {
@@ -9618,8 +9633,6 @@ if (v2mRecBtn) {
             }
 
             killV2mMetronome();
-            
-            // Теперь можно смело брать currentTime и планировать клики
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
@@ -9649,12 +9662,6 @@ if (v2mRecBtn) {
                 playhead.style.left = '0%';
             }
             v2mLastDrawX = 0;
-
-            const source = audioCtx.createMediaStreamSource(v2mStream);
-            v2mAnalyser = audioCtx.createAnalyser();
-            v2mAnalyser.fftSize = 512;
-            source.connect(v2mAnalyser);
-            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
 
             v2mChunks = [];
             v2mMediaRecorder = new MediaRecorder(v2mStream);
