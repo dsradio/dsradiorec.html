@@ -9411,7 +9411,9 @@ const v2mTapBtn = document.getElementById('v2m-tap-btn');
 const v2mMetroBtn = document.getElementById('v2m-metro-btn');
 const v2mRecBtn = document.getElementById('v2m-rec-btn');
 const v2mLengthSelect = document.getElementById('v2m-length');
-const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn'); // Кнопка прослушки
+const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn'); 
+
+const isIOSV2m = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 let v2mMediaRecorder = null;
 let v2mStream = null;
@@ -9427,7 +9429,7 @@ let v2mLastDrawX = 0;
 let v2mTapTimes = [];
 let v2mTapTimeout;
 let v2mMetroOscillators = []; 
-let v2mPlaybackSource = null; // Для остановки прослушки
+let v2mPlaybackSource = null; 
 
 function trimV2mAudioBuffer(ctx, buffer, trimSec) {
     const trimFrames = Math.floor(trimSec * buffer.sampleRate);
@@ -9518,14 +9520,14 @@ if (v2mTapBtn) {
 
 // 3. ПРЕРОЛЛ
 if (v2mMetroBtn) {
-    v2mMetroBtn.textContent = 'PRE-ROLL: OFF'; 
+    v2mMetroBtn.textContent = 'PRE: OFF'; 
     v2mMetroBtn.classList.remove('active-mode');
     
     v2mMetroBtn.addEventListener('click', () => {
         if (typeof vibrate === 'function') vibrate(30);
         const isActive = v2mMetroBtn.classList.toggle('active-mode');
         v2mSettings.preroll = isActive;
-        v2mMetroBtn.textContent = isActive ? 'PRE-ROLL: ON' : 'PRE-ROLL: OFF';
+        v2mMetroBtn.textContent = isActive ? 'PRE: ON' : 'PRE: OFF';
     });
 }
 
@@ -9576,14 +9578,15 @@ if (v2mRecBtn) {
             v2mRecBtn.innerHTML = 'WAITING...';
 
             try {
-                // ИСПРАВЛЕНИЕ IOS: autoGainControl: true дает телефону разрешение нормализовать звук микрофона
-                v2mStream = await navigator.mediaDevices.getUserMedia({ 
+                // Разделяем логику запроса микрофона для iOS и Android
+                const v2mConstraints = isIOSV2m ? { audio: true } : { 
                     audio: {
-                        echoCancellation: false,
+                        echoCancellation: true,
                         noiseSuppression: false,
-                        autoGainControl: true 
+                        autoGainControl: false 
                     } 
-                });
+                };
+                v2mStream = await navigator.mediaDevices.getUserMedia(v2mConstraints);
             } catch (err) {
                 try {
                     v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -9599,8 +9602,25 @@ if (v2mRecBtn) {
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // Даем системе 400мс на ресинк аудиочипа
-            await new Promise(r => setTimeout(r, 400));
+            const source = audioCtx.createMediaStreamSource(v2mStream);
+            v2mAnalyser = audioCtx.createAnalyser();
+            v2mAnalyser.fftSize = 512;
+            source.connect(v2mAnalyser);
+            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
+
+            if (!isIOSV2m) {
+                // ANDROID AEC WAKE-UP HACK (iOS игнорирует этот блок)
+                const wakeOsc = audioCtx.createOscillator();
+                const wakeGain = audioCtx.createGain();
+                wakeGain.gain.value = 0.01;
+                wakeOsc.connect(wakeGain);
+                wakeGain.connect(audioCtx.destination);
+                wakeOsc.start(audioCtx.currentTime);
+                wakeOsc.stop(audioCtx.currentTime + 0.1);
+
+                // Даем алгоритму 600мс на калибровку комнаты
+                await new Promise(r => setTimeout(r, 600));
+            }
 
             if (v2mRecBtn.dataset.state === 'idle') {
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
@@ -9608,6 +9628,7 @@ if (v2mRecBtn) {
             }
 
             killV2mMetronome();
+            
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
@@ -9634,12 +9655,6 @@ if (v2mRecBtn) {
                 playhead.style.left = '0%';
             }
             v2mLastDrawX = 0;
-
-            const source = audioCtx.createMediaStreamSource(v2mStream);
-            v2mAnalyser = audioCtx.createAnalyser();
-            v2mAnalyser.fftSize = 512;
-            source.connect(v2mAnalyser);
-            v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
 
             v2mChunks = [];
             v2mMediaRecorder = new MediaRecorder(v2mStream);
@@ -9668,7 +9683,8 @@ if (v2mRecBtn) {
                     
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
-                    const latencySec = 0.15; 
+                    // Разная задержка для разных платформ
+                    const latencySec = isIOSV2m ? 0.15 : 0.25; 
                     v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     
                     drawV2mFinalWave(v2mAudioBuffer);
@@ -9718,7 +9734,8 @@ function drawV2mLiveWave() {
     const now = audioCtx.currentTime;
     const elapsed = now - v2mStartTime;
     
-    const visualLatencyComp = 0.15; 
+    // Визуальный сдвиг
+    const visualLatencyComp = isIOSV2m ? 0.15 : 0.25; 
     let waveElapsed = elapsed - visualLatencyComp;
     if (waveElapsed < 0) waveElapsed = 0;
 
@@ -9745,7 +9762,7 @@ function drawV2mLiveWave() {
         if(v2mDataArray[i] > max) max = v2mDataArray[i];
     }
     
-    // Усилим размах красной волны в 1.5 раза (чтобы тихий голос было лучше видно)
+    // Размах волны
     let normMin = ((min / 128.0) - 1.0) * 1.5;
     let normMax = ((max / 128.0) - 1.0) * 1.5;
     
@@ -9795,7 +9812,6 @@ if (v2mPlayVoiceBtn) {
 
         if (typeof vibrate === 'function') vibrate(30);
 
-        // Если уже играет - останавливаем
         if (v2mPlaybackSource) {
             try { v2mPlaybackSource.stop(); } catch(e) {}
             v2mPlaybackSource = null;
@@ -9805,13 +9821,11 @@ if (v2mPlayVoiceBtn) {
             return;
         }
 
-        // Защита от пустой записи
         if (!v2mAudioBuffer) {
             if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "NO RECORD");
             return;
         }
 
-        // Стартуем воспроизведение
         v2mPlaybackSource = audioCtx.createBufferSource();
         v2mPlaybackSource.buffer = v2mAudioBuffer;
         v2mPlaybackSource.connect(audioCtx.destination);
@@ -9825,7 +9839,6 @@ if (v2mPlayVoiceBtn) {
 
         v2mPlaybackSource.start(0);
         
-        // Меняем дизайн кнопки на СТОП
         v2mPlayVoiceBtn.innerHTML = '■ STOP';
         v2mPlayVoiceBtn.classList.remove('led-green');
         v2mPlayVoiceBtn.classList.add('led-red', 'active-mode');
