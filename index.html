@@ -9402,7 +9402,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let v2mSettings = {
     bpm: 130,
-    preroll: false // Теперь здесь только преролл
+    preroll: false
 };
 
 const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
@@ -9411,6 +9411,7 @@ const v2mTapBtn = document.getElementById('v2m-tap-btn');
 const v2mMetroBtn = document.getElementById('v2m-metro-btn');
 const v2mRecBtn = document.getElementById('v2m-rec-btn');
 const v2mLengthSelect = document.getElementById('v2m-length');
+const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn'); // Кнопка прослушки
 
 let v2mMediaRecorder = null;
 let v2mStream = null;
@@ -9426,6 +9427,7 @@ let v2mLastDrawX = 0;
 let v2mTapTimes = [];
 let v2mTapTimeout;
 let v2mMetroOscillators = []; 
+let v2mPlaybackSource = null; // Для остановки прослушки
 
 function trimV2mAudioBuffer(ctx, buffer, trimSec) {
     const trimFrames = Math.floor(trimSec * buffer.sampleRate);
@@ -9514,9 +9516,9 @@ if (v2mTapBtn) {
     }, {passive: false});
 }
 
-// 3. ПЕРЕИМЕНОВАННАЯ КНОПКА PRE-ROLL
+// 3. ПРЕРОЛЛ
 if (v2mMetroBtn) {
-    v2mMetroBtn.textContent = 'PRE-ROLL: OFF'; // Дефолтное состояние
+    v2mMetroBtn.textContent = 'PRE-ROLL: OFF'; 
     v2mMetroBtn.classList.remove('active-mode');
     
     v2mMetroBtn.addEventListener('click', () => {
@@ -9541,7 +9543,7 @@ if (v2mRecBtn) {
                 killV2mMetronome();
                 v2mRecBtn.classList.remove('active-mode', 'led-orange');
                 v2mRecBtn.classList.add('led-red');
-                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+                v2mRecBtn.innerHTML = '🎙️ REC';
                 return;
             }
 
@@ -9571,15 +9573,15 @@ if (v2mRecBtn) {
             v2mRecBtn.dataset.state = 'preroll';
             v2mRecBtn.classList.remove('led-red');
             v2mRecBtn.classList.add('led-orange', 'active-mode');
-            v2mRecBtn.innerHTML = 'WAITING MIC...';
+            v2mRecBtn.innerHTML = 'WAITING...';
 
             try {
-                // СТУДИЙНЫЙ РЕЖИМ: БЕЗ ЭХОПОДАВЛЕНИЯ
+                // ИСПРАВЛЕНИЕ IOS: autoGainControl: true дает телефону разрешение нормализовать звук микрофона
                 v2mStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
                         echoCancellation: false,
                         noiseSuppression: false,
-                        autoGainControl: false
+                        autoGainControl: true 
                     } 
                 });
             } catch (err) {
@@ -9589,7 +9591,7 @@ if (v2mRecBtn) {
                     v2mRecBtn.dataset.state = 'idle';
                     v2mRecBtn.classList.remove('active-mode', 'led-orange');
                     v2mRecBtn.classList.add('led-red');
-                    v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+                    v2mRecBtn.innerHTML = '🎙️ REC';
                     alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
                     return;
                 }
@@ -9597,7 +9599,7 @@ if (v2mRecBtn) {
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // Даем Android 400мс на ресинк аудиочипа без подавления
+            // Даем системе 400мс на ресинк аудиочипа
             await new Promise(r => setTimeout(r, 400));
 
             if (v2mRecBtn.dataset.state === 'idle') {
@@ -9610,13 +9612,12 @@ if (v2mRecBtn) {
             const exactRecordTime = now + prerollTimeSec;
 
             if (v2mSettings.preroll) {
-                // Стучим только преролл
                 for (let i = 0; i < prerollBeats; i++) {
                     v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
                 }
-                v2mRecBtn.innerHTML = 'PRE-ROLL...';
+                v2mRecBtn.innerHTML = 'PRE-ROLL';
             } else {
-                v2mRecBtn.innerHTML = 'RECORDING...';
+                v2mRecBtn.innerHTML = 'RECORDING';
             }
 
             const canvas = document.getElementById('v2m-wave-canvas');
@@ -9654,7 +9655,7 @@ if (v2mRecBtn) {
                 
                 v2mRecBtn.classList.remove('active-mode', 'led-orange');
                 v2mRecBtn.classList.add('led-red');
-                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+                v2mRecBtn.innerHTML = '🎙️ REC';
 
                 try {
                     const blob = new Blob(v2mChunks);
@@ -9667,7 +9668,6 @@ if (v2mRecBtn) {
                     
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
-                    // Аппаратная задержка микрофона (150ms)
                     const latencySec = 0.15; 
                     v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     
@@ -9683,7 +9683,7 @@ if (v2mRecBtn) {
                 v2mRecBtn.dataset.state = 'recording';
                 v2mRecBtn.classList.remove('led-orange');
                 v2mRecBtn.classList.add('led-red', 'active-mode');
-                v2mRecBtn.innerHTML = 'RECORDING...';
+                v2mRecBtn.innerHTML = 'RECORDING';
 
                 v2mStartTime = audioCtx.currentTime;
                 v2mMediaRecorder.start();
@@ -9745,8 +9745,9 @@ function drawV2mLiveWave() {
         if(v2mDataArray[i] > max) max = v2mDataArray[i];
     }
     
-    let normMin = (min / 128.0) - 1.0;
-    let normMax = (max / 128.0) - 1.0;
+    // Усилим размах красной волны в 1.5 раза (чтобы тихий голос было лучше видно)
+    let normMin = ((min / 128.0) - 1.0) * 1.5;
+    let normMax = ((max / 128.0) - 1.0) * 1.5;
     
     const amp = canvas.height / 2;
     ctx.fillStyle = '#ff003c'; 
@@ -9783,6 +9784,52 @@ function drawV2mFinalWave(buffer) {
         }
         ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
     }
+}
+
+// 5. КНОПКА ПРОСЛУШКИ ЗАПИСИ (PLAY VOICE)
+if (v2mPlayVoiceBtn) {
+    v2mPlayVoiceBtn.onclick = async function() {
+        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+
+        if (typeof vibrate === 'function') vibrate(30);
+
+        // Если уже играет - останавливаем
+        if (v2mPlaybackSource) {
+            try { v2mPlaybackSource.stop(); } catch(e) {}
+            v2mPlaybackSource = null;
+            v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
+            v2mPlayVoiceBtn.classList.remove('led-red', 'active-mode');
+            v2mPlayVoiceBtn.classList.add('led-green');
+            return;
+        }
+
+        // Защита от пустой записи
+        if (!v2mAudioBuffer) {
+            if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "NO RECORD");
+            return;
+        }
+
+        // Стартуем воспроизведение
+        v2mPlaybackSource = audioCtx.createBufferSource();
+        v2mPlaybackSource.buffer = v2mAudioBuffer;
+        v2mPlaybackSource.connect(audioCtx.destination);
+        
+        v2mPlaybackSource.onended = () => {
+            v2mPlaybackSource = null;
+            v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
+            v2mPlayVoiceBtn.classList.remove('led-red', 'active-mode');
+            v2mPlayVoiceBtn.classList.add('led-green');
+        };
+
+        v2mPlaybackSource.start(0);
+        
+        // Меняем дизайн кнопки на СТОП
+        v2mPlayVoiceBtn.innerHTML = '■ STOP';
+        v2mPlayVoiceBtn.classList.remove('led-green');
+        v2mPlayVoiceBtn.classList.add('led-red', 'active-mode');
+    };
 }
 </script>
 </body>
