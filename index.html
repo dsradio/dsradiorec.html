@@ -9581,8 +9581,8 @@ if (v2mRecBtn) {
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            // Преролл работает от настройки Preroll (а не Metronome)
-            const prerollBeats = globalSettings.preroll ? 4 : 0;
+            // ЛОГИКА: ПРЕРОЛЛ ЗАВИСИТ ОТ МЕТРОНОМА
+            const prerollBeats = globalSettings.metronome ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -9590,18 +9590,11 @@ if (v2mRecBtn) {
                 return;
             }
 
-            // Мгновенный фидбек для юзера, чтобы кнопка не зависала во время запроса микрофона
-            if (prerollBeats > 0) {
-                v2mRecBtn.dataset.state = 'preroll';
-                v2mRecBtn.classList.remove('led-red');
-                v2mRecBtn.classList.add('led-orange', 'active-mode');
-                v2mRecBtn.innerHTML = 'PRE-ROLL...';
-            } else {
-                v2mRecBtn.dataset.state = 'recording';
-                v2mRecBtn.classList.remove('led-orange');
-                v2mRecBtn.classList.add('led-red', 'active-mode');
-                v2mRecBtn.innerHTML = 'RECORDING...';
-            }
+            // Визуально показываем, что пошел процесс (кнопка оранжевая - ждем)
+            v2mRecBtn.dataset.state = 'preroll';
+            v2mRecBtn.classList.remove('led-red');
+            v2mRecBtn.classList.add('led-orange', 'active-mode');
+            v2mRecBtn.innerHTML = 'WAITING MIC...';
 
             try {
                 v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -9616,30 +9609,30 @@ if (v2mRecBtn) {
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-            // ANDROID HACK: Даем чипу 300мс на ресинк (синхронизацию частот) после открытия микрофона
-            await new Promise(r => setTimeout(r, 300));
+            // ANDROID HACK: Ждем 400мс ПОСЛЕ активации микрофона, чтобы чип пришел в себя!
+            await new Promise(r => setTimeout(r, 400));
 
-            // Если за эти 300мс юзер успел нажать СТОП - выходим
             if (v2mRecBtn.dataset.state === 'idle') {
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
                 return;
             }
 
             killV2mMetronome();
+            
+            // Теперь можно смело брать currentTime и планировать клики
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
-            // Планируем преролл (если включен)
-            if (globalSettings.preroll) {
+            if (globalSettings.metronome) {
                 for (let i = 0; i < prerollBeats; i++) {
                     v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
                 }
-            }
-            // Планируем стук во время самой записи (если включен метроном)
-            if (globalSettings.metronome) {
                 for (let i = 0; i < totalBeats; i++) {
                     v2mPlayMetroClick(exactRecordTime + i * beatDurationSec, i % 4 === 0);
                 }
+                v2mRecBtn.innerHTML = 'PRE-ROLL...';
+            } else {
+                v2mRecBtn.innerHTML = 'RECORDING...';
             }
 
             const canvas = document.getElementById('v2m-wave-canvas');
@@ -9690,7 +9683,6 @@ if (v2mRecBtn) {
                     
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
-                    // Аппаратная задержка микрофона (150ms). Отрезаем её из записанного аудио!
                     const latencySec = 0.15; 
                     v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     
@@ -9713,7 +9705,6 @@ if (v2mRecBtn) {
                 drawV2mLiveWave();
             };
 
-            // СВЕРХТОЧНЫЙ ТАЙМЕР ПРЕРОЛЛА (Ждет точного времени от аудиокарты)
             if (prerollBeats > 0) {
                 const pollPreroll = () => {
                     if (v2mRecBtn.dataset.state !== 'preroll') return; 
@@ -9742,7 +9733,6 @@ function drawV2mLiveWave() {
     const now = audioCtx.currentTime;
     const elapsed = now - v2mStartTime;
     
-    // Визуальная компенсация задержки (~150мс)
     const visualLatencyComp = 0.15; 
     let waveElapsed = elapsed - visualLatencyComp;
     if (waveElapsed < 0) waveElapsed = 0;
