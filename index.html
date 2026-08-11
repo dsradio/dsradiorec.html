@@ -9396,387 +9396,104 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('touchcancel', (e) => {
         document.querySelectorAll('.is-turning').forEach(k => k.classList.remove('is-turning'));
     }, {passive: true, capture: true});
-    // ============================================
-// V2M (VOICE TO MIDI) FULL ENGINE (PRO STUDIO REC)
-// ============================================
+    // ==========================================
+// VOICE TO MIDI (V2M) - ИСПРАВЛЕННЫЙ БЛОК
+// ==========================================
 
-let v2mSettings = {
-    bpm: 130,
-    preroll: false
-};
-
-const v2mBpmSlider = document.getElementById('v2m-bpm-slider');
-const v2mBpmVal = document.getElementById('v2m-bpm-val');
-const v2mTapBtn = document.getElementById('v2m-tap-btn');
-const v2mMetroBtn = document.getElementById('v2m-metro-btn');
-const v2mRecBtn = document.getElementById('v2m-rec-btn');
-const v2mLengthSelect = document.getElementById('v2m-length');
-const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn');
-const v2mPlayMidiBtn = document.getElementById('v2m-play-midi-btn');
-const v2mQuantizeSelect = document.getElementById('v2m-quantize');
-
-const isIOSV2m = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-let v2mMediaRecorder = null;
-let v2mStream = null;
-let v2mChunks = [];
-let v2mAnalyser = null;
-let v2mDataArray = null;
-let v2mAnimFrame = null;
-let v2mPrerollFrame = null;
-let v2mStartTime = 0;
-let v2mDurationSec = 0;
-let v2mAudioBuffer = null;
-let v2mLastDrawX = 0;
-let v2mTapTimes = [];
-let v2mTapTimeout;
-let v2mMetroOscillators = []; 
-let v2mPlaybackSource = null;
-let v2mMidiOscillators = [];
-let v2mDetectedNotes = [];
-
-const V2M_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-function v2mFreqToMidi(freq) {
-    if (freq <= 0 || isNaN(freq)) return 0;
-    return Math.round(12 * Math.log2(freq / 440) + 69);
-}
-
-function v2mMidiToName(midi) {
-    if (midi < 12 || midi > 127) return '---';
-    const noteIndex = midi % 12;
-    const octave = Math.floor(midi / 12) - 1;
-    return `${V2M_NOTE_NAMES[noteIndex]}${octave}`;
-}
-
-function v2mMidiToFreq(midi) {
-    return 440 * Math.pow(2, (midi - 69) / 12);
-}
-
-// Алгоритм распознавания высоты тона (Autocorrelation)
-function v2mAutoCorrelate(buf, sampleRate) {
-    const SIZE = buf.length;
-    let rms = 0;
-    for (let i = 0; i < SIZE; i++) {
-        const val = buf[i];
-        rms += val * val;
-    }
-    rms = Math.sqrt(rms / SIZE);
-    if (rms < 0.015) return -1;
-
-    let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-    for (let i = 0; i < SIZE / 2; i++) {
-        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-    }
-    for (let i = 1; i < SIZE / 2; i++) {
-        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-    }
-
-    const trimmedBuf = buf.slice(r1, r2);
-    const c = new Float32Array(trimmedBuf.length);
-    for (let i = 0; i < trimmedBuf.length; i++) {
-        for (let j = 0; j < trimmedBuf.length - i; j++) {
-            c[i] = c[i] + trimmedBuf[j] * trimmedBuf[j + i];
-        }
-    }
-
-    let d = 0;
-    while (c[d] > c[d + 1]) d++;
-
-    let maxval = -1, maxpos = -1;
-    for (let i = d; i < trimmedBuf.length; i++) {
-        if (c[i] > maxval) {
-            maxval = c[i];
-            maxpos = i;
-        }
-    }
-
-    let T0 = maxpos;
-    if (T0 <= 0) return -1;
-
-    const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
-    const a = (x1 + x3 - 2 * x2) / 2;
-    const b = (x3 - x1) / 2;
-    if (a) T0 = T0 - b / (2 * a);
-
-    return sampleRate / T0;
-}
-
-// Движок анализа записанного голоса
-function v2mProcessPitch(buffer) {
-    if (!buffer) return [];
-    const sampleRate = buffer.sampleRate;
-    const channelData = buffer.getChannelData(0);
-    const frameSize = 2048;
-    const hopSize = 512;
-    const totalSamples = channelData.length;
-
-    const rawFrames = [];
-
-    for (let offset = 0; offset + frameSize < totalSamples; offset += hopSize) {
-        const frame = channelData.subarray(offset, offset + frameSize);
-        let sumSq = 0;
-        for (let i = 0; i < frame.length; i++) sumSq += frame[i] * frame[i];
-        const rms = Math.sqrt(sumSq / frame.length);
-
-        if (rms >= 0.02) {
-            const pitch = v2mAutoCorrelate(frame, sampleRate);
-            if (pitch > 65 && pitch < 1200) {
-                const midi = v2mFreqToMidi(pitch);
-                const time = offset / sampleRate;
-                rawFrames.push({ time, note: midi, pitchHz: pitch, rms });
-            }
-        }
-    }
-
-    if (rawFrames.length === 0) return [];
-
-    const notes = [];
-    let currentNote = null;
-    let startTime = 0;
-    let totalFreq = 0;
-    let count = 0;
-    let maxRms = 0;
-
-    rawFrames.forEach((frame, idx) => {
-        if (currentNote === null) {
-            currentNote = frame.note;
-            startTime = frame.time;
-            totalFreq = frame.pitchHz;
-            count = 1;
-            maxRms = frame.rms;
-        } else if (Math.abs(frame.note - currentNote) <= 1 && (frame.time - (startTime + count * (hopSize / sampleRate))) < 0.15) {
-            totalFreq += frame.pitchHz;
-            count++;
-            if (frame.rms > maxRms) maxRms = frame.rms;
-        } else {
-            const duration = (idx > 0 ? rawFrames[idx - 1].time : startTime) - startTime + (hopSize / sampleRate);
-            if (duration >= 0.08) {
-                const avgPitch = totalFreq / count;
-                const noteNum = v2mFreqToMidi(avgPitch);
-                notes.push({
-                    id: `n-${startTime.toFixed(2)}-${noteNum}`,
-                    noteNumber: noteNum,
-                    noteName: v2mMidiToName(noteNum),
-                    startTime,
-                    duration,
-                    velocity: Math.min(127, Math.max(40, Math.round(maxRms * 300)))
-                });
-            }
-            currentNote = frame.note;
-            startTime = frame.time;
-            totalFreq = frame.pitchHz;
-            count = 1;
-            maxRms = frame.rms;
-        }
-    });
-
-    if (currentNote !== null && rawFrames.length > 0) {
-        const duration = rawFrames[rawFrames.length - 1].time - startTime + (hopSize / sampleRate);
-        if (duration >= 0.08) {
-            const avgPitch = totalFreq / count;
-            const noteNum = v2mFreqToMidi(avgPitch);
-            notes.push({
-                id: `n-${startTime.toFixed(2)}-${noteNum}`,
-                noteNumber: noteNum,
-                noteName: v2mMidiToName(noteNum),
-                startTime,
-                duration,
-                velocity: Math.min(127, Math.max(40, Math.round(maxRms * 300)))
-            });
-        }
-    }
-
-    const quantVal = v2mQuantizeSelect ? v2mQuantizeSelect.value : 'Q: 1/16';
-    let gridDiv = 0.25;
-    if (quantVal.includes('1/4')) gridDiv = 1.0;
-    else if (quantVal.includes('1/8')) gridDiv = 0.5;
-    else if (quantVal.includes('OFF')) gridDiv = 0;
-
-    if (gridDiv > 0) {
-        const secPerBeat = 60 / v2mSettings.bpm;
-        const gridSec = secPerBeat * gridDiv;
-        notes.forEach(n => {
-            const qStart = Math.round(n.startTime / gridSec) * gridSec;
-            const rawEnd = n.startTime + n.duration;
-            const qEnd = Math.max(qStart + gridSec, Math.round(rawEnd / gridSec) * gridSec);
-            n.startTime = qStart;
-            n.duration = Math.max(0.05, qEnd - qStart);
-        });
-    }
-
-    return notes;
-}
-
-// Отображение найденных нот на экранчике клавиш
+// 1. Функция отрисовки/сохранения нот (карточки убраны, сохраняем только массив данных)
 function renderV2mNotes(notes) {
     v2mDetectedNotes = notes;
-    const container = document.getElementById('v2m-keyboard-scroll');
-    if (!container) return;
-
-    let notesOverlay = document.getElementById('v2m-notes-cards-container');
-    if (!notesOverlay) {
-        notesOverlay = document.createElement('div');
-        notesOverlay.id = 'v2m-notes-cards-container';
-        notesOverlay.style.cssText = 'position:absolute; top:2px; left:0; right:0; display:flex; gap:4px; overflow-x:auto; padding:2px 6px; z-index:15; pointer-events:auto;';
-        container.style.position = 'relative';
-        container.appendChild(notesOverlay);
-    }
-    notesOverlay.innerHTML = '';
-
-    if (notes.length === 0) return;
-
-    notes.forEach((note) => {
-        const card = document.createElement('div');
-        card.style.cssText = 'flex-shrink:0; width:48px; background:#0d1527; border:1px solid #00ffcc88; border-radius:4px; padding:2px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; box-shadow:0 2px 6px rgba(0,0,0,0.8);';
-        card.innerHTML = `
-            <button class="v2m-pitch-up" style="background:#1e293b; color:#00ffff; border:none; border-radius:2px; font-size:8px; width:100%; cursor:pointer; font-weight:bold;">▲</button>
-            <div style="text-align:center; margin:1px 0;">
-                <div style="font-size:10px; font-weight:bold; font-family:monospace; color:#00ffff;">${note.noteName}</div>
-                <div style="font-size:7px; color:#888; font-family:monospace;">${note.duration.toFixed(2)}s</div>
-            </div>
-            <button class="v2m-pitch-down" style="background:#1e293b; color:#00ffff; border:none; border-radius:2px; font-size:8px; width:100%; cursor:pointer; font-weight:bold;">▼</button>
-        `;
-
-        card.querySelector('.v2m-pitch-up').onclick = (e) => {
-            e.stopPropagation();
-            if (typeof vibrate === 'function') vibrate(20);
-            note.noteNumber = Math.min(108, note.noteNumber + 1);
-            note.noteName = v2mMidiToName(note.noteNumber);
-            renderV2mNotes(v2mDetectedNotes);
-        };
-
-        card.querySelector('.v2m-pitch-down').onclick = (e) => {
-            e.stopPropagation();
-            if (typeof vibrate === 'function') vibrate(20);
-            note.noteNumber = Math.max(21, note.noteNumber - 1);
-            note.noteName = v2mMidiToName(note.noteNumber);
-            renderV2mNotes(v2mDetectedNotes);
-        };
-
-        notesOverlay.appendChild(card);
-    });
 }
 
-function trimV2mAudioBuffer(ctx, buffer, trimSec) {
-    const trimFrames = Math.floor(trimSec * buffer.sampleRate);
-    if (trimFrames <= 0 || trimFrames >= buffer.length) return buffer;
-    const newLen = buffer.length - trimFrames;
-    const newBuf = ctx.createBuffer(buffer.numberOfChannels, newLen, buffer.sampleRate);
-    for (let i = 0; i < buffer.numberOfChannels; i++) {
-        newBuf.getChannelData(i).set(buffer.getChannelData(i).subarray(trimFrames));
-    }
-    return newBuf;
-}
-
-function v2mPlayMetroClick(time, isHigh) {
-    const safeTime = Math.max(audioCtx.currentTime + 0.02, time);
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = isHigh ? 880 : 440;
+// 2. Функция синфазной отрисовки живой волны и Playhead
+function drawV2mLiveWave() {
+    const canvas = document.getElementById('v2m-wave-canvas');
+    if (!canvas || !v2mAnalyser) return;
+    const ctx = canvas.getContext('2d');
     
-    gain.gain.value = 0;
-    gain.gain.setValueAtTime(0, safeTime); 
-    gain.gain.linearRampToValueAtTime(0.5, safeTime + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.1);
-    
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    osc.start(safeTime);
-    osc.stop(safeTime + 0.15);
-    v2mMetroOscillators.push({ osc, gain });
-}
-
-function killV2mMetronome() {
     const now = audioCtx.currentTime;
-    v2mMetroOscillators.forEach(item => {
-        try { 
-            item.gain.gain.cancelScheduledValues(now);
-            item.gain.gain.setValueAtTime(0, now); 
-            item.osc.stop(now); 
-            item.osc.disconnect(); 
-        } catch(e) {}
-    });
-    v2mMetroOscillators = [];
-}
-
-function killV2mMidiPlayback() {
-    const now = audioCtx.currentTime;
-    v2mMidiOscillators.forEach(osc => {
-        try { osc.stop(now); osc.disconnect(); } catch(e) {}
-    });
-    v2mMidiOscillators = [];
-}
-
-// 1. ИЗОЛИРОВАННЫЙ ПОЛЗУНОК BPM
-if (v2mBpmSlider) {
-    v2mBpmSlider.addEventListener('touchstart', (e) => e.stopPropagation(), {passive: true});
-    v2mBpmSlider.addEventListener('touchmove', (e) => e.stopPropagation(), {passive: true});
-
-    v2mBpmSlider.addEventListener('input', (e) => {
-        const newBpm = parseInt(e.target.value);
-        v2mSettings.bpm = newBpm;
-        if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
-    });
-}
-
-// 2. ИЗОЛИРОВАННЫЙ TAP TEMPO
-if (v2mTapBtn) {
-    v2mTapBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        if (typeof vibrate === 'function') vibrate(30);
-        v2mTapBtn.classList.add('active-mode');
-        setTimeout(() => v2mTapBtn.classList.remove('active-mode'), 100);
-
-        const now = Date.now();
-        v2mTapTimes.push(now);
-        if (v2mTapTimes.length > 4) v2mTapTimes.shift();
-        
-        if (v2mTapTimes.length > 1) {
-            let sum = 0;
-            for (let i = 1; i < v2mTapTimes.length; i++) {
-                sum += (v2mTapTimes[i] - v2mTapTimes[i-1]);
-            }
-            let newBpm = Math.round(60000 / (sum / (v2mTapTimes.length - 1)));
-            if (newBpm < 60) newBpm = 60;
-            if (newBpm > 200) newBpm = 200;
-            
-            v2mSettings.bpm = newBpm;
-            if (v2mBpmSlider) v2mBpmSlider.value = newBpm;
-            if (v2mBpmVal) v2mBpmVal.textContent = newBpm + ' BPM';
-            
-            clearTimeout(v2mTapTimeout);
-            v2mTapTimeout = setTimeout(() => { v2mTapTimes = []; }, 2000);
+    const elapsed = now - v2mStartTime;
+    
+    let progress = elapsed / v2mDurationSec;
+    if (progress >= 1.0) {
+        progress = 1.0;
+        killV2mMetronome();
+        if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
+            v2mMediaRecorder.stop();
         }
-    }, {passive: false});
-}
-
-// 3. ПРЕРОЛЛ
-if (v2mMetroBtn) {
-    v2mMetroBtn.textContent = 'PRE: OFF'; 
-    v2mMetroBtn.classList.remove('active-mode');
+    }
     
-    v2mMetroBtn.addEventListener('click', () => {
-        if (typeof vibrate === 'function') vibrate(30);
-        const isActive = v2mMetroBtn.classList.toggle('active-mode');
-        v2mSettings.preroll = isActive;
-        v2mMetroBtn.textContent = isActive ? 'PRE: ON' : 'PRE: OFF';
-    });
+    // Синхронное перемещение указателя Playhead
+    const playhead = document.getElementById('v2m-playhead');
+    if (playhead) playhead.style.left = (progress * 100) + '%';
+
+    // Синхронное закрашивание красной волны
+    const x = progress * canvas.width;
+    v2mAnalyser.getByteTimeDomainData(v2mDataArray);
+    let min = 255, max = 0;
+    for (let i = 0; i < v2mDataArray.length; i++) {
+        if (v2mDataArray[i] < min) min = v2mDataArray[i];
+        if (v2mDataArray[i] > max) max = v2mDataArray[i];
+    }
+    
+    let normMin = ((min / 128.0) - 1.0) * 1.5;
+    let normMax = ((max / 128.0) - 1.0) * 1.5;
+    
+    const amp = canvas.height / 2;
+    ctx.fillStyle = '#ff003c'; 
+    
+    if (x > v2mLastDrawX) {
+        ctx.fillRect(v2mLastDrawX, (1 + normMin) * amp, x - v2mLastDrawX + 1, Math.max(1, (normMax - normMin) * amp));
+        v2mLastDrawX = x;
+    }
+
+    if (progress < 1.0) {
+        v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
+    }
 }
 
-// 4. ЗАПИСЬ ГОЛОСА
+// 3. Функция окончательной отрисовки сформированного бирюзового сэмпла
+function drawV2mFinalWave(buffer) {
+    const canvas = document.getElementById('v2m-wave-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    
+    const data = buffer.getChannelData(0);
+    const step = Math.ceil(data.length / w);
+    const amp = h / 2;
+    
+    ctx.fillStyle = '#00ffff'; 
+    for (let i = 0; i < w; i++) {
+        let min = 1.0, max = -1.0;
+        for (let j = 0; j < step; j++) {
+            const v = data[(i * step) + j];
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+        ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
+    }
+}
+
+// 4. Обработчик кнопки записи (REC / Pre-roll)
+const v2mRecBtn = document.getElementById('v2m-rec-btn');
+
 if (v2mRecBtn) {
-    v2mRecBtn.onclick = async function() {
+    const startOrStopRec = async function(e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
         try {
-            if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
-                await audioCtx.resume();
+            if (typeof audioCtx !== 'undefined') {
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
             }
             
+            // Отмена во время отсчета преролла
             if (v2mRecBtn.dataset.state === 'preroll') {
                 v2mRecBtn.dataset.state = 'idle';
-                cancelAnimationFrame(v2mPrerollFrame);
+                if (typeof v2mPrerollFrame !== 'undefined') cancelAnimationFrame(v2mPrerollFrame);
                 killV2mMetronome();
                 v2mRecBtn.classList.remove('active-mode', 'led-orange');
                 v2mRecBtn.classList.add('led-red');
@@ -9784,6 +9501,7 @@ if (v2mRecBtn) {
                 return;
             }
 
+            // Остановка активной записи
             if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
                 v2mRecBtn.dataset.state = 'idle';
                 killV2mMetronome();
@@ -9793,6 +9511,7 @@ if (v2mRecBtn) {
 
             if (typeof vibrate === 'function') vibrate(50);
             
+            const v2mLengthSelect = document.getElementById('v2m-length');
             const steps = v2mLengthSelect ? parseInt(v2mLengthSelect.value.replace(/\D/g,'')) || 16 : 16;
             const bpm = v2mSettings.bpm;
             const totalBeats = steps / 4;
@@ -9803,7 +9522,7 @@ if (v2mRecBtn) {
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("ОШИБКА: Браузер не поддерживает запись аудио.");
+                alert("ОШИБКА: Доступ к микрофону не поддерживается браузером.");
                 return;
             }
 
@@ -9812,7 +9531,9 @@ if (v2mRecBtn) {
             v2mRecBtn.classList.add('led-orange', 'active-mode');
             v2mRecBtn.innerHTML = 'WAITING...';
 
+            // Адаптивный запрос микрофона (iOS vs Android)
             try {
+                const isIOSV2m = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 const v2mConstraints = isIOSV2m ? { audio: true } : { 
                     audio: {
                         echoCancellation: true,
@@ -9841,18 +9562,6 @@ if (v2mRecBtn) {
             v2mAnalyser.fftSize = 512;
             source.connect(v2mAnalyser);
             v2mDataArray = new Uint8Array(v2mAnalyser.frequencyBinCount);
-
-            if (!isIOSV2m) {
-                const wakeOsc = audioCtx.createOscillator();
-                const wakeGain = audioCtx.createGain();
-                wakeGain.gain.value = 0.01;
-                wakeOsc.connect(wakeGain);
-                wakeGain.connect(audioCtx.destination);
-                wakeOsc.start(audioCtx.currentTime);
-                wakeOsc.stop(audioCtx.currentTime + 0.1);
-
-                await new Promise(r => setTimeout(r, 600));
-            }
 
             if (v2mRecBtn.dataset.state === 'idle') {
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
@@ -9889,12 +9598,29 @@ if (v2mRecBtn) {
             v2mLastDrawX = 0;
 
             v2mChunks = [];
-            v2mMediaRecorder = new MediaRecorder(v2mStream);
+            
+            // Выбор кодека для MediaRecorder под браузер
+            let mrOptions = {};
+            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    mrOptions = { mimeType: 'audio/webm;codecs=opus' };
+                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    mrOptions = { mimeType: 'audio/mp4' };
+                } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+                    mrOptions = { mimeType: 'audio/aac' };
+                }
+            }
+            try {
+                v2mMediaRecorder = new MediaRecorder(v2mStream, mrOptions);
+            } catch(mrErr) {
+                v2mMediaRecorder = new MediaRecorder(v2mStream);
+            }
+
             v2mMediaRecorder.ondataavailable = e => { if (e.data.size > 0) v2mChunks.push(e.data); };
             
             v2mMediaRecorder.onstop = async () => {
                 v2mRecBtn.dataset.state = 'idle';
-                cancelAnimationFrame(v2mAnimFrame);
+                if (typeof v2mAnimFrame !== 'undefined') cancelAnimationFrame(v2mAnimFrame);
                 killV2mMetronome(); 
                 
                 if (playhead) playhead.style.display = 'none';
@@ -9915,12 +9641,11 @@ if (v2mRecBtn) {
                     
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
-                    const latencySec = isIOSV2m ? 0.15 : 0.25; 
+                    const latencySec = 0.05; 
                     v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     
                     drawV2mFinalWave(v2mAudioBuffer);
                     
-                    // Запуск распознавания нот
                     const notes = v2mProcessPitch(v2mAudioBuffer);
                     renderV2mNotes(notes);
 
@@ -9960,331 +9685,14 @@ if (v2mRecBtn) {
             alert("КРИТИЧЕСКАЯ ОШИБКА: " + globalError.message);
         }
     };
-}
 
-function drawV2mLiveWave() {
-    const canvas = document.getElementById('v2m-wave-canvas');
-    if (!canvas || !v2mAnalyser) return;
-    const ctx = canvas.getContext('2d');
-    
-    const now = audioCtx.currentTime;
-    const elapsed = now - v2mStartTime;
-    
-    const visualLatencyComp = isIOSV2m ? 0.15 : 0.25; 
-    let waveElapsed = elapsed - visualLatencyComp;
-    if (waveElapsed < 0) waveElapsed = 0;
-
-    let playheadProgress = elapsed / v2mDurationSec;
-    let waveProgress = waveElapsed / v2mDurationSec;
-    
-    if (playheadProgress >= 1.0) {
-        playheadProgress = 1.0;
-        waveProgress = 1.0;
-        killV2mMetronome();
-        if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
-            v2mMediaRecorder.stop();
+    v2mRecBtn.onclick = startOrStopRec;
+    v2mRecBtn.ontouchstart = function(e) {
+        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') { 
+            audioCtx.resume(); 
         }
-    }
-    
-    const playhead = document.getElementById('v2m-playhead');
-    if (playhead) playhead.style.left = (playheadProgress * 100) + '%';
-
-    const x = waveProgress * canvas.width;
-    v2mAnalyser.getByteTimeDomainData(v2mDataArray);
-    let min = 255, max = 0;
-    for(let i = 0; i < v2mDataArray.length; i++) {
-        if(v2mDataArray[i] < min) min = v2mDataArray[i];
-        if(v2mDataArray[i] > max) max = v2mDataArray[i];
-    }
-    
-    let normMin = ((min / 128.0) - 1.0) * 1.5;
-    let normMax = ((max / 128.0) - 1.0) * 1.5;
-    
-    const amp = canvas.height / 2;
-    ctx.fillStyle = '#ff003c'; 
-    
-    if (x > v2mLastDrawX) {
-        ctx.fillRect(v2mLastDrawX, (1 + normMin) * amp, x - v2mLastDrawX + 1, Math.max(1, (normMax - normMin) * amp));
-        v2mLastDrawX = x;
-    }
-
-    if (playheadProgress < 1.0) {
-        v2mAnimFrame = requestAnimationFrame(drawV2mLiveWave);
-    }
-}
-
-function drawV2mFinalWave(buffer) {
-    const canvas = document.getElementById('v2m-wave-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-    
-    const data = buffer.getChannelData(0);
-    const step = Math.ceil(data.length / w);
-    const amp = h / 2;
-    
-    ctx.fillStyle = '#00ffff'; 
-    for (let i = 0; i < w; i++) {
-        let min = 1.0, max = -1.0;
-        for (let j = 0; j < step; j++) {
-            const v = data[(i * step) + j];
-            if (v < min) min = v;
-            if (v > max) max = v;
-        }
-        ctx.fillRect(i, (1 + min) * amp, 1, Math.max(1, (max - min) * amp));
-    }
-}
-
-// 5. КНОПКА ПРОСЛУШКИ ЗАПИСИ (PLAY VOICE)
-if (v2mPlayVoiceBtn) {
-    v2mPlayVoiceBtn.onclick = async function() {
-        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-
-        if (typeof vibrate === 'function') vibrate(30);
-
-        if (v2mPlaybackSource) {
-            try { v2mPlaybackSource.stop(); } catch(e) {}
-            v2mPlaybackSource = null;
-            v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
-            v2mPlayVoiceBtn.classList.remove('led-red', 'active-mode');
-            v2mPlayVoiceBtn.classList.add('led-green');
-            return;
-        }
-
-        if (!v2mAudioBuffer) {
-            if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "NO RECORD");
-            return;
-        }
-
-        v2mPlaybackSource = audioCtx.createBufferSource();
-        v2mPlaybackSource.buffer = v2mAudioBuffer;
-        v2mPlaybackSource.connect(audioCtx.destination);
-        
-        v2mPlaybackSource.onended = () => {
-            v2mPlaybackSource = null;
-            v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
-            v2mPlayVoiceBtn.classList.remove('led-red', 'active-mode');
-            v2mPlayVoiceBtn.classList.add('led-green');
-        };
-
-        v2mPlaybackSource.start(0);
-        
-        v2mPlayVoiceBtn.innerHTML = '■ STOP';
-        v2mPlayVoiceBtn.classList.remove('led-green');
-        v2mPlayVoiceBtn.classList.add('led-red', 'active-mode');
     };
 }
-
-// 6. КНОПКА ПРОСЛУШКИ MIDI (PLAY MIDI)
-if (v2mPlayMidiBtn) {
-    v2mPlayMidiBtn.onclick = async function() {
-        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-
-        if (typeof vibrate === 'function') vibrate(30);
-
-        if (v2mMidiOscillators.length > 0) {
-            killV2mMidiPlayback();
-            v2mPlayMidiBtn.innerHTML = '▶ MIDI';
-            v2mPlayMidiBtn.classList.remove('led-red', 'active-mode');
-            v2mPlayMidiBtn.classList.add('led-green');
-            return;
-        }
-
-        if (v2mDetectedNotes.length === 0) {
-            if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "NO MIDI NOTES");
-            return;
-        }
-
-        killV2mMidiPlayback();
-        const now = audioCtx.currentTime + 0.05;
-        let maxEndTime = now;
-
-        v2mDetectedNotes.forEach((n) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
-
-            osc.type = 'sawtooth';
-            osc.frequency.value = v2mMidiToFreq(n.noteNumber);
-
-            filter.type = 'lowpass';
-            filter.frequency.value = 1200;
-
-            const startTime = now + n.startTime;
-            const endTime = startTime + Math.max(0.05, n.duration);
-            if (endTime > maxEndTime) maxEndTime = endTime;
-
-            const velGain = (n.velocity / 127) * 0.3;
-
-            gain.gain.setValueAtTime(0.001, startTime);
-            gain.gain.linearRampToValueAtTime(velGain, startTime + 0.01);
-            gain.gain.setValueAtTime(velGain, endTime - 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, endTime);
-
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start(startTime);
-            osc.stop(endTime);
-
-            v2mMidiOscillators.push(osc);
-        });
-
-        v2mPlayMidiBtn.innerHTML = '■ STOP';
-        v2mPlayMidiBtn.classList.remove('led-green');
-        v2mPlayMidiBtn.classList.add('led-red', 'active-mode');
-
-        const totalMs = Math.max(200, (maxEndTime - now) * 1000);
-        setTimeout(() => {
-            v2mMidiOscillators = [];
-            v2mPlayMidiBtn.innerHTML = '▶ MIDI';
-            v2mPlayMidiBtn.classList.remove('led-red', 'active-mode');
-            v2mPlayMidiBtn.classList.add('led-green');
-        }, totalMs);
-    };
-}
-
-// 7. СКАЧИВАНИЕ WAV
-window.v2mDownloadWav = function() {
-    if (typeof vibrate === 'function') vibrate(30);
-    if (!v2mAudioBuffer) {
-        if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "NO RECORD");
-        return;
-    }
-
-    const numOfChan = v2mAudioBuffer.numberOfChannels;
-    const length = v2mAudioBuffer.length * numOfChan * 2 + 44;
-    const out = new DataView(new ArrayBuffer(length));
-    let channels = [];
-    let sampleRate = v2mAudioBuffer.sampleRate;
-    let offset = 0;
-    let pos = 0;
-
-    function writeStr(s) { for (let i = 0; i < s.length; i++) out.setUint8(pos++, s.charCodeAt(i)); }
-    function writeU32(d) { out.setUint32(pos, d, true); pos += 4; }
-    function writeU16(d) { out.setUint16(pos, d, true); pos += 2; }
-
-    writeStr('RIFF'); writeU32(length - 8); writeStr('WAVE'); writeStr('fmt ');
-    writeU32(16); writeU16(1); writeU16(numOfChan); writeU32(sampleRate);
-    writeU32(sampleRate * 2 * numOfChan); writeU16(numOfChan * 2); writeU16(16);
-    writeStr('data'); writeU32(length - pos - 4);
-
-    for (let i = 0; i < v2mAudioBuffer.numberOfChannels; i++) {
-        channels.push(v2mAudioBuffer.getChannelData(i));
-    }
-
-    while (offset < v2mAudioBuffer.length) {
-        for (let i = 0; i < numOfChan; i++) {
-            let sample = Math.max(-1, Math.min(1, channels[i][offset]));
-            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-            out.setInt16(pos, sample, true); pos += 2;
-        }
-        offset++;
-    }
-
-    const blob = new Blob([out.buffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `VoiceRecord_${Date.now()}.wav`; a.click();
-    URL.revokeObjectURL(url);
-};
-
-// 8. СКАЧИВАНИЕ MIDI (.mid Format 0)
-window.v2mDownloadMidi = function() {
-    if (typeof vibrate === 'function') vibrate(30);
-    if (v2mDetectedNotes.length === 0) {
-        if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", "NO MIDI NOTES");
-        return;
-    }
-
-    const bpm = v2mSettings.bpm;
-    const ticksPerQuarter = 480;
-    const header = [
-        0x4d, 0x74, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,
-        0x00, 0x00, 0x00, 0x01,
-        (ticksPerQuarter >> 8) & 0xff, ticksPerQuarter & 0xff
-    ];
-
-    const trackEvents = [];
-    const microsPerQuarter = Math.round(60000000 / bpm);
-    trackEvents.push(0x00, 0xff, 0x51, 0x03, (microsPerQuarter >> 16) & 0xff, (microsPerQuarter >> 8) & 0xff, microsPerQuarter & 0xff);
-    trackEvents.push(0x00, 0xff, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08);
-
-    const secPerTick = 60 / (bpm * ticksPerQuarter);
-    const events = [];
-
-    v2mDetectedNotes.forEach((n) => {
-        const startTick = Math.max(0, Math.round(n.startTime / secPerTick));
-        const endTick = Math.max(startTick + 1, Math.round((n.startTime + n.duration) / secPerTick));
-        const vel = Math.min(127, Math.max(1, n.velocity || 100));
-
-        events.push({ tick: startTick, type: 'on', note: n.noteNumber, vel });
-        events.push({ tick: endTick, type: 'off', note: n.noteNumber, vel: 0 });
-    });
-
-    events.sort((a, b) => a.tick - b.tick);
-
-    function writeVLQ(outArr, val) {
-        let buf = val & 0x7f;
-        while ((val >>= 7)) {
-            buf <<= 8;
-            buf |= (val & 0x7f) | 0x80;
-        }
-        while (true) {
-            outArr.push(buf & 0xff);
-            if (buf & 0x80) buf >>= 8;
-            else break;
-        }
-    }
-
-    let lastTick = 0;
-    events.forEach(ev => {
-        const delta = ev.tick - lastTick;
-        lastTick = ev.tick;
-        writeVLQ(trackEvents, delta);
-        if (ev.type === 'on') {
-            trackEvents.push(0x90, ev.note & 0x7f, ev.vel & 0x7f);
-        } else {
-            trackEvents.push(0x80, ev.note & 0x7f, 0x00);
-        }
-    });
-
-    writeVLQ(trackEvents, 0);
-    trackEvents.push(0xff, 0x2f, 0x00);
-
-    const trackLen = trackEvents.length;
-    const trackHeader = [
-        0x4d, 0x74, 0x72, 0x6b,
-        (trackLen >> 24) & 0xff, (trackLen >> 16) & 0xff,
-        (trackLen >> 8) & 0xff, trackLen & 0xff
-    ];
-
-    const fullFile = new Uint8Array([...header, ...trackHeader, ...trackEvents]);
-    const blob = new Blob([fullFile], { type: 'audio/midi' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `VoiceMidi_${Date.now()}.mid`; a.click();
-    URL.revokeObjectURL(url);
-};
-
-// Привязываем события для кнопок скачивания
-window.addEventListener('DOMContentLoaded', () => {
-    const btns = document.querySelectorAll('button, .btn-rubber');
-    btns.forEach(btn => {
-        if (btn.textContent.includes('MIDI') && btn.textContent.includes('💾')) {
-            btn.onclick = () => window.v2mDownloadMidi();
-        } else if (btn.textContent.includes('WAV') && btn.textContent.includes('💾')) {
-            btn.onclick = () => window.v2mDownloadWav();
-        }
-    });
-});
 </script>
 </body>
 </html>
