@@ -9490,21 +9490,19 @@ if (v2mRecBtn) {
                 }
             }
             
-            // Отмена во время отсчета преролла
             if (v2mRecBtn.dataset.state === 'preroll') {
                 v2mRecBtn.dataset.state = 'idle';
                 if (typeof v2mPrerollFrame !== 'undefined') cancelAnimationFrame(v2mPrerollFrame);
-                killV2mMetronome();
+                if (typeof killV2mMetronome === 'function') killV2mMetronome();
                 v2mRecBtn.classList.remove('active-mode', 'led-orange');
                 v2mRecBtn.classList.add('led-red');
                 v2mRecBtn.innerHTML = '🎙️ REC';
                 return;
             }
 
-            // Остановка активной записи
-            if (v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
+            if (typeof v2mMediaRecorder !== 'undefined' && v2mMediaRecorder && v2mMediaRecorder.state === 'recording') {
                 v2mRecBtn.dataset.state = 'idle';
-                killV2mMetronome();
+                if (typeof killV2mMetronome === 'function') killV2mMetronome();
                 v2mMediaRecorder.stop();
                 return;
             }
@@ -9513,16 +9511,16 @@ if (v2mRecBtn) {
             
             const v2mLengthSelect = document.getElementById('v2m-length');
             const steps = v2mLengthSelect ? parseInt(v2mLengthSelect.value.replace(/\D/g,'')) || 16 : 16;
-            const bpm = v2mSettings.bpm;
+            const bpm = (typeof v2mSettings !== 'undefined' && v2mSettings.bpm) ? v2mSettings.bpm : 130;
             const totalBeats = steps / 4;
             const beatDurationSec = 60.0 / bpm;
             v2mDurationSec = totalBeats * beatDurationSec;
 
-            const prerollBeats = v2mSettings.preroll ? 4 : 0;
+            const prerollBeats = (typeof v2mSettings !== 'undefined' && v2mSettings.preroll) ? 4 : 0;
             const prerollTimeSec = prerollBeats * beatDurationSec;
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("ОШИБКА: Доступ к микрофону не поддерживается браузером.");
+                alert("ОШИБКА: Браузер не поддерживает запись аудио.");
                 return;
             }
 
@@ -9531,28 +9529,15 @@ if (v2mRecBtn) {
             v2mRecBtn.classList.add('led-orange', 'active-mode');
             v2mRecBtn.innerHTML = 'WAITING...';
 
-            // Адаптивный запрос микрофона (iOS vs Android)
             try {
-                const isIOSV2m = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                const v2mConstraints = isIOSV2m ? { audio: true } : { 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: false,
-                        autoGainControl: false 
-                    } 
-                };
-                v2mStream = await navigator.mediaDevices.getUserMedia(v2mConstraints);
+                v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (err) {
-                try {
-                    v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                } catch(fallbackErr) {
-                    v2mRecBtn.dataset.state = 'idle';
-                    v2mRecBtn.classList.remove('active-mode', 'led-orange');
-                    v2mRecBtn.classList.add('led-red');
-                    v2mRecBtn.innerHTML = '🎙️ REC';
-                    alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону.");
-                    return;
-                }
+                v2mRecBtn.dataset.state = 'idle';
+                v2mRecBtn.classList.remove('active-mode', 'led-orange');
+                v2mRecBtn.classList.add('led-red');
+                v2mRecBtn.innerHTML = '🎙️ REC';
+                alert("ОШИБКА МИКРОФОНА: Разрешите доступ к микрофону в настройках браузера.");
+                return;
             }
             
             if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -9568,14 +9553,16 @@ if (v2mRecBtn) {
                 return;
             }
 
-            killV2mMetronome();
+            if (typeof killV2mMetronome === 'function') killV2mMetronome();
             
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
-            if (v2mSettings.preroll) {
+            if (prerollBeats > 0) {
                 for (let i = 0; i < prerollBeats; i++) {
-                    v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
+                    if (typeof v2mPlayMetroClick === 'function') {
+                        v2mPlayMetroClick(now + i * beatDurationSec, i === 0);
+                    }
                 }
                 v2mRecBtn.innerHTML = 'PRE-ROLL';
             } else {
@@ -9599,7 +9586,6 @@ if (v2mRecBtn) {
 
             v2mChunks = [];
             
-            // Выбор кодека для MediaRecorder под браузер
             let mrOptions = {};
             if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
                 if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
@@ -9621,7 +9607,7 @@ if (v2mRecBtn) {
             v2mMediaRecorder.onstop = async () => {
                 v2mRecBtn.dataset.state = 'idle';
                 if (typeof v2mAnimFrame !== 'undefined') cancelAnimationFrame(v2mAnimFrame);
-                killV2mMetronome(); 
+                if (typeof killV2mMetronome === 'function') killV2mMetronome(); 
                 
                 if (playhead) playhead.style.display = 'none';
                 if (v2mStream) v2mStream.getTracks().forEach(t => t.stop());
@@ -9642,16 +9628,19 @@ if (v2mRecBtn) {
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
                     const latencySec = 0.05; 
-                    v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
+                    if (typeof trimV2mAudioBuffer === 'function') {
+                        v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
+                    } else {
+                        v2mAudioBuffer = decodedBuffer;
+                    }
                     
-                    drawV2mFinalWave(v2mAudioBuffer);
-                    
-                    const notes = v2mProcessPitch(v2mAudioBuffer);
-                    renderV2mNotes(notes);
-
-                    if (typeof showOnSmartScreen === 'function') showOnSmartScreen("V2M", `NOTES: ${notes.length}`);
+                    if (typeof drawV2mFinalWave === 'function') drawV2mFinalWave(v2mAudioBuffer);
+                    if (typeof v2mProcessPitch === 'function') {
+                        const notes = v2mProcessPitch(v2mAudioBuffer);
+                        if (typeof renderV2mNotes === 'function') renderV2mNotes(notes);
+                    }
                 } catch(e) {
-                    alert("Ошибка конвертации аудио: " + e.message);
+                    console.error("Ошибка декодирования аудио:", e);
                 }
             };
 
@@ -9664,7 +9653,7 @@ if (v2mRecBtn) {
 
                 v2mStartTime = audioCtx.currentTime;
                 v2mMediaRecorder.start();
-                drawV2mLiveWave();
+                if (typeof drawV2mLiveWave === 'function') drawV2mLiveWave();
             };
 
             if (prerollBeats > 0) {
