@@ -9644,16 +9644,7 @@ if (v2mRecBtn) {
             // Пауза 600мс для Андроида, чтобы микрофон успел включиться
             await new Promise(resolve => setTimeout(resolve, 600));
             
-            const now = audioCtx.currentTime + 0.05; 
-            const exactRecordTime = now + prerollTimeSec;
-
             if (prerollBeats > 0) {
-                for (let i = 0; i < prerollBeats; i++) {
-                    // Используем проверенную глобальную пикалку секвенсора
-                    if (typeof playMetroClick === 'function') {
-                        playMetroClick(now + i * beatDurationSec, i === 0);
-                    }
-                }
                 v2mRecBtn.innerHTML = 'PRE-ROLL';
             } else {
                 v2mRecBtn.innerHTML = 'RECORDING';
@@ -9739,15 +9730,23 @@ if (v2mRecBtn) {
             };
 
             if (prerollBeats > 0) {
-                const pollPreroll = () => {
-                    if (v2mRecBtn.dataset.state !== 'preroll') return; 
-                    if (audioCtx.currentTime >= exactRecordTime) {
-                        startActualRecording();
+                let currentBeat = 0;
+                const playPrerollStep = () => {
+                    // Если пользователь отменил запись до конца отсчета - останавливаем таймер
+                    if (v2mRecBtn.dataset.state !== 'preroll') return;
+                    
+                    if (currentBeat < prerollBeats) {
+                        if (typeof playMetroClick === 'function') {
+                            playMetroClick(audioCtx.currentTime + 0.02, currentBeat === 0);
+                        }
+                        currentBeat++;
+                        // Ждем точное время до следующего удара в миллисекундах
+                        setTimeout(playPrerollStep, beatDurationSec * 1000);
                     } else {
-                        window.v2mPrerollFrame = requestAnimationFrame(pollPreroll);
+                        startActualRecording();
                     }
                 };
-                pollPreroll();
+                playPrerollStep();
             } else {
                 startActualRecording();
             }
