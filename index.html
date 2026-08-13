@@ -9518,7 +9518,8 @@ function drawV2mLiveWave() {
     }
     
     // Убираем гигантский множитель 10 для iOS, так как системный усилитель работает отлично
-    let waveScale = 1.5;
+    // Увеличиваем масштаб на 40% для Android (2.1), для iOS оставляем (1.5)
+    let waveScale = (osInfo === "Android") ? 2.1 : 1.5;
     let normMin = ((min / 128.0) - 1.0) * waveScale;
     let normMax = ((max / 128.0) - 1.0) * waveScale;
     
@@ -9541,6 +9542,23 @@ function drawV2mLiveWave() {
     }
 }
 
+// Физически отрезаем тишину в начале файла и подгоняем под нужную длину
+function trimV2mAudioBuffer(ctx, buffer, latency) {
+    const startSample = Math.floor(latency * buffer.sampleRate);
+    const endSample = Math.floor((window.v2mDurationSec + latency) * buffer.sampleRate);
+    const length = Math.min(endSample - startSample, buffer.length - startSample);
+    if (length <= 0) return buffer;
+    const newBuffer = ctx.createBuffer(buffer.numberOfChannels, length, buffer.sampleRate);
+    for (let i = 0; i < buffer.numberOfChannels; i++) {
+        const newData = newBuffer.getChannelData(i);
+        const oldData = buffer.getChannelData(i);
+        for (let j = 0; j < length; j++) {
+            newData[j] = oldData[startSample + j];
+        }
+    }
+    return newBuffer;
+}
+
 function drawV2mFinalWave(buffer) {
     const canvas = document.getElementById('v2m-wave-canvas');
     if (!canvas) return;
@@ -9550,8 +9568,7 @@ function drawV2mFinalWave(buffer) {
     ctx.clearRect(0, 0, w, h);
     
     const data = buffer.getChannelData(0);
-    
-    // ИСПРАВЛЕНИЕ СМЕЩЕНИЯ: Берем длину строго равную задуманной записи, отсекая лишние "хвосты" браузера
+    // Длина теперь идеальная, так как буфер уже обрезан функцией выше!
     const expectedSamples = window.v2mDurationSec * buffer.sampleRate;
     const step = Math.ceil(expectedSamples / w);
     const amp = h / 2;
@@ -9568,7 +9585,7 @@ function drawV2mFinalWave(buffer) {
             }
         }
         if (isFinite(min) && isFinite(max)) {
-            let waveScale = 1.5;
+            let waveScale = (osInfo === "Android") ? 2.1 : 1.5;
             let visMin = Math.max(-1, min * waveScale);
             let visMax = Math.min(1, max * waveScale);
             ctx.fillRect(i, (1 + visMin) * amp, 1, Math.max(1, (visMax - visMin) * amp));
@@ -9733,7 +9750,8 @@ if (v2mRecBtn) {
                     const arrayBuffer = await blob.arrayBuffer();
                     let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
-                    const latencySec = 0.05; 
+                    // Точная компенсация задержки (MediaRecorder стартует с микро-паузой)
+                    const latencySec = (osInfo === "Android") ? 0.15 : 0.07; 
                     if (typeof trimV2mAudioBuffer === 'function') {
                         window.v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
                     } else {
@@ -9772,31 +9790,29 @@ if (v2mRecBtn) {
             };
 
             if (prerollBeats > 0) {
-                let currentBeat = 0;
-                let nextClickTime = audioCtx.currentTime + 0.05;
-
-                const scheduleNextClick = () => {
+                const now = audioCtx.currentTime;
+                const startTime = now + 0.05;
+                
+                // АППАРАТНЫЙ ПЛАНЕР (Именно он идеально работает на Android без пропусков)
+                for (let i = 0; i < prerollBeats; i++) {
+                    if (typeof playMetroClick === 'function') {
+                        playMetroClick(startTime + (i * beatDurationSec), i === 0);
+                    }
+                }
+                
+                const recordTime = startTime + (prerollBeats * beatDurationSec);
+                
+                // ЧЕТКАЯ СИНХРОНИЗАЦИЯ С АУДИОКАРТОЙ (чинит рассинхрон на iOS)
+                const checkStart = () => {
                     if (v2mRecBtn.dataset.state !== 'preroll') return;
-                    
-                    if (currentBeat < prerollBeats) {
-                        if (typeof playMetroClick === 'function') {
-                            playMetroClick(nextClickTime, currentBeat === 0);
-                        }
-                        currentBeat++;
-                        nextClickTime += beatDurationSec;
-                        
-                        // Шагаем по одному клику (спасает Android от сброса дальних звуков)
-                        let timeToWait = (nextClickTime - audioCtx.currentTime - 0.05) * 1000;
-                        setTimeout(scheduleNextClick, Math.max(0, timeToWait));
+                    if (audioCtx.currentTime >= recordTime) {
+                        startActualRecording();
                     } else {
-                        // Ждем точную долю секунды до старта записи
-                        let timeToRecord = (nextClickTime - audioCtx.currentTime) * 1000;
-                        setTimeout(() => {
-                            if (v2mRecBtn.dataset.state === 'preroll') startActualRecording();
-                        }, Math.max(0, timeToRecord));
+                        requestAnimationFrame(checkStart);
                     }
                 };
-                scheduleNextClick();
+                requestAnimationFrame(checkStart);
+                
             } else {
                 setTimeout(() => {
                     if (v2mRecBtn.dataset.state === 'preroll') startActualRecording();
