@@ -9517,8 +9517,8 @@ function drawV2mLiveWave() {
         if (window.v2mDataArray[i] > max) max = window.v2mDataArray[i];
     }
     
-    // Индивидуальный масштаб: iOS слабая отрисовка (увеличиваем в 10 раз), Android чувствительный (множитель 1.5)
-    let waveScale = (osInfo === "iOS") ? 10.0 : 1.5;
+    // Убираем гигантский множитель 10 для iOS, так как системный усилитель работает отлично
+    let waveScale = 1.5;
     let normMin = ((min / 128.0) - 1.0) * waveScale;
     let normMax = ((max / 128.0) - 1.0) * waveScale;
     
@@ -9550,20 +9550,25 @@ function drawV2mFinalWave(buffer) {
     ctx.clearRect(0, 0, w, h);
     
     const data = buffer.getChannelData(0);
-    const step = Math.ceil(data.length / w);
+    
+    // ИСПРАВЛЕНИЕ СМЕЩЕНИЯ: Берем длину строго равную задуманной записи, отсекая лишние "хвосты" браузера
+    const expectedSamples = window.v2mDurationSec * buffer.sampleRate;
+    const step = Math.ceil(expectedSamples / w);
     const amp = h / 2;
     
     ctx.fillStyle = '#00ffff'; 
     for (let i = 0; i < w; i++) {
         let min = 1.0, max = -1.0;
         for (let j = 0; j < step; j++) {
-            const v = data[(i * step) + j];
-            if (v < min) min = v;
-            if (v > max) max = v;
+            let index = (i * step) + j;
+            if (index < data.length) {
+                const v = data[index];
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
         }
         if (isFinite(min) && isFinite(max)) {
-            // Применяем тот же индивидуальный масштаб для финальной волны
-            let waveScale = (osInfo === "iOS") ? 10.0 : 1.5;
+            let waveScale = 1.5;
             let visMin = Math.max(-1, min * waveScale);
             let visMax = Math.min(1, max * waveScale);
             ctx.fillRect(i, (1 + visMin) * amp, 1, Math.max(1, (visMax - visMin) * amp));
@@ -9644,9 +9649,9 @@ if (v2mRecBtn) {
             window.v2mMicGate = audioCtx.createGain();
             window.v2mMicGate.gain.value = 0.0;
             
-            // Индивидуальная громкость: на Андроиде микрофон слишком чувствительный, делаем тише в 2 раза
+            // Индивидуальная громкость: на Андроиде убираем перегруз (0.3), на iOS чуть снижаем чувствительность (0.7)
             const micGain = audioCtx.createGain();
-            micGain.gain.value = (osInfo === "Android") ? 0.5 : 1.0;
+            micGain.gain.value = (osInfo === "Android") ? 0.3 : 0.7;
             
             const micLimiter = audioCtx.createDynamicsCompressor();
             micLimiter.threshold.value = -2.0;
@@ -9767,35 +9772,34 @@ if (v2mRecBtn) {
             };
 
             if (prerollBeats > 0) {
-                const now = audioCtx.currentTime;
-                const startTime = now + 0.05;
-                
-                // Планируем клики аппаратно
-                for (let i = 0; i < prerollBeats; i++) {
-                    if (typeof playMetroClick === 'function') {
-                        playMetroClick(startTime + (i * beatDurationSec), i === 0);
-                    }
-                }
-                
-                const recordTime = startTime + (prerollBeats * beatDurationSec);
-                
-                // Синхронизируем старт с реальными часами аудиокарты (решает рассинхрон на iOS)
-                const checkStart = () => {
+                let currentBeat = 0;
+                let nextClickTime = audioCtx.currentTime + 0.05;
+
+                const scheduleNextClick = () => {
                     if (v2mRecBtn.dataset.state !== 'preroll') return;
-                    if (audioCtx.currentTime >= recordTime) {
-                        startActualRecording();
+                    
+                    if (currentBeat < prerollBeats) {
+                        if (typeof playMetroClick === 'function') {
+                            playMetroClick(nextClickTime, currentBeat === 0);
+                        }
+                        currentBeat++;
+                        nextClickTime += beatDurationSec;
+                        
+                        // Шагаем по одному клику (спасает Android от сброса дальних звуков)
+                        let timeToWait = (nextClickTime - audioCtx.currentTime - 0.05) * 1000;
+                        setTimeout(scheduleNextClick, Math.max(0, timeToWait));
                     } else {
-                        requestAnimationFrame(checkStart);
+                        // Ждем точную долю секунды до старта записи
+                        let timeToRecord = (nextClickTime - audioCtx.currentTime) * 1000;
+                        setTimeout(() => {
+                            if (v2mRecBtn.dataset.state === 'preroll') startActualRecording();
+                        }, Math.max(0, timeToRecord));
                     }
                 };
-                requestAnimationFrame(checkStart);
-                
+                scheduleNextClick();
             } else {
-                // Если преролла нет, даем микрофону 150мс на инициализацию
                 setTimeout(() => {
-                    if (v2mRecBtn.dataset.state === 'preroll') {
-                        startActualRecording();
-                    }
+                    if (v2mRecBtn.dataset.state === 'preroll') startActualRecording();
                 }, 150);
             }
 
