@@ -9641,6 +9641,9 @@ if (v2mRecBtn) {
                 return;
             }
             
+            // Пауза 600мс для Андроида, чтобы микрофон успел включиться
+            await new Promise(resolve => setTimeout(resolve, 600));
+            
             const now = audioCtx.currentTime + 0.05; 
             const exactRecordTime = now + prerollTimeSec;
 
