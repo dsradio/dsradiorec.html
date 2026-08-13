@@ -9618,7 +9618,9 @@ if (v2mRecBtn) {
             v2mRecBtn.innerHTML = 'WAITING...';
 
             try {
-                window.v2mStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                window.v2mStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+                });
             } catch (err) {
                 // Если микрофон запрещен - тихо возвращаем кнопку в исходное состояние (предотвращает зависания iOS)
                 v2mRecBtn.dataset.state = 'idle';
@@ -9640,9 +9642,6 @@ if (v2mRecBtn) {
                 if (window.v2mStream) window.v2mStream.getTracks().forEach(t => t.stop());
                 return;
             }
-            
-            // Пауза 600мс для Андроида, чтобы микрофон успел включиться
-            await new Promise(resolve => setTimeout(resolve, 1200));
             
             if (prerollBeats > 0) {
                 v2mRecBtn.innerHTML = 'PRE-ROLL';
@@ -9730,25 +9729,27 @@ if (v2mRecBtn) {
             };
 
             if (prerollBeats > 0) {
-                let currentBeat = 0;
-                const playPrerollStep = () => {
-                    // Если пользователь отменил запись до конца отсчета - останавливаем таймер
-                    if (v2mRecBtn.dataset.state !== 'preroll') return;
-                    
-                    if (currentBeat < prerollBeats) {
-                        if (typeof playMetroClick === 'function') {
-                            playMetroClick(audioCtx.currentTime + 0.02, currentBeat === 0);
-                        }
-                        currentBeat++;
-                        // Ждем точное время до следующего удара в миллисекундах
-                        setTimeout(playPrerollStep, beatDurationSec * 1000);
-                    } else {
+                const now = audioCtx.currentTime;
+                // Железобетонно планируем все клики разом аппаратно (без заиканий JS)
+                for (let i = 0; i < prerollBeats; i++) {
+                    if (typeof playMetroClick === 'function') {
+                        playMetroClick(now + 0.05 + (i * beatDurationSec), i === 0);
+                    }
+                }
+                
+                // Старт записи строго после отсчета
+                setTimeout(() => {
+                    if (v2mRecBtn.dataset.state === 'preroll') {
                         startActualRecording();
                     }
-                };
-                playPrerollStep();
+                }, prerollBeats * beatDurationSec * 1000);
             } else {
-                startActualRecording();
+                // Если преролла нет, даем микрофону 150мс на инициализацию
+                setTimeout(() => {
+                    if (v2mRecBtn.dataset.state === 'preroll') {
+                        startActualRecording();
+                    }
+                }, 150);
             }
 
         } catch (globalError) {
