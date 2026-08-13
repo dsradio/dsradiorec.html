@@ -9625,7 +9625,7 @@ if (v2mRecBtn) {
 
             try {
                 window.v2mStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } 
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                 });
             } catch (err) {
                 // Если микрофон запрещен - тихо возвращаем кнопку в исходное состояние (предотвращает зависания iOS)
@@ -9750,7 +9750,10 @@ if (v2mRecBtn) {
                 
                 // Моментально открываем микрофон только когда началась сама запись
                 if (window.v2mMicGate) {
-                    window.v2mMicGate.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                    const now = audioCtx.currentTime;
+                    window.v2mMicGate.gain.setValueAtTime(0.0, now);
+                    // Плавное открытие за 100мс полностью "съедает" акустический хвост метронома в комнате
+                    window.v2mMicGate.gain.linearRampToValueAtTime(1.0, now + 0.1);
                 }
 
                 v2mRecBtn.dataset.state = 'recording';
