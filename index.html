@@ -6728,21 +6728,25 @@ if (btnMainTap) {
         fileInput.value = '';
     });
 
-    // ============================================
-    // ЖИВОЙ MIDI-СЕКВЕНСОР (OVERDUB LOOPER) И ПЭДЫ
-    // ============================================
-    
     function playMetroClick(time, isHigh) {
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const safeTime = Math.max(audioCtx.currentTime + 0.02, time);
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
         osc.frequency.value = isHigh ? 880 : 440;
-        gain.gain.setValueAtTime(0.5, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        
+        gain.gain.setValueAtTime(0.001, safeTime);
+        gain.gain.linearRampToValueAtTime(0.5, safeTime + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.1);
+        
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.start(time);
-        osc.stop(time + 0.1);
+        osc.start(safeTime);
+        osc.stop(safeTime + 0.1);
     }
 
     // 1. ВЫНОСИМ ЗВУК ПЭДА В ОТДЕЛЬНУЮ ФУНКЦИЮ (Её вызывает и твой палец, и таймер секвенсора)
@@ -9474,7 +9478,7 @@ function renderV2mNotes(notes) {
     window.v2mDetectedNotes = notes;
 }
 
-// 4. СИНФАЗНАЯ ВОЛНА (С защитой от вылета iOS)
+// 4. СИНФАЗНАЯ ВОЛНА (С защитой от вылета iOS и компенсацией задержки)
 function drawV2mLiveWave() {
     const canvas = document.getElementById('v2m-wave-canvas');
     if (!canvas || !window.v2mAnalyser) return;
@@ -9497,7 +9501,12 @@ function drawV2mLiveWave() {
     const playhead = document.getElementById('v2m-playhead');
     if (playhead) playhead.style.left = (progress * 100) + '%';
 
-    let x = progress * canvas.width;
+    // Компенсация аппаратной задержки микрофона (~0.07 с / 70 мс)
+    const micLatencySec = 0.07;
+    let waveElapsed = Math.max(0, elapsed - micLatencySec);
+    let waveProgress = Math.min(1.0, waveElapsed / safeDuration);
+    
+    let x = waveProgress * canvas.width;
     // ЖЕЛЕЗОБЕТОННАЯ ЗАЩИТА: Если X не является числом, обнуляем его
     if (isNaN(x) || !isFinite(x)) x = 0; 
 
