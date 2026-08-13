@@ -9790,6 +9790,68 @@ if (v2mRecBtn) {
         }
     };
 }
+
+// 6. КНОПКА ВОСПРОИЗВЕДЕНИЯ ЗАПИСИ (VOICE PLAY)
+const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn');
+let v2mVoiceSource = null;
+
+if (v2mPlayVoiceBtn) {
+    v2mPlayVoiceBtn.onclick = async function(e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (typeof vibrate === 'function') vibrate(30);
+
+        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+
+        // Если уже играет - останавливаем
+        if (v2mPlayVoiceBtn.dataset.state === 'playing') {
+            if (v2mVoiceSource) {
+                try { v2mVoiceSource.stop(); } catch(err) {}
+            }
+            v2mPlayVoiceBtn.dataset.state = 'idle';
+            v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
+            v2mPlayVoiceBtn.classList.remove('led-red');
+            v2mPlayVoiceBtn.classList.add('led-green');
+            return;
+        }
+
+        // Проверяем, есть ли записанный звук
+        if (!window.v2mAudioBuffer) {
+            const oldText = v2mPlayVoiceBtn.innerHTML;
+            v2mPlayVoiceBtn.innerHTML = 'NO REC!';
+            v2mPlayVoiceBtn.classList.remove('led-green');
+            v2mPlayVoiceBtn.classList.add('led-orange');
+            setTimeout(() => { 
+                v2mPlayVoiceBtn.innerHTML = oldText; 
+                v2mPlayVoiceBtn.classList.remove('led-orange');
+                v2mPlayVoiceBtn.classList.add('led-green');
+            }, 1000);
+            return;
+        }
+
+        // Запускаем воспроизведение
+        v2mVoiceSource = audioCtx.createBufferSource();
+        v2mVoiceSource.buffer = window.v2mAudioBuffer;
+        v2mVoiceSource.connect(audioCtx.destination);
+        
+        v2mVoiceSource.onended = () => {
+            if (v2mPlayVoiceBtn.dataset.state === 'playing') {
+                v2mPlayVoiceBtn.dataset.state = 'idle';
+                v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
+                v2mPlayVoiceBtn.classList.remove('led-red');
+                v2mPlayVoiceBtn.classList.add('led-green');
+            }
+        };
+
+        v2mPlayVoiceBtn.dataset.state = 'playing';
+        v2mPlayVoiceBtn.innerHTML = '■ STOP';
+        v2mPlayVoiceBtn.classList.remove('led-green');
+        v2mPlayVoiceBtn.classList.add('led-red');
+
+        v2mVoiceSource.start(0);
+    };
+}
 </script>
 </body>
 </html>
