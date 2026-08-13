@@ -9642,7 +9642,7 @@ if (v2mRecBtn) {
             }
             
             // Пауза 600мс для Андроида, чтобы микрофон успел включиться
-            await new Promise(resolve => setTimeout(resolve, 600));
+            await new Promise(resolve => setTimeout(resolve, 1200));
             
             if (prerollBeats > 0) {
                 v2mRecBtn.innerHTML = 'PRE-ROLL';
