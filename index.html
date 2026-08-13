@@ -9730,19 +9730,28 @@ if (v2mRecBtn) {
 
             if (prerollBeats > 0) {
                 const now = audioCtx.currentTime;
-                // Железобетонно планируем все клики разом аппаратно (без заиканий JS)
+                const startTime = now + 0.05;
+                
+                // Планируем клики аппаратно
                 for (let i = 0; i < prerollBeats; i++) {
                     if (typeof playMetroClick === 'function') {
-                        playMetroClick(now + 0.05 + (i * beatDurationSec), i === 0);
+                        playMetroClick(startTime + (i * beatDurationSec), i === 0);
                     }
                 }
                 
-                // Старт записи строго после отсчета
-                setTimeout(() => {
-                    if (v2mRecBtn.dataset.state === 'preroll') {
+                const recordTime = startTime + (prerollBeats * beatDurationSec);
+                
+                // Синхронизируем старт с реальными часами аудиокарты (решает рассинхрон на iOS)
+                const checkStart = () => {
+                    if (v2mRecBtn.dataset.state !== 'preroll') return;
+                    if (audioCtx.currentTime >= recordTime) {
                         startActualRecording();
+                    } else {
+                        requestAnimationFrame(checkStart);
                     }
-                }, prerollBeats * beatDurationSec * 1000);
+                };
+                requestAnimationFrame(checkStart);
+                
             } else {
                 // Если преролла нет, даем микрофону 150мс на инициализацию
                 setTimeout(() => {
