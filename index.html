@@ -9619,7 +9619,7 @@ if (v2mRecBtn) {
 
             try {
                 window.v2mStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } 
                 });
             } catch (err) {
                 // Если микрофон запрещен - тихо возвращаем кнопку в исходное состояние (предотвращает зависания iOS)
