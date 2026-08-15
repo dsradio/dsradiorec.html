@@ -9515,7 +9515,6 @@ function midiToNoteName(midi) {
     return `${note}${octave}`;
 }
 
-// Индексация 5 октав клавиш (от C1 до B5)
 function getKeyboardKeyElements() {
     const keys = [];
     const keyContainers = document.querySelectorAll('#v2m-keyboard-scroll .v2m-key-w');
@@ -9530,22 +9529,21 @@ function getKeyboardKeyElements() {
 }
 
 function clearV2mKeyboardHighlight() {
-    // Возвращаем родные "аппаратные" цвета вместо прозрачных
+    // ЖЕЛЕЗОБЕТОННЫЙ СБРОС ЦВЕТОВ КЛАВИАТУРЫ (Возвращаем плотность)
     document.querySelectorAll('#v2m-keyboard-scroll .v2m-key-w').forEach(k => {
-        k.style.backgroundColor = '#1a1a1a';
-        k.style.borderColor = '#333';
+        k.style.backgroundColor = '#1a1a1a'; 
+        k.style.borderColor = '#333'; 
         k.style.boxShadow = '';
     });
     document.querySelectorAll('#v2m-keyboard-scroll .v2m-key-b').forEach(k => {
-        k.style.backgroundColor = '#050505';
-        k.style.borderColor = '#222';
+        k.style.backgroundColor = '#050505'; 
+        k.style.borderColor = '#222'; 
         k.style.boxShadow = '2px 2px 3px rgba(0,0,0,0.8)';
     });
 }
 
 function highlightV2mKey(midiNote) {
-    // В нашей клавиатуре 5 октав: C1 (MIDI 24) ... B5 (MIDI 83)
-    const baseMidi = 24; // C1
+    const baseMidi = 24; // Наша клавиатура начинается с C1
     const index = midiNote - baseMidi;
     const allKeys = getKeyboardKeyElements();
 
@@ -9559,14 +9557,46 @@ function highlightV2mKey(midiNote) {
     }
 }
 
-// Алгоритм распознавания и квантования
+// ВСТРОЕННЫЙ АЛГОРИТМ РАСПОЗНАВАНИЯ ЧАСТОТЫ (AMDF). Не зависит от библиотек!
+function detectPitchNative(buffer, sampleRate) {
+    let rms = 0;
+    for (let i = 0; i < buffer.length; i++) rms += buffer[i]*buffer[i];
+    rms = Math.sqrt(rms / buffer.length);
+    if (rms < 0.015) return null; // Игнорируем тишину и шумы
+
+    let maxSamples = Math.floor(sampleRate / 60); // Мин. частота 60 Hz
+    let minSamples = Math.floor(sampleRate / 1000); // Макс. частота 1000 Hz
+    if (buffer.length < maxSamples * 2) return null;
+
+    let bestOffset = -1;
+    let bestCorrelation = 0;
+
+    for (let offset = minSamples; offset <= maxSamples; offset++) {
+        let correlation = 0;
+        for (let i = 0; i < maxSamples; i++) {
+            correlation += Math.abs(buffer[i] - buffer[i + offset]);
+        }
+        let currentCorrelation = 1 - (correlation / maxSamples);
+        if (currentCorrelation > bestCorrelation) {
+            bestCorrelation = currentCorrelation;
+            bestOffset = offset;
+        }
+    }
+    
+    // Порог уверенности 85%
+    if (bestCorrelation > 0.85) {
+        return sampleRate / bestOffset;
+    }
+    return null;
+}
+
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
     
     clearV2mKeyboardHighlight();
     const bpm = window.v2mSettings.bpm || 130;
     const qSelect = document.getElementById('v2m-quantize');
-    let qDiv = 4; // 1/16 доли на бит (16 долей на 4 четверти)
+    let qDiv = 4; // 1/16 доли
     if (qSelect) {
         const qVal = qSelect.value;
         if (qVal.includes('1/4')) qDiv = 1;
@@ -9580,12 +9610,6 @@ async function analyzeV2mAudio(audioBuffer) {
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    // Используем Pitchfinder YIN или встроенный автокоррелятор
-    let detectPitch = null;
-    if (typeof Pitchfinder !== 'undefined' && Pitchfinder.YIN) {
-        detectPitch = Pitchfinder.YIN({ sampleRate: sampleRate, threshold: 0.15 });
-    }
-
     const detectedNotes = [];
     const activeMidiSet = new Set();
 
@@ -9595,23 +9619,11 @@ async function analyzeV2mAudio(audioBuffer) {
         const endSample = Math.min(startSample + Math.floor(stepDuration * sampleRate), channelData.length);
         const chunk = channelData.slice(startSample, endSample);
 
-        // Проверяем громкость (RMS), чтобы отсеять фоновый шум
-        let sumSquare = 0;
-        for (let i = 0; i < chunk.length; i++) {
-            sumSquare += chunk[i] * chunk[i];
-        }
-        const rms = Math.sqrt(sumSquare / chunk.length);
-
         let midi = null;
-        let freq = null;
+        let freq = detectPitchNative(chunk, sampleRate);
 
-        if (rms > 0.02) { // Порог голоса
-            if (detectPitch) {
-                freq = detectPitch(chunk);
-            }
-            if (freq && freq >= 50 && freq <= 1500) {
-                midi = freqToMidi(freq);
-            }
+        if (freq && freq >= 60 && freq <= 1000) {
+            midi = freqToMidi(freq);
         }
 
         if (midi && midi >= 24 && midi <= 84) {
@@ -9623,23 +9635,17 @@ async function analyzeV2mAudio(audioBuffer) {
     }
 
     window.v2mDetectedNotes = detectedNotes;
+    console.log("РАСПОЗНАННЫЕ НОТЫ: ", detectedNotes);
 
-    // Подсвечиваем все найденные ноты на пианино
-    activeMidiSet.forEach(midi => {
-        highlightV2mKey(midi);
-    });
+    activeMidiSet.forEach(midi => { highlightV2mKey(midi); });
 
-    // Автоматически центрируем скролл клавиатуры на среднюю октаву
     const kb = document.getElementById('v2m-keyboard-scroll');
-    if (kb) {
-        kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2;
-    }
+    if (kb) kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2;
 }
 
 function renderV2mNotes(notes) {
     window.v2mDetectedNotes = notes;
 }
-
 // 4. СИНФАЗНАЯ ВОЛНА (С защитой от вылета iOS и компенсацией задержки)
 function drawV2mLiveWave() {
     const canvas = document.getElementById('v2m-wave-canvas');
@@ -9992,7 +9998,6 @@ if (v2mPlayMidiBtn) {
             v2mPlayMidiBtn.classList.remove('led-red');
             v2mPlayMidiBtn.classList.add('led-green');
             
-            // Восстанавливаем подсветку всех найденных нот после остановки
             clearV2mKeyboardHighlight();
             if (window.v2mDetectedNotes) {
                 window.v2mDetectedNotes.forEach(n => { if (n.midi) highlightV2mKey(n.midi); });
@@ -10022,20 +10027,19 @@ if (v2mPlayMidiBtn) {
         v2mPlayMidiBtn.classList.remove('led-green');
         v2mPlayMidiBtn.classList.add('led-red');
 
-        // Очищаем клавиатуру перед проигрыванием, чтобы зажигать ноты в реальном времени
         clearV2mKeyboardHighlight();
-
         const now = audioCtx.currentTime;
         
         window.v2mDetectedNotes.forEach(noteObj => {
             if (noteObj.midi) {
-                // Выбираем лучший сэмпл пианино (C3, C4 или C5) для минимизации искажений
-                let sample = sysSamples.c4;
+                // Пытаемся взять сэмпл файла
+                let sample = (typeof sysSamples !== 'undefined') ? sysSamples.c4 : null;
                 let baseMidi = 60;
                 
-                if (noteObj.midi < 54 && sysSamples.c3) { sample = sysSamples.c3; baseMidi = 48; }
-                else if (noteObj.midi > 66 && sysSamples.c5) { sample = sysSamples.c5; baseMidi = 72; }
-                else if (sysSamples.c4) { sample = sysSamples.c4; baseMidi = 60; }
+                if (typeof sysSamples !== 'undefined') {
+                    if (noteObj.midi < 54 && sysSamples.c3) { sample = sysSamples.c3; baseMidi = 48; }
+                    else if (noteObj.midi > 66 && sysSamples.c5) { sample = sysSamples.c5; baseMidi = 72; }
+                }
                 
                 if (sample) {
                     const src = audioCtx.createBufferSource();
@@ -10043,8 +10047,6 @@ if (v2mPlayMidiBtn) {
                     src.playbackRate.value = Math.pow(2, (noteObj.midi - baseMidi) / 12);
                     
                     const gain = audioCtx.createGain();
-                    gain.gain.value = 1.0;
-                    // Плавное затухание в конце длительности ноты
                     gain.gain.setValueAtTime(1.0, now + noteObj.startTime + noteObj.duration - 0.05);
                     gain.gain.linearRampToValueAtTime(0, now + noteObj.startTime + noteObj.duration);
 
@@ -10053,30 +10055,54 @@ if (v2mPlayMidiBtn) {
                     src.start(now + noteObj.startTime);
                     src.stop(now + noteObj.startTime + noteObj.duration);
                     v2mMidiSources.push(src);
+                } else {
+                    // ЕСЛИ ФАЙЛА НЕТ - ИГРАЕМ ЧЕРЕЗ ВСТРОЕННЫЙ СИНТЕЗАТОР БРАУЗЕРА!
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'triangle';
+                    osc.frequency.value = 440 * Math.pow(2, (noteObj.midi - 69) / 12);
                     
-                    // Зажигаем и гасим клавишу ровно в момент удара
-                    setTimeout(() => {
-                        if (v2mPlayMidiBtn.dataset.state === 'playing') {
-                            highlightV2mKey(noteObj.midi);
-                            setTimeout(() => {
-                                const allKeys = getKeyboardKeyElements();
-                                const index = noteObj.midi - 24;
-                                if (index >= 0 && index < allKeys.length) {
-                                    const keyObj = allKeys[index];
-                                    if (keyObj.type === 'white') {
-                                        keyObj.el.style.backgroundColor = '#1a1a1a';
-                                        keyObj.el.style.borderColor = '#333';
-                                        keyObj.el.style.boxShadow = '';
-                                    } else {
-                                        keyObj.el.style.backgroundColor = '#050505';
-                                        keyObj.el.style.borderColor = '#222';
-                                        keyObj.el.style.boxShadow = '2px 2px 3px rgba(0,0,0,0.8)';
-                                    }
-                                }
-                            }, noteObj.duration * 1000 * 0.9);
-                        }
-                    }, noteObj.startTime * 1000);
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0, now + noteObj.startTime);
+                    gain.gain.linearRampToValueAtTime(0.5, now + noteObj.startTime + 0.02);
+                    gain.gain.setValueAtTime(0.5, now + noteObj.startTime + noteObj.duration - 0.05);
+                    gain.gain.linearRampToValueAtTime(0, now + noteObj.startTime + noteObj.duration);
+
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(1500, now + noteObj.startTime);
+                    filter.frequency.exponentialRampToValueAtTime(200, now + noteObj.startTime + noteObj.duration);
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(now + noteObj.startTime);
+                    osc.stop(now + noteObj.startTime + noteObj.duration);
+                    v2mMidiSources.push(osc);
                 }
+                
+                // Зажигаем и гасим клавишу ровно в момент удара
+                setTimeout(() => {
+                    if (v2mPlayMidiBtn.dataset.state === 'playing') {
+                        highlightV2mKey(noteObj.midi);
+                        setTimeout(() => {
+                            const allKeys = getKeyboardKeyElements();
+                            const index = noteObj.midi - 24;
+                            if (index >= 0 && index < allKeys.length) {
+                                const keyObj = allKeys[index];
+                                if (keyObj.type === 'white') {
+                                    keyObj.el.style.backgroundColor = '#1a1a1a';
+                                    keyObj.el.style.borderColor = '#333';
+                                    keyObj.el.style.boxShadow = '';
+                                } else {
+                                    keyObj.el.style.backgroundColor = '#050505';
+                                    keyObj.el.style.borderColor = '#222';
+                                    keyObj.el.style.boxShadow = '2px 2px 3px rgba(0,0,0,0.8)';
+                                }
+                            }
+                        }, noteObj.duration * 1000 * 0.9);
+                    }
+                }, noteObj.startTime * 1000);
             }
         });
 
