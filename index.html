@@ -9719,10 +9719,69 @@ if (v2mRecBtn) {
                 if (window.v2mStream) window.v2mStream.getTracks().forEach(t => t.stop());
                 return;
             }
+
+            // ВОЗВРАЩАЕМ САМУ ФУНКЦИЮ ЗАПИСИ
+            const startActualRecording = () => {
+                if (v2mRecBtn.dataset.state !== 'preroll') return;
+                
+                v2mRecBtn.dataset.state = 'recording';
+                v2mRecBtn.classList.remove('led-orange');
+                v2mRecBtn.classList.add('led-red');
+                v2mRecBtn.innerHTML = '● RECORDING...';
+
+                // Плавно открываем микрофон (убирает щелчок в начале)
+                if (window.v2mMicGate) {
+                    const now = audioCtx.currentTime;
+                    window.v2mMicGate.gain.setValueAtTime(0.0, now);
+                    window.v2mMicGate.gain.linearRampToValueAtTime(1.0, now + 0.05);
+                }
+
+                window.v2mChunks = [];
+                window.v2mMediaRecorder = new MediaRecorder(window.v2mRecordStream.stream);
+                
+                window.v2mMediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) window.v2mChunks.push(e.data);
+                };
+
+                window.v2mMediaRecorder.onstop = async () => {
+                    cancelAnimationFrame(window.v2mAnimFrame);
+                    
+                    v2mRecBtn.dataset.state = 'idle';
+                    v2mRecBtn.classList.remove('active-mode');
+                    v2mRecBtn.innerHTML = '🎙️ REC VOICE';
+
+                    if (window.v2mMicGate) window.v2mMicGate.gain.value = 0.0;
+                    if (window.v2mStream) window.v2mStream.getTracks().forEach(t => t.stop());
+
+                    const blob = new Blob(window.v2mChunks, { type: 'audio/webm' });
+                    const arrayBuf = await blob.arrayBuffer();
+                    
+                    audioCtx.decodeAudioData(arrayBuf, (decodedBuffer) => {
+                        const latencySec = (osInfo === "Android") ? 0.02 : 0.07;
+                        if (typeof trimV2mAudioBuffer === 'function') {
+                            window.v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
+                        } else {
+                            window.v2mAudioBuffer = decodedBuffer;
+                        }
+                        drawV2mFinalWave(window.v2mAudioBuffer);
+                    });
+                };
+
+                window.v2mLastDrawX = 0;
+                window.v2mStartTime = audioCtx.currentTime;
+                
+                const canvas = document.getElementById('v2m-wave-canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+
+                window.v2mMediaRecorder.start();
+                drawV2mLiveWave();
+            };
             
-           if (prerollBeats > 0) {
+            if (prerollBeats > 0) {
                 const now = audioCtx.currentTime;
-                // Начинаем мгновенно, никаких пауз на разогрев железа!
                 const startTime = now + 0.05;
                 
                 // АППАРАТНЫЙ ПЛАНЕР: загружаем все 4 клика в аудиочип разом
