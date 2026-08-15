@@ -6728,25 +6728,52 @@ if (btnMainTap) {
         fileInput.value = '';
     });
 
+    // === ЗАГРУЗКА ЗВУКОВ ИЗ ФАЙЛОВ ===
+    const sysSamples = { click: null, c3: null, c4: null, c5: null };
+
+    async function initSystemSamples() {
+        const loadFile = async (name, url) => {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return;
+                const buf = await res.arrayBuffer();
+                sysSamples[name] = await audioCtx.decodeAudioData(buf);
+            } catch(e) { console.log('File error:', url); }
+        };
+        // Грузим все 4 файла
+        await Promise.all([
+            loadFile('click', 'click.wav'),
+            loadFile('c3', 'key_c3.wav'),
+            loadFile('c4', 'key_c4.wav'),
+            loadFile('c5', 'key_c5.wav')
+        ]);
+    }
+    // Запускаем фоновую загрузку
+    initSystemSamples();
+
+    // === ЖЕЛЕЗНЫЙ АППАРАТНЫЙ МЕТРОНОМ ===
     function playMetroClick(time, isHigh) {
         if (!audioCtx) return;
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        
         const safeTime = Math.max(audioCtx.currentTime + 0.02, time);
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = isHigh ? 880 : 440;
         
-        gain.gain.setValueAtTime(0.001, safeTime);
-        gain.gain.linearRampToValueAtTime(0.5, safeTime + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.1);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(safeTime);
-        osc.stop(safeTime + 0.1);
+        // Если файл клика успешно загрузился в память - играем его
+        if (sysSamples.click) {
+            const source = audioCtx.createBufferSource();
+            source.buffer = sysSamples.click;
+            
+            // Если слабая доля - чуть занижаем тон (0.8), чтобы первый удар (сильная доля) выделялся
+            source.playbackRate.value = isHigh ? 1.0 : 0.8;
+            
+            const clickGain = audioCtx.createGain();
+            clickGain.gain.value = 1.0; 
+            
+            source.connect(clickGain);
+            clickGain.connect(audioCtx.destination);
+            
+            source.start(safeTime);
+        }
     }
 
     // 1. ВЫНОСИМ ЗВУК ПЭДА В ОТДЕЛЬНУЮ ФУНКЦИЮ (Её вызывает и твой палец, и таймер секвенсора)
