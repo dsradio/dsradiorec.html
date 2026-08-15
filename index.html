@@ -9674,7 +9674,7 @@ if (v2mRecBtn) {
 
             try {
                 window.v2mStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
                 });
             } catch (err) {
                 // Если микрофон запрещен - тихо возвращаем кнопку в исходное состояние (предотвращает зависания iOS)
@@ -9720,111 +9720,12 @@ if (v2mRecBtn) {
                 return;
             }
             
-            if (prerollBeats > 0) {
-                v2mRecBtn.innerHTML = 'PRE-ROLL';
-            } else {
-                v2mRecBtn.innerHTML = 'RECORDING';
-            }
-
-            const canvas = document.getElementById('v2m-wave-canvas');
-            const ctx = canvas ? canvas.getContext('2d') : null;
-            if (canvas && ctx) {
-                canvas.width = canvas.parentElement.clientWidth;
-                canvas.height = canvas.parentElement.clientHeight;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-            
-            const playhead = document.getElementById('v2m-playhead');
-            if (playhead) {
-                playhead.style.display = 'block';
-                playhead.style.left = '0%';
-            }
-            window.v2mLastDrawX = 0;
-            window.v2mChunks = [];
-            
-            let mrOptions = {};
-            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
-                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                    mrOptions = { mimeType: 'audio/webm;codecs=opus' };
-                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                    mrOptions = { mimeType: 'audio/mp4' };
-                } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-                    mrOptions = { mimeType: 'audio/aac' };
-                }
-            }
-            try {
-                // Пишем виртуальный поток (усиленный), а не сырой тихий с микрофона
-                window.v2mMediaRecorder = new MediaRecorder(window.v2mRecordStream.stream, mrOptions);
-            } catch(mrErr) {
-                window.v2mMediaRecorder = new MediaRecorder(window.v2mRecordStream.stream);
-            }
-
-            window.v2mMediaRecorder.ondataavailable = e => { if (e.data.size > 0) window.v2mChunks.push(e.data); };
-            
-            window.v2mMediaRecorder.onstop = async () => {
-                v2mRecBtn.dataset.state = 'idle';
-                if (typeof window.v2mAnimFrame !== 'undefined') cancelAnimationFrame(window.v2mAnimFrame);
-                
-                if (playhead) playhead.style.display = 'none';
-                if (window.v2mStream) window.v2mStream.getTracks().forEach(t => t.stop());
-                
-                v2mRecBtn.classList.remove('active-mode', 'led-orange');
-                v2mRecBtn.classList.add('led-red');
-                v2mRecBtn.innerHTML = '🎙️ REC VOICE';
-
-                try {
-                    const blob = new Blob(window.v2mChunks);
-                    const arrayBuffer = await blob.arrayBuffer();
-                    let decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                    
-                    // Уменьшаем обрезку на Android, чтобы волна не уезжала влево
-                    const latencySec = (osInfo === "Android") ? 0.02 : 0.07; 
-                    if (typeof trimV2mAudioBuffer === 'function') {
-                        window.v2mAudioBuffer = trimV2mAudioBuffer(audioCtx, decodedBuffer, latencySec);
-                    } else {
-                        window.v2mAudioBuffer = decodedBuffer;
-                    }
-                    
-                    drawV2mFinalWave(window.v2mAudioBuffer);
-                    if (typeof v2mProcessPitch === 'function') {
-                        const notes = v2mProcessPitch(window.v2mAudioBuffer);
-                        renderV2mNotes(notes);
-                    }
-                } catch(e) {
-                    console.error("Audio Decode Error:", e);
-                }
-            };
-
-            const startActualRecording = () => {
-                if (v2mRecBtn.dataset.state === 'idle') return;
-                
-                // Моментально открываем микрофон только когда началась сама запись
-                if (window.v2mMicGate) {
-                    const now = audioCtx.currentTime;
-                    window.v2mMicGate.gain.setValueAtTime(0.0, now);
-                    // Плавное открытие за 100мс полностью "съедает" акустический хвост метронома в комнате
-                    window.v2mMicGate.gain.linearRampToValueAtTime(1.0, now + 0.1);
-                }
-
-                v2mRecBtn.dataset.state = 'recording';
-                v2mRecBtn.classList.remove('led-orange');
-                v2mRecBtn.classList.add('led-red', 'active-mode');
-                v2mRecBtn.innerHTML = 'RECORDING';
-
-                window.v2mStartTime = audioCtx.currentTime;
-                window.v2mMediaRecorder.start();
-                drawV2mLiveWave();
-            };
-
-            if (prerollBeats > 0) {
+           if (prerollBeats > 0) {
                 const now = audioCtx.currentTime;
+                // Начинаем мгновенно, никаких пауз на разогрев железа!
+                const startTime = now + 0.05;
                 
-                // === РАЗГАДКА АНДРОИДА ===
-                // Даем железу 1.6 сек на переключение в режим микрофона, иначе оно "глотает" первые звуки.
-                const hardwareWarmup = (osInfo === "Android") ? 1.6 : 0.05;
-                const startTime = now + hardwareWarmup;
-                
-                // ЗАГРУЖАЕМ ВСЕ КЛИКИ РАЗОМ В ЗВУКОВУЮ КАРТУ (Аппаратный планер)
+                // АППАРАТНЫЙ ПЛАНЕР: загружаем все 4 клика в аудиочип разом
                 for (let i = 0; i < prerollBeats; i++) {
                     if (typeof playMetroClick === 'function') {
                         playMetroClick(startTime + (i * beatDurationSec), i === 0);
@@ -9833,7 +9734,7 @@ if (v2mRecBtn) {
                 
                 const recordTime = startTime + (prerollBeats * beatDurationSec);
                 
-                // Идеальный таймер старта записи, привязанный к аппаратному времени аудиокарты
+                // Синхронизируем старт записи со звуковой картой
                 const checkStart = () => {
                     if (v2mRecBtn.dataset.state !== 'preroll') return;
                     if (audioCtx.currentTime >= recordTime) {
