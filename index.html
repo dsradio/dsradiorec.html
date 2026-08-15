@@ -9831,6 +9831,7 @@ if (v2mRecBtn) {
 // 6. КНОПКА ВОСПРОИЗВЕДЕНИЯ ЗАПИСИ (VOICE PLAY)
 const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn');
 let v2mVoiceSource = null;
+let v2mPlayAnimFrame = null; // Фрейм для анимации плейхеда
 
 if (v2mPlayVoiceBtn) {
     v2mPlayVoiceBtn.onclick = async function(e) {
@@ -9841,15 +9842,28 @@ if (v2mPlayVoiceBtn) {
             await audioCtx.resume();
         }
 
-        // Если уже играет - останавливаем
-        if (v2mPlayVoiceBtn.dataset.state === 'playing') {
+        const playhead = document.getElementById('v2m-playhead');
+
+        // Функция остановки (общая)
+        const stopPlayback = () => {
             if (v2mVoiceSource) {
                 try { v2mVoiceSource.stop(); } catch(err) {}
             }
+            if (v2mPlayAnimFrame) cancelAnimationFrame(v2mPlayAnimFrame);
+            if (playhead) {
+                playhead.style.display = 'none';
+                playhead.style.left = '0%';
+            }
+            
             v2mPlayVoiceBtn.dataset.state = 'idle';
             v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
             v2mPlayVoiceBtn.classList.remove('led-red');
             v2mPlayVoiceBtn.classList.add('led-green');
+        };
+
+        // Если уже играет - останавливаем
+        if (v2mPlayVoiceBtn.dataset.state === 'playing') {
+            stopPlayback();
             return;
         }
 
@@ -9874,10 +9888,7 @@ if (v2mPlayVoiceBtn) {
         
         v2mVoiceSource.onended = () => {
             if (v2mPlayVoiceBtn.dataset.state === 'playing') {
-                v2mPlayVoiceBtn.dataset.state = 'idle';
-                v2mPlayVoiceBtn.innerHTML = '▶ VOICE';
-                v2mPlayVoiceBtn.classList.remove('led-red');
-                v2mPlayVoiceBtn.classList.add('led-green');
+                stopPlayback();
             }
         };
 
@@ -9887,6 +9898,28 @@ if (v2mPlayVoiceBtn) {
         v2mPlayVoiceBtn.classList.add('led-red');
 
         v2mVoiceSource.start(0);
+
+        // --- АНИМАЦИЯ ПЛЕЙХЕДА ПРИ ВОСПРОИЗВЕДЕНИИ ---
+        if (playhead) {
+            playhead.style.display = 'block';
+            playhead.style.left = '0%';
+        }
+        const startTime = audioCtx.currentTime;
+        const duration = window.v2mAudioBuffer.duration;
+        
+        const animatePlayhead = () => {
+            if (v2mPlayVoiceBtn.dataset.state !== 'playing') return;
+            const elapsed = audioCtx.currentTime - startTime;
+            let progress = elapsed / duration;
+            if (progress > 1.0) progress = 1.0;
+            
+            if (playhead) playhead.style.left = (progress * 100) + '%';
+            
+            if (progress < 1.0) {
+                v2mPlayAnimFrame = requestAnimationFrame(animatePlayhead);
+            }
+        };
+        requestAnimationFrame(animatePlayhead);
     };
 }
 </script>
