@@ -9817,34 +9817,29 @@ if (v2mRecBtn) {
             };
 
             if (prerollBeats > 0) {
-                let currentBeat = 0;
+                const now = audioCtx.currentTime;
+                const startTime = now + 0.05;
                 
-                // Надежный таймер через setInterval: аудиопроцессор Андроида успевает "прожевать" каждый клик
-                const metroInterval = setInterval(() => {
-                    if (v2mRecBtn.dataset.state !== 'preroll') {
-                        clearInterval(metroInterval);
-                        return;
-                    }
-                    
+                // ЗАГРУЖАЕМ ВСЕ КЛИКИ РАЗОМ В ЗВУКОВУЮ КАРТУ (Аппаратный планер)
+                // Теперь это реальный файл, и Android его отыграет идеально на любой скорости
+                for (let i = 0; i < prerollBeats; i++) {
                     if (typeof playMetroClick === 'function') {
-                        playMetroClick(audioCtx.currentTime + 0.02, currentBeat === 0);
+                        playMetroClick(startTime + (i * beatDurationSec), i === 0);
                     }
-                    
-                    currentBeat++;
-                    if (currentBeat >= prerollBeats) {
-                        clearInterval(metroInterval);
-                        // Даем точную паузу (1 бит) до старта записи после последнего клика
-                        setTimeout(() => {
-                            if (v2mRecBtn.dataset.state === 'preroll') startActualRecording();
-                        }, beatDurationSec * 1000);
-                    }
-                }, beatDurationSec * 1000);
-                
-                // Сразу играем первый клик без задержки
-                if (typeof playMetroClick === 'function') {
-                    playMetroClick(audioCtx.currentTime + 0.02, true);
                 }
-                currentBeat++;
+                
+                const recordTime = startTime + (prerollBeats * beatDurationSec);
+                
+                // Идеальный таймер старта записи, привязанный к аппаратному времени аудиокарты
+                const checkStart = () => {
+                    if (v2mRecBtn.dataset.state !== 'preroll') return;
+                    if (audioCtx.currentTime >= recordTime) {
+                        startActualRecording();
+                    } else {
+                        requestAnimationFrame(checkStart);
+                    }
+                };
+                requestAnimationFrame(checkStart);
                 
             } else {
                 setTimeout(() => {
