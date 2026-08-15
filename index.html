@@ -9818,10 +9818,13 @@ if (v2mRecBtn) {
 
             if (prerollBeats > 0) {
                 const now = audioCtx.currentTime;
-                const startTime = now + 0.05;
+                
+                // === РАЗГАДКА АНДРОИДА ===
+                // Даем железу 1.6 сек на переключение в режим микрофона, иначе оно "глотает" первые звуки.
+                const hardwareWarmup = (osInfo === "Android") ? 1.6 : 0.05;
+                const startTime = now + hardwareWarmup;
                 
                 // ЗАГРУЖАЕМ ВСЕ КЛИКИ РАЗОМ В ЗВУКОВУЮ КАРТУ (Аппаратный планер)
-                // Теперь это реальный файл, и Android его отыграет идеально на любой скорости
                 for (let i = 0; i < prerollBeats; i++) {
                     if (typeof playMetroClick === 'function') {
                         playMetroClick(startTime + (i * beatDurationSec), i === 0);
