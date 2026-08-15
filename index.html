@@ -9530,10 +9530,16 @@ function getKeyboardKeyElements() {
 }
 
 function clearV2mKeyboardHighlight() {
-    document.querySelectorAll('.v2m-key-w, .v2m-key-b').forEach(k => {
-        k.style.backgroundColor = '';
-        k.style.borderColor = '';
+    // Возвращаем родные "аппаратные" цвета вместо прозрачных
+    document.querySelectorAll('#v2m-keyboard-scroll .v2m-key-w').forEach(k => {
+        k.style.backgroundColor = '#1a1a1a';
+        k.style.borderColor = '#333';
         k.style.boxShadow = '';
+    });
+    document.querySelectorAll('#v2m-keyboard-scroll .v2m-key-b').forEach(k => {
+        k.style.backgroundColor = '#050505';
+        k.style.borderColor = '#222';
+        k.style.boxShadow = '2px 2px 3px rgba(0,0,0,0.8)';
     });
 }
 
@@ -9956,6 +9962,147 @@ if (v2mRecBtn) {
             v2mRecBtn.classList.add('led-red');
             v2mRecBtn.innerHTML = '🎙️ REC VOICE';
         }
+    };
+}
+
+// 5.5. КНОПКА ВОСПРОИЗВЕДЕНИЯ РАСПОЗНАННЫХ НОТ (MIDI PLAY)
+const v2mPlayMidiBtn = document.getElementById('v2m-play-midi-btn');
+let v2mMidiSources = [];
+let v2mMidiAnimFrame = null;
+
+if (v2mPlayMidiBtn) {
+    v2mPlayMidiBtn.onclick = async function(e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (typeof vibrate === 'function') vibrate(30);
+
+        if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+
+        const playhead = document.getElementById('v2m-playhead');
+
+        const stopMidiPlayback = () => {
+            v2mMidiSources.forEach(src => { try { src.stop(); } catch(err){} });
+            v2mMidiSources = [];
+            if (v2mMidiAnimFrame) cancelAnimationFrame(v2mMidiAnimFrame);
+            if (playhead) { playhead.style.display = 'none'; playhead.style.left = '0%'; }
+            
+            v2mPlayMidiBtn.dataset.state = 'idle';
+            v2mPlayMidiBtn.innerHTML = '▶ MIDI';
+            v2mPlayMidiBtn.classList.remove('led-red');
+            v2mPlayMidiBtn.classList.add('led-green');
+            
+            // Восстанавливаем подсветку всех найденных нот после остановки
+            clearV2mKeyboardHighlight();
+            if (window.v2mDetectedNotes) {
+                window.v2mDetectedNotes.forEach(n => { if (n.midi) highlightV2mKey(n.midi); });
+            }
+        };
+
+        if (v2mPlayMidiBtn.dataset.state === 'playing') {
+            stopMidiPlayback();
+            return;
+        }
+
+        if (!window.v2mDetectedNotes || window.v2mDetectedNotes.length === 0) {
+            const oldText = v2mPlayMidiBtn.innerHTML;
+            v2mPlayMidiBtn.innerHTML = 'NO MIDI!';
+            v2mPlayMidiBtn.classList.remove('led-green');
+            v2mPlayMidiBtn.classList.add('led-orange');
+            setTimeout(() => { 
+                v2mPlayMidiBtn.innerHTML = oldText; 
+                v2mPlayMidiBtn.classList.remove('led-orange');
+                v2mPlayMidiBtn.classList.add('led-green');
+            }, 1000);
+            return;
+        }
+
+        v2mPlayMidiBtn.dataset.state = 'playing';
+        v2mPlayMidiBtn.innerHTML = '■ STOP';
+        v2mPlayMidiBtn.classList.remove('led-green');
+        v2mPlayMidiBtn.classList.add('led-red');
+
+        // Очищаем клавиатуру перед проигрыванием, чтобы зажигать ноты в реальном времени
+        clearV2mKeyboardHighlight();
+
+        const now = audioCtx.currentTime;
+        
+        window.v2mDetectedNotes.forEach(noteObj => {
+            if (noteObj.midi) {
+                // Выбираем лучший сэмпл пианино (C3, C4 или C5) для минимизации искажений
+                let sample = sysSamples.c4;
+                let baseMidi = 60;
+                
+                if (noteObj.midi < 54 && sysSamples.c3) { sample = sysSamples.c3; baseMidi = 48; }
+                else if (noteObj.midi > 66 && sysSamples.c5) { sample = sysSamples.c5; baseMidi = 72; }
+                else if (sysSamples.c4) { sample = sysSamples.c4; baseMidi = 60; }
+                
+                if (sample) {
+                    const src = audioCtx.createBufferSource();
+                    src.buffer = sample;
+                    src.playbackRate.value = Math.pow(2, (noteObj.midi - baseMidi) / 12);
+                    
+                    const gain = audioCtx.createGain();
+                    gain.gain.value = 1.0;
+                    // Плавное затухание в конце длительности ноты
+                    gain.gain.setValueAtTime(1.0, now + noteObj.startTime + noteObj.duration - 0.05);
+                    gain.gain.linearRampToValueAtTime(0, now + noteObj.startTime + noteObj.duration);
+
+                    src.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    src.start(now + noteObj.startTime);
+                    src.stop(now + noteObj.startTime + noteObj.duration);
+                    v2mMidiSources.push(src);
+                    
+                    // Зажигаем и гасим клавишу ровно в момент удара
+                    setTimeout(() => {
+                        if (v2mPlayMidiBtn.dataset.state === 'playing') {
+                            highlightV2mKey(noteObj.midi);
+                            setTimeout(() => {
+                                const allKeys = getKeyboardKeyElements();
+                                const index = noteObj.midi - 24;
+                                if (index >= 0 && index < allKeys.length) {
+                                    const keyObj = allKeys[index];
+                                    if (keyObj.type === 'white') {
+                                        keyObj.el.style.backgroundColor = '#1a1a1a';
+                                        keyObj.el.style.borderColor = '#333';
+                                        keyObj.el.style.boxShadow = '';
+                                    } else {
+                                        keyObj.el.style.backgroundColor = '#050505';
+                                        keyObj.el.style.borderColor = '#222';
+                                        keyObj.el.style.boxShadow = '2px 2px 3px rgba(0,0,0,0.8)';
+                                    }
+                                }
+                            }, noteObj.duration * 1000 * 0.9);
+                        }
+                    }, noteObj.startTime * 1000);
+                }
+            }
+        });
+
+        // Запускаем плейхед
+        if (playhead) {
+            playhead.style.display = 'block';
+            playhead.style.left = '0%';
+        }
+        const duration = window.v2mDurationSec;
+        
+        const animatePlayhead = () => {
+            if (v2mPlayMidiBtn.dataset.state !== 'playing') return;
+            const elapsed = audioCtx.currentTime - now;
+            let progress = elapsed / duration;
+            
+            if (progress >= 1.0) {
+                progress = 1.0;
+                if (playhead) playhead.style.left = '100%';
+                stopMidiPlayback();
+                return;
+            }
+            
+            if (playhead) playhead.style.left = (progress * 100) + '%';
+            v2mMidiAnimFrame = requestAnimationFrame(animatePlayhead);
+        };
+        requestAnimationFrame(animatePlayhead);
     };
 }
 
