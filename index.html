@@ -9557,16 +9557,17 @@ function highlightV2mKey(midiNote) {
     }
 }
 
-// ВСТРОЕННЫЙ АЛГОРИТМ РАСПОЗНАВАНИЯ ЧАСТОТЫ (AMDF). Не зависит от библиотек!
-function detectPitchNative(buffer, sampleRate) {
+// ВСТРОЕННЫЙ АЛГОРИТМ РАСПОЗНАВАНИЯ ЧАСТОТЫ (Акустический подход с Harmonicity)
+// Ограничиваем диапазон: 80 Hz (бас) - 1000 Hz (высокий голос)
+function detectPitchAcoustic(buffer, sampleRate) {
     let rms = 0;
     for (let i = 0; i < buffer.length; i++) rms += buffer[i]*buffer[i];
     rms = Math.sqrt(rms / buffer.length);
-    if (rms < 0.015) return null; // Игнорируем тишину
+    if (rms < 0.02) return { freq: null, isHarmonic: false, rms: rms }; // Тишина
 
-    let maxSamples = Math.floor(sampleRate / 60); // Мин. частота 60 Hz
-    let minSamples = Math.floor(sampleRate / 1000); // Макс. частота 1000 Hz
-    if (buffer.length < maxSamples * 2) return null;
+    const maxSamples = Math.floor(sampleRate / 80);  // 80 Hz
+    const minSamples = Math.floor(sampleRate / 1000); // 1000 Hz
+    if (buffer.length < maxSamples * 2) return { freq: null, isHarmonic: false, rms: rms };
 
     let bestOffset = -1;
     let bestCorrelation = 0;
@@ -9583,12 +9584,15 @@ function detectPitchNative(buffer, sampleRate) {
         }
     }
     
-    // Порог уверенности 85%
-    if (bestCorrelation > 0.85) return sampleRate / bestOffset;
-    return null;
+    // Harmonicity Threshold: Если корреляция выше 0.85 — это чистый "голос" (гласная).
+    // Если ниже — это шум (буква "П", "Т", вздох)
+    const isHarmonic = bestCorrelation > 0.85;
+    const freq = sampleRate / bestOffset;
+
+    return { freq: freq, isHarmonic: isHarmonic, rms: rms };
 }
 
-// ЭТАП 1: ИЩЕМ СЫРЫЕ НОТЫ ПО ВСПЛЕСКАМ ГРОМКОСТИ (ОДИН ВСПЛЕСК = ОДНА НОТА)
+// ЭТАП 1: ВЫДЕЛЕНИЕ НОТ С УЧЕТОМ АТАК, ФАЗЫ СУСТЕЙНА И МЕДИАННОГО ФИЛЬТРА
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
     clearV2mKeyboardHighlight();
@@ -9596,50 +9600,49 @@ async function analyzeV2mAudio(audioBuffer) {
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    // Окно анализа: ~35мс (Достаточно для вычисления и громкости, и частоты)
-    const windowSize = Math.floor(sampleRate * 0.035); 
+    // Окно анализа: ~25мс (идеально, чтобы поймать переход от согласной к гласной)
+    const windowSize = Math.floor(sampleRate * 0.025); 
     const rmsThreshold = 0.02; // Порог тишины
     
     let isNoteActive = false;
     let currentNoteStart = 0;
-    let currentNotePitches = [];
+    let currentNotePitches = []; // Собираем частоты только гласных (Harmonic)
     
     const rawNotes = [];
 
     for (let i = 0; i < channelData.length; i += windowSize) {
         const chunk = channelData.slice(i, i + windowSize);
-        if (chunk.length < windowSize / 2) break; // Конец файла
+        if (chunk.length < windowSize / 2) break;
 
-        // Считаем громкость куска (RMS)
-        let rms = 0;
-        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
-        rms = Math.sqrt(rms / chunk.length);
-
+        const analysis = detectPitchAcoustic(chunk, sampleRate);
         const timeNow = i / sampleRate;
 
-        if (rms > rmsThreshold) {
+        // Если громкость выше порога — значит человек издает звук
+        if (analysis.rms > rmsThreshold) {
             if (!isNoteActive) {
-                // АТАКА! Началась новая нота
+                // ЗАРОЖДЕНИЕ ЗВУКА ("П", "Т" или сразу гласная)
                 isNoteActive = true;
                 currentNoteStart = timeNow;
                 currentNotePitches = [];
             }
-            // Пока нота звучит, собираем ее частоты
-            const freq = detectPitchNative(chunk, sampleRate);
-            if (freq && freq >= 60 && freq <= 1000) {
-                currentNotePitches.push(freq);
+            
+            // Если звук гармоничный (гласная) — записываем его высоту в "копилку" этой ноты
+            if (analysis.isHarmonic && analysis.freq >= 80 && analysis.freq <= 1000) {
+                currentNotePitches.push(analysis.freq);
             }
         } else {
+            // ЧЕЛОВЕК ЗАМОЛЧАЛ
             if (isNoteActive) {
-                // ЗАТУХАНИЕ! Нота закончилась
                 isNoteActive = false;
                 const duration = timeNow - currentNoteStart;
                 
-                // Игнорируем случайные короткие щелчки (менее 50мс)
+                // Игнорируем щелчки короче 50мс
                 if (duration > 0.05) {
                     let finalMidi = null;
+                    
+                    // Если за время звука была хоть одна гласная (гармоничная фаза)
                     if (currentNotePitches.length > 0) {
-                        // Берем медианную частоту, чтобы голос не "плавал"
+                        // ПРИМЕНЯЕМ МЕДИАННЫЙ ФИЛЬТР (отсекаем случайные скачки)
                         currentNotePitches.sort((a, b) => a - b);
                         const medianFreq = currentNotePitches[Math.floor(currentNotePitches.length / 2)];
                         finalMidi = freqToMidi(medianFreq);
@@ -9653,11 +9656,23 @@ async function analyzeV2mAudio(audioBuffer) {
         }
     }
 
-    // Сохраняем сырые данные
-    window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ОДИН ВСПЛЕСК = ОДНА НОТА): ", rawNotes);
+    // Если запись обрывается прямо на ноте, тоже сохраняем ее
+    if (isNoteActive && currentNotePitches.length > 0) {
+        const duration = (channelData.length / sampleRate) - currentNoteStart;
+        if (duration > 0.05) {
+            currentNotePitches.sort((a, b) => a - b);
+            const medianFreq = currentNotePitches[Math.floor(currentNotePitches.length / 2)];
+            const finalMidi = freqToMidi(medianFreq);
+            if (finalMidi && finalMidi >= 24 && finalMidi <= 84) {
+                rawNotes.push({ startTime: currentNoteStart, duration: duration, midi: finalMidi });
+            }
+        }
+    }
 
-    // Подсвечиваем клавиши
+    window.v2mRawNotes = rawNotes;
+    console.log("СЫРЫЕ АКУСТИЧЕСКИЕ НОТЫ: ", rawNotes);
+
+    // Подсвечиваем клавиши (сразу после записи)
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { highlightV2mKey(midi); });
 
