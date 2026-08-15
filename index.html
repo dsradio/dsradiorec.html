@@ -9592,7 +9592,7 @@ function detectPitchAcoustic(buffer, sampleRate) {
     return { freq: freq, isHarmonic: isHarmonic, rms: rms };
 }
 
-// ЭТАП 1: ВЫДЕЛЕНИЕ НОТ С УЧЕТОМ АТАК, ФАЗЫ СУСТЕЙНА И МЕДИАННОГО ФИЛЬТРА
+// ИДЕАЛЬНЫЙ ДЕТЕКТОР РИТМА (ONSET DETECTOR / БАРАБАННЫЙ ТРИГГЕР)
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
     clearV2mKeyboardHighlight();
@@ -9600,82 +9600,70 @@ async function analyzeV2mAudio(audioBuffer) {
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    // Окно анализа: ~25мс (идеально, чтобы поймать переход от согласной к гласной)
-    const windowSize = Math.floor(sampleRate * 0.025); 
-    const rmsThreshold = 0.02; // Порог тишины
-    
-    let isNoteActive = false;
-    let currentNoteStart = 0;
-    let currentNotePitches = []; // Собираем частоты только гласных (Harmonic)
-    
+    // Читаем сетку для установки длины короткой ноты
+    const bpm = window.v2mSettings.bpm || 130;
+    const qSelect = document.getElementById('v2m-quantize');
+    let qDiv = 4; // 1/16 доли
+    if (qSelect) {
+        const qVal = qSelect.value;
+        if (qVal.includes('1/4')) qDiv = 1;
+        else if (qVal.includes('1/8')) qDiv = 2;
+        else if (qVal.includes('1/16')) qDiv = 4;
+    }
+    const stepDuration = (60.0 / bpm) / qDiv;
+
+    // ЖЕЛЕЗОБЕТОННЫЕ НАСТРОЙКИ ДЕТЕКТОРА
+    const windowSize = Math.floor(sampleRate * 0.01); // Окно 10ms (молниеносная реакция на атаку)
+    const minRms = 0.015; // Порог тишины (игнорируем фоновый шум)
+    const debounceTime = 0.15; // Слепая зона 150ms после удара!
+
+    let lastHitTime = -1;
+    let prevRms = 0;
     const rawNotes = [];
 
     for (let i = 0; i < channelData.length; i += windowSize) {
         const chunk = channelData.slice(i, i + windowSize);
         if (chunk.length < windowSize / 2) break;
 
-        const analysis = detectPitchAcoustic(chunk, sampleRate);
+        // Считаем громкость текущих 10 миллисекунд (RMS)
+        let rms = 0;
+        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
+        rms = Math.sqrt(rms / chunk.length);
+
         const timeNow = i / sampleRate;
 
-        // Если громкость выше порога — значит человек издает звук
-        if (analysis.rms > rmsThreshold) {
-            if (!isNoteActive) {
-                // ЗАРОЖДЕНИЕ ЗВУКА ("П", "Т" или сразу гласная)
-                isNoteActive = true;
-                currentNoteStart = timeNow;
-                currentNotePitches = [];
-            }
+        // ЛОГИКА УДАРА: Звук громче тишины И подскочил почти в 2 раза по сравнению с фоном!
+        if (rms > minRms && rms > prevRms * 1.8) {
             
-            // Если звук гармоничный (гласная) — записываем его высоту в "копилку" этой ноты
-            if (analysis.isHarmonic && analysis.freq >= 80 && analysis.freq <= 1000) {
-                currentNotePitches.push(analysis.freq);
-            }
-        } else {
-            // ЧЕЛОВЕК ЗАМОЛЧАЛ
-            if (isNoteActive) {
-                isNoteActive = false;
-                const duration = timeNow - currentNoteStart;
+            // Проверяем "слепую зону" (Debounce)
+            if (timeNow - lastHitTime > debounceTime) {
                 
-                // Игнорируем щелчки короче 50мс
-                if (duration > 0.05) {
-                    let finalMidi = null;
-                    
-                    // Если за время звука была хоть одна гласная (гармоничная фаза)
-                    if (currentNotePitches.length > 0) {
-                        // ПРИМЕНЯЕМ МЕДИАННЫЙ ФИЛЬТР (отсекаем случайные скачки)
-                        currentNotePitches.sort((a, b) => a - b);
-                        const medianFreq = currentNotePitches[Math.floor(currentNotePitches.length / 2)];
-                        finalMidi = freqToMidi(medianFreq);
-                    }
-                    
-                    if (finalMidi && finalMidi >= 24 && finalMidi <= 84) {
-                        rawNotes.push({ startTime: currentNoteStart, duration: duration, midi: finalMidi });
-                    }
-                }
+                // ЕСТЬ УДАР! Ставим жестко ноту C4 (MIDI 60) и фиксируем ее длину
+                rawNotes.push({ 
+                    startTime: timeNow, 
+                    duration: stepDuration, // Коротенький триггер
+                    midi: 60,               // Нота ДО (C4)
+                    noteName: 'C4', 
+                    freq: null 
+                });
+                
+                lastHitTime = timeNow;
             }
         }
+        
+        // Плавная адаптация фона (чтобы ловить только РЕЗКИЕ скачки вверх)
+        prevRms = (prevRms * 0.5) + (rms * 0.5);
     }
 
-    // Если запись обрывается прямо на ноте, тоже сохраняем ее
-    if (isNoteActive && currentNotePitches.length > 0) {
-        const duration = (channelData.length / sampleRate) - currentNoteStart;
-        if (duration > 0.05) {
-            currentNotePitches.sort((a, b) => a - b);
-            const medianFreq = currentNotePitches[Math.floor(currentNotePitches.length / 2)];
-            const finalMidi = freqToMidi(medianFreq);
-            if (finalMidi && finalMidi >= 24 && finalMidi <= 84) {
-                rawNotes.push({ startTime: currentNoteStart, duration: duration, midi: finalMidi });
-            }
-        }
-    }
-
+    // Сохраняем в память
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ АКУСТИЧЕСКИЕ НОТЫ: ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (РИТМ-ДЕТЕКТОР): ", rawNotes);
 
-    // Подсвечиваем клавиши (сразу после записи)
+    // Подсвечиваем клавишу C4 на экране (она будет одна)
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { highlightV2mKey(midi); });
 
+    // Центрируем скролл пианино на средних октавах
     const kb = document.getElementById('v2m-keyboard-scroll');
     if (kb) kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2;
 }
