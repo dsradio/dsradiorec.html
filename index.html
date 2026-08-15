@@ -9562,7 +9562,7 @@ function detectPitchNative(buffer, sampleRate) {
     let rms = 0;
     for (let i = 0; i < buffer.length; i++) rms += buffer[i]*buffer[i];
     rms = Math.sqrt(rms / buffer.length);
-    if (rms < 0.015) return null; // Игнорируем тишину и шумы
+    if (rms < 0.015) return null; // Игнорируем тишину
 
     let maxSamples = Math.floor(sampleRate / 60); // Мин. частота 60 Hz
     let minSamples = Math.floor(sampleRate / 1000); // Макс. частота 1000 Hz
@@ -9584,59 +9584,81 @@ function detectPitchNative(buffer, sampleRate) {
     }
     
     // Порог уверенности 85%
-    if (bestCorrelation > 0.85) {
-        return sampleRate / bestOffset;
-    }
+    if (bestCorrelation > 0.85) return sampleRate / bestOffset;
     return null;
 }
 
+// ЭТАП 1: ИЩЕМ СЫРЫЕ НОТЫ ПО ВСПЛЕСКАМ ГРОМКОСТИ (ОДИН ВСПЛЕСК = ОДНА НОТА)
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
-    
     clearV2mKeyboardHighlight();
-    const bpm = window.v2mSettings.bpm || 130;
-    const qSelect = document.getElementById('v2m-quantize');
-    let qDiv = 4; // 1/16 доли
-    if (qSelect) {
-        const qVal = qSelect.value;
-        if (qVal.includes('1/4')) qDiv = 1;
-        else if (qVal.includes('1/8')) qDiv = 2;
-        else if (qVal.includes('1/16')) qDiv = 4;
-        else if (qVal.includes('OFF')) qDiv = 8;
-    }
 
-    const stepDuration = (60.0 / bpm) / qDiv;
-    const totalSteps = Math.floor(window.v2mDurationSec / stepDuration);
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    const detectedNotes = [];
-    const activeMidiSet = new Set();
+    // Окно анализа: ~35мс (Достаточно для вычисления и громкости, и частоты)
+    const windowSize = Math.floor(sampleRate * 0.035); 
+    const rmsThreshold = 0.02; // Порог тишины
+    
+    let isNoteActive = false;
+    let currentNoteStart = 0;
+    let currentNotePitches = [];
+    
+    const rawNotes = [];
 
-    for (let step = 0; step < totalSteps; step++) {
-        const startTime = step * stepDuration;
-        const startSample = Math.floor(startTime * sampleRate);
-        const endSample = Math.min(startSample + Math.floor(stepDuration * sampleRate), channelData.length);
-        const chunk = channelData.slice(startSample, endSample);
+    for (let i = 0; i < channelData.length; i += windowSize) {
+        const chunk = channelData.slice(i, i + windowSize);
+        if (chunk.length < windowSize / 2) break; // Конец файла
 
-        let midi = null;
-        let freq = detectPitchNative(chunk, sampleRate);
+        // Считаем громкость куска (RMS)
+        let rms = 0;
+        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
+        rms = Math.sqrt(rms / chunk.length);
 
-        if (freq && freq >= 60 && freq <= 1000) {
-            midi = freqToMidi(freq);
-        }
+        const timeNow = i / sampleRate;
 
-        if (midi && midi >= 24 && midi <= 84) {
-            detectedNotes.push({ step, startTime, duration: stepDuration, midi, noteName: midiToNoteName(midi), freq });
-            activeMidiSet.add(midi);
+        if (rms > rmsThreshold) {
+            if (!isNoteActive) {
+                // АТАКА! Началась новая нота
+                isNoteActive = true;
+                currentNoteStart = timeNow;
+                currentNotePitches = [];
+            }
+            // Пока нота звучит, собираем ее частоты
+            const freq = detectPitchNative(chunk, sampleRate);
+            if (freq && freq >= 60 && freq <= 1000) {
+                currentNotePitches.push(freq);
+            }
         } else {
-            detectedNotes.push({ step, startTime, duration: stepDuration, midi: null, noteName: null, freq: null });
+            if (isNoteActive) {
+                // ЗАТУХАНИЕ! Нота закончилась
+                isNoteActive = false;
+                const duration = timeNow - currentNoteStart;
+                
+                // Игнорируем случайные короткие щелчки (менее 50мс)
+                if (duration > 0.05) {
+                    let finalMidi = null;
+                    if (currentNotePitches.length > 0) {
+                        // Берем медианную частоту, чтобы голос не "плавал"
+                        currentNotePitches.sort((a, b) => a - b);
+                        const medianFreq = currentNotePitches[Math.floor(currentNotePitches.length / 2)];
+                        finalMidi = freqToMidi(medianFreq);
+                    }
+                    
+                    if (finalMidi && finalMidi >= 24 && finalMidi <= 84) {
+                        rawNotes.push({ startTime: currentNoteStart, duration: duration, midi: finalMidi });
+                    }
+                }
+            }
         }
     }
 
-    window.v2mDetectedNotes = detectedNotes;
-    console.log("РАСПОЗНАННЫЕ НОТЫ: ", detectedNotes);
+    // Сохраняем сырые данные
+    window.v2mRawNotes = rawNotes;
+    console.log("СЫРЫЕ НОТЫ (ОДИН ВСПЛЕСК = ОДНА НОТА): ", rawNotes);
 
+    // Подсвечиваем клавиши
+    const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { highlightV2mKey(midi); });
 
     const kb = document.getElementById('v2m-keyboard-scroll');
@@ -9999,8 +10021,9 @@ if (v2mPlayMidiBtn) {
             v2mPlayMidiBtn.classList.add('led-green');
             
             clearV2mKeyboardHighlight();
-            if (window.v2mDetectedNotes) {
-                window.v2mDetectedNotes.forEach(n => { if (n.midi) highlightV2mKey(n.midi); });
+            if (window.v2mRawNotes) {
+                const uniqueMidis = new Set(window.v2mRawNotes.map(n => n.midi));
+                uniqueMidis.forEach(midi => highlightV2mKey(midi));
             }
         };
 
@@ -10009,7 +10032,7 @@ if (v2mPlayMidiBtn) {
             return;
         }
 
-        if (!window.v2mDetectedNotes || window.v2mDetectedNotes.length === 0) {
+        if (!window.v2mRawNotes || window.v2mRawNotes.length === 0) {
             const oldText = v2mPlayMidiBtn.innerHTML;
             v2mPlayMidiBtn.innerHTML = 'NO MIDI!';
             v2mPlayMidiBtn.classList.remove('led-green');
@@ -10028,11 +10051,38 @@ if (v2mPlayMidiBtn) {
         v2mPlayMidiBtn.classList.add('led-red');
 
         clearV2mKeyboardHighlight();
+        
+        // ЭТАП 2: ДИНАМИЧЕСКОЕ КВАНТОВАНИЕ СЫРЫХ НОТ ПЕРЕД ИГРОЙ
+        const bpm = window.v2mSettings.bpm || 130;
+        const qSelect = document.getElementById('v2m-quantize');
+        let qDiv = 4; // 1/16 по умолчанию
+        let isQOn = true;
+        if (qSelect) {
+            const qVal = qSelect.value;
+            if (qVal.includes('1/4')) qDiv = 1;
+            else if (qVal.includes('1/8')) qDiv = 2;
+            else if (qVal.includes('1/16')) qDiv = 4;
+            else if (qVal.includes('OFF')) isQOn = false;
+        }
+        
+        const beatSec = 60.0 / bpm;
+        const stepSec = beatSec / qDiv;
+        
+        // Примагничиваем ноты к сетке
+        const processedNotes = window.v2mRawNotes.map(raw => {
+            let start = raw.startTime;
+            let dur = raw.duration;
+            if (isQOn) {
+                start = Math.round(start / stepSec) * stepSec; // Магнитим начало
+                dur = Math.max(1, Math.round(dur / stepSec)) * stepSec; // Выравниваем длину
+            }
+            return { ...raw, startTime: start, duration: dur };
+        });
+
         const now = audioCtx.currentTime;
         
-        window.v2mDetectedNotes.forEach(noteObj => {
+        processedNotes.forEach(noteObj => {
             if (noteObj.midi) {
-                // Пытаемся взять сэмпл файла
                 let sample = (typeof sysSamples !== 'undefined') ? sysSamples.c4 : null;
                 let baseMidi = 60;
                 
@@ -10056,7 +10106,6 @@ if (v2mPlayMidiBtn) {
                     src.stop(now + noteObj.startTime + noteObj.duration);
                     v2mMidiSources.push(src);
                 } else {
-                    // ЕСЛИ ФАЙЛА НЕТ - ИГРАЕМ ЧЕРЕЗ ВСТРОЕННЫЙ СИНТЕЗАТОР БРАУЗЕРА!
                     const osc = audioCtx.createOscillator();
                     osc.type = 'triangle';
                     osc.frequency.value = 440 * Math.pow(2, (noteObj.midi - 69) / 12);
@@ -10081,7 +10130,7 @@ if (v2mPlayMidiBtn) {
                     v2mMidiSources.push(osc);
                 }
                 
-                // Зажигаем и гасим клавишу ровно в момент удара
+                // Зажигаем клавишу на экране (используем квантованное время)
                 setTimeout(() => {
                     if (v2mPlayMidiBtn.dataset.state === 'playing') {
                         highlightV2mKey(noteObj.midi);
@@ -10131,7 +10180,6 @@ if (v2mPlayMidiBtn) {
         requestAnimationFrame(animatePlayhead);
     };
 }
-
 // 6. КНОПКА ВОСПРОИЗВЕДЕНИЯ ЗАПИСИ (VOICE PLAY)
 const v2mPlayVoiceBtn = document.getElementById('v2m-play-voice-btn');
 let v2mVoiceSource = null;
