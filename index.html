@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DSEG14+Classic:ital,wght@1,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/pitchfinder@2.3.2/dist/pitchfinder.min.js"></script>
     
     <style>
                 @font-face {
@@ -9500,7 +9501,135 @@ if (v2mTapBtn) {
     };
 }
 
-// 3. ОТРИСОВКА НОТ (Заглушка без карточек)
+// 3. ДВИЖОК РАСПОЗНАВАНИЯ НОТ, КВАНТОВАНИЯ И ПОДСВЕТКИ КЛАВИАТУРЫ
+function freqToMidi(freq) {
+    if (!freq || freq < 20 || freq > 5000) return null;
+    return Math.round(69 + 12 * Math.log2(freq / 440));
+}
+
+function midiToNoteName(midi) {
+    if (!midi) return '';
+    const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const note = noteNames[midi % 12];
+    const octave = Math.floor(midi / 12) - 1;
+    return `${note}${octave}`;
+}
+
+// Индексация 5 октав клавиш (от C1 до B5)
+function getKeyboardKeyElements() {
+    const keys = [];
+    const keyContainers = document.querySelectorAll('#v2m-keyboard-scroll .v2m-key-w');
+    keyContainers.forEach((whiteKey) => {
+        keys.push({ type: 'white', el: whiteKey });
+        const blackKey = whiteKey.querySelector('.v2m-key-b');
+        if (blackKey) {
+            keys.push({ type: 'black', el: blackKey });
+        }
+    });
+    return keys;
+}
+
+function clearV2mKeyboardHighlight() {
+    document.querySelectorAll('.v2m-key-w, .v2m-key-b').forEach(k => {
+        k.style.backgroundColor = '';
+        k.style.borderColor = '';
+        k.style.boxShadow = '';
+    });
+}
+
+function highlightV2mKey(midiNote) {
+    // В нашей клавиатуре 5 октав: C1 (MIDI 24) ... B5 (MIDI 83)
+    const baseMidi = 24; // C1
+    const index = midiNote - baseMidi;
+    const allKeys = getKeyboardKeyElements();
+
+    if (index >= 0 && index < allKeys.length) {
+        const keyObj = allKeys[index];
+        if (keyObj && keyObj.el) {
+            keyObj.el.style.backgroundColor = '#00ffff';
+            keyObj.el.style.borderColor = '#ffffff';
+            keyObj.el.style.boxShadow = '0 0 10px #00ffff';
+        }
+    }
+}
+
+// Алгоритм распознавания и квантования
+async function analyzeV2mAudio(audioBuffer) {
+    if (!audioBuffer) return;
+    
+    clearV2mKeyboardHighlight();
+    const bpm = window.v2mSettings.bpm || 130;
+    const qSelect = document.getElementById('v2m-quantize');
+    let qDiv = 4; // 1/16 доли на бит (16 долей на 4 четверти)
+    if (qSelect) {
+        const qVal = qSelect.value;
+        if (qVal.includes('1/4')) qDiv = 1;
+        else if (qVal.includes('1/8')) qDiv = 2;
+        else if (qVal.includes('1/16')) qDiv = 4;
+        else if (qVal.includes('OFF')) qDiv = 8;
+    }
+
+    const stepDuration = (60.0 / bpm) / qDiv;
+    const totalSteps = Math.floor(window.v2mDurationSec / stepDuration);
+    const sampleRate = audioBuffer.sampleRate;
+    const channelData = audioBuffer.getChannelData(0);
+
+    // Используем Pitchfinder YIN или встроенный автокоррелятор
+    let detectPitch = null;
+    if (typeof Pitchfinder !== 'undefined' && Pitchfinder.YIN) {
+        detectPitch = Pitchfinder.YIN({ sampleRate: sampleRate, threshold: 0.15 });
+    }
+
+    const detectedNotes = [];
+    const activeMidiSet = new Set();
+
+    for (let step = 0; step < totalSteps; step++) {
+        const startTime = step * stepDuration;
+        const startSample = Math.floor(startTime * sampleRate);
+        const endSample = Math.min(startSample + Math.floor(stepDuration * sampleRate), channelData.length);
+        const chunk = channelData.slice(startSample, endSample);
+
+        // Проверяем громкость (RMS), чтобы отсеять фоновый шум
+        let sumSquare = 0;
+        for (let i = 0; i < chunk.length; i++) {
+            sumSquare += chunk[i] * chunk[i];
+        }
+        const rms = Math.sqrt(sumSquare / chunk.length);
+
+        let midi = null;
+        let freq = null;
+
+        if (rms > 0.02) { // Порог голоса
+            if (detectPitch) {
+                freq = detectPitch(chunk);
+            }
+            if (freq && freq >= 50 && freq <= 1500) {
+                midi = freqToMidi(freq);
+            }
+        }
+
+        if (midi && midi >= 24 && midi <= 84) {
+            detectedNotes.push({ step, startTime, duration: stepDuration, midi, noteName: midiToNoteName(midi), freq });
+            activeMidiSet.add(midi);
+        } else {
+            detectedNotes.push({ step, startTime, duration: stepDuration, midi: null, noteName: null, freq: null });
+        }
+    }
+
+    window.v2mDetectedNotes = detectedNotes;
+
+    // Подсвечиваем все найденные ноты на пианино
+    activeMidiSet.forEach(midi => {
+        highlightV2mKey(midi);
+    });
+
+    // Автоматически центрируем скролл клавиатуры на среднюю октаву
+    const kb = document.getElementById('v2m-keyboard-scroll');
+    if (kb) {
+        kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2;
+    }
+}
+
 function renderV2mNotes(notes) {
     window.v2mDetectedNotes = notes;
 }
@@ -9772,6 +9901,8 @@ if (v2mRecBtn) {
                             window.v2mAudioBuffer = decodedBuffer;
                         }
                         drawV2mFinalWave(window.v2mAudioBuffer);
+                        // Запускаем распознавание высоты тона и квантование
+                        analyzeV2mAudio(window.v2mAudioBuffer);
                     });
                 };
 
