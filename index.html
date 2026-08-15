@@ -9729,11 +9729,16 @@ if (v2mRecBtn) {
                 v2mRecBtn.classList.add('led-red');
                 v2mRecBtn.innerHTML = '● RECORDING...';
 
-                // Плавно открываем микрофон (убирает щелчок в начале)
+                // 1. ОТКРЫВАЕМ МИКРОФОН (Надежно, чтобы волна была живой, а не прямой линией)
                 if (window.v2mMicGate) {
-                    const now = audioCtx.currentTime;
-                    window.v2mMicGate.gain.setValueAtTime(0.0, now);
-                    window.v2mMicGate.gain.linearRampToValueAtTime(1.0, now + 0.05);
+                    window.v2mMicGate.gain.value = 1.0; 
+                }
+
+                // 2. ВОЗВРАЩАЕМ КРАСИВУЮ КРАСНУЮ ВЕРТИКАЛЬНУЮ ЛИНИЮ (Playhead)
+                const playhead = document.getElementById('v2m-playhead');
+                if (playhead) {
+                    playhead.style.display = 'block';
+                    playhead.style.opacity = '1';
                 }
 
                 window.v2mChunks = [];
@@ -9745,6 +9750,9 @@ if (v2mRecBtn) {
 
                 window.v2mMediaRecorder.onstop = async () => {
                     cancelAnimationFrame(window.v2mAnimFrame);
+                    
+                    // Прячем плейхед после окончания записи
+                    if (playhead) playhead.style.display = 'none';
                     
                     v2mRecBtn.dataset.state = 'idle';
                     v2mRecBtn.classList.remove('active-mode');
