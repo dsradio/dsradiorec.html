@@ -9596,10 +9596,10 @@ function detectPitchAcoustic(buffer, sampleRate) {
 // НАСТРОЙКИ ДЕТЕКТОРА ОГИБАЮЩЕЙ (ENVELOPE FOLLOWER)
 // ==========================================
 const ENV_SETTINGS = {
-    rmsWindowMs: 30,    // Окно сглаживания (в миллисекундах). Меньше = резче, Больше = плавнее.
-    thresholdOn: 0.4,   // Порог срабатывания (от 0 до 1). Уровень RMS для старта удара.
-    thresholdOff: 0.2,  // Порог отключения (от 0 до 1). Уровень RMS для завершения удара.
-    holdOffMs: 80       // Период "глухоты" (в миллисекундах) после старта удара.
+    rmsWindowMs: 30,    // Окно сглаживания
+    thresholdOn: 0.4,   // Порог старта удара (от пика)
+    thresholdOff: 0.2,  // Порог конца удара (от пика)
+    holdOffMs: 80       // Слепая зона
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9609,11 +9609,23 @@ async function analyzeV2mAudio(audioBuffer) {
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    // Переводим миллисекунды в количество сэмплов
+    // Читаем настройки сетки для квантования длины нот
+    const bpm = window.v2mSettings.bpm || 130;
+    const qSelect = document.getElementById('v2m-quantize');
+    let qDiv = 4; // 1/16 доли
+    if (qSelect) {
+        const qVal = qSelect.value;
+        if (qVal.includes('1/4')) qDiv = 1;
+        else if (qVal.includes('1/8')) qDiv = 2;
+        else if (qVal.includes('1/16')) qDiv = 4;
+    }
+    const stepDuration = (60.0 / bpm) / qDiv;
+
+    // Переводим миллисекунды в сэмплы
     const windowSamples = Math.floor(sampleRate * (ENV_SETTINGS.rmsWindowMs / 1000));
     const holdOffSamples = Math.floor(sampleRate * (ENV_SETTINGS.holdOffMs / 1000));
 
-    // 1. Предварительный проход: ищем Абсолютный Пик (Max RMS), чтобы пороги работали относительно громкости записи
+    // 1. Нормализация (ищем пик)
     let maxRms = 0;
     for (let i = 0; i < channelData.length; i += windowSamples) {
         const chunk = channelData.slice(i, i + windowSamples);
@@ -9624,54 +9636,63 @@ async function analyzeV2mAudio(audioBuffer) {
     }
 
     if (maxRms < 0.005) {
-        console.log("ЗАПИСЬ ПУСТАЯ (ОДНА ТИШИНА)");
+        window.v2mRawNotes = [];
         return;
     }
 
-    // Вычисляем реальные пороги в зависимости от максимальной громкости записи
     const actualThresholdOn = maxRms * ENV_SETTINGS.thresholdOn;
     const actualThresholdOff = maxRms * ENV_SETTINGS.thresholdOff;
 
-    let isTriggerArmed = true;     // Защелка взведена (готовы ловить удар)
-    let lastHitSampleIndex = -1;   // Индекс сэмпла, когда произошел последний удар
-
-    console.log("=== НАЧАЛО АНАЛИЗА РИТМА ===");
-    console.log(`Max RMS записи: ${maxRms.toFixed(4)}`);
-    console.log(`Порог ON: ${actualThresholdOn.toFixed(4)}, Порог OFF: ${actualThresholdOff.toFixed(4)}`);
+    let isTriggerArmed = true;     
+    let lastHitSampleIndex = -1;   
+    const rawNotes = [];
 
     for (let i = 0; i < channelData.length; i += windowSamples) {
         const chunk = channelData.slice(i, i + windowSamples);
         if (chunk.length < windowSamples / 2) break;
 
-        // Считаем RMS текущего окна
         let rms = 0;
         for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
         rms = Math.sqrt(rms / chunk.length);
 
-        const timeNow = (i / sampleRate).toFixed(3);
+        const timeNow = i / sampleRate;
 
         if (isTriggerArmed) {
-            // Ждем пробития порога ON
             if (rms > actualThresholdOn) {
-                console.log(`[${timeNow}s] 🔴 СТАРТ УДАРА (RMS: ${rms.toFixed(4)})`);
+                // ЕСТЬ УДАР! Ставим короткую ноту C4 (MIDI 60)
+                rawNotes.push({ 
+                    startTime: timeNow, 
+                    duration: stepDuration, // Фиксированная короткая длина
+                    midi: 60,               // Фиксированная высота (До)
+                    noteName: 'C4', 
+                    freq: null 
+                });
+                
                 lastHitSampleIndex = i;
-                isTriggerArmed = false; // Блокируем триггер
+                isTriggerArmed = false; 
             }
         } else {
-            // Триггер заблокирован. 
-            // Проверяем, прошло ли время Hold-off (период глухоты)
             const samplesSinceHit = i - lastHitSampleIndex;
-            
             if (samplesSinceHit > holdOffSamples) {
-                // Время глухоты прошло, теперь ждем падения громкости ниже порога OFF
                 if (rms < actualThresholdOff) {
-                    console.log(`[${timeNow}s] ⚪ КОНЕЦ УДАРА (RMS: ${rms.toFixed(4)})`);
-                    isTriggerArmed = true; // Снимаем блокировку, готовы ловить следующий удар
+                    isTriggerArmed = true; 
                 }
             }
         }
     }
-    console.log("=== КОНЕЦ АНАЛИЗА РИТМА ===");
+
+    // Сохраняем в память приложения (теперь кнопка MIDI это увидит)
+    window.v2mRawNotes = rawNotes;
+    console.log("СЫРЫЕ НОТЫ (ОГИБАЮЩАЯ): ", rawNotes);
+
+    // Подсвечиваем клавишу на пианино
+    const activeMidiSet = new Set(rawNotes.map(n => n.midi));
+    activeMidiSet.forEach(midi => { 
+        if (typeof highlightV2mKey === 'function') highlightV2mKey(midi); 
+    });
+
+    const kb = document.getElementById('v2m-keyboard-scroll');
+    if (kb) kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2;
 }
 
 function renderV2mNotes(notes) {
