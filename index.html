@@ -9593,14 +9593,14 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// НАСТРОЙКИ ДЕТЕКТОРА ОГИБАЮЩЕЙ (ENVELOPE FOLLOWER)
+// АДАПТИВНЫЙ ДЕТЕКТОР РИТМА (FAST vs SLOW EAR)
 // ==========================================
 const ENV_SETTINGS = {
-    rmsWindowMs: 30,       // Окно сглаживания
-    thresholdOn: 0.4,      // Порог старта удара (доля от пика)
-    thresholdOff: 0.2,     // Порог конца удара (доля от пика)
-    holdOffMs: 80,         // Слепая зона
-    sensitivityBoost: 2  // ЧУВСТВИТЕЛЬНОСТЬ: 1.0 (стандарт), 2.0 (в 2 раза чувствительнее), 3.0 (суперчувствительный)
+    chunkMs: 10,        // Размер "Быстрого уха" (10 миллисекунд)
+    slowWindowMs: 150,  // Память "Медленного уха" (усредняет последние 150 мс)
+    triggerRatio: 1.6,  // Во сколько раз скачок должен быть громче фона (1.6 = на 60% громче)
+    noiseFloor: 0.015,  // Порог абсолютной тишины (срезаем фоновый шум комнаты)
+    holdOffMs: 100      // Слепая зона после удара (чтобы не дробить хрипотцу в голосе)
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9610,6 +9610,7 @@ async function analyzeV2mAudio(audioBuffer) {
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
+    // Сетка квантования (для расстановки в секвенсоре)
     const bpm = window.v2mSettings.bpm || 130;
     const qSelect = document.getElementById('v2m-quantize');
     let qDiv = 4;
@@ -9621,48 +9622,49 @@ async function analyzeV2mAudio(audioBuffer) {
     }
     const stepDuration = (60.0 / bpm) / qDiv;
 
-    const windowSamples = Math.floor(sampleRate * (ENV_SETTINGS.rmsWindowMs / 1000));
-    const holdOffSamples = Math.floor(sampleRate * (ENV_SETTINGS.holdOffMs / 1000));
+    // Перевод миллисекунд в сэмплы и чанки
+    const chunkSamples = Math.floor(sampleRate * (ENV_SETTINGS.chunkMs / 1000));
+    const slowHistoryChunks = Math.floor(ENV_SETTINGS.slowWindowMs / ENV_SETTINGS.chunkMs);
+    const holdOffChunks = Math.floor(ENV_SETTINGS.holdOffMs / ENV_SETTINGS.chunkMs);
 
-    // 1. Ищем Абсолютный Пик (Max RMS)
-    let maxRms = 0;
-    for (let i = 0; i < channelData.length; i += windowSamples) {
-        const chunk = channelData.slice(i, i + windowSamples);
-        let rms = 0;
-        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
-        rms = Math.sqrt(rms / chunk.length);
-        if (rms > maxRms) maxRms = rms;
+    // 1. Разбиваем всю аудиодорожку на мелкие кусочки (по 10 мс) и считаем их громкость
+    const rmsArray = [];
+    for (let i = 0; i < channelData.length; i += chunkSamples) {
+        let chunk = channelData.slice(i, i + chunkSamples);
+        let sum = 0;
+        for (let j = 0; j < chunk.length; j++) sum += chunk[j] * chunk[j];
+        rmsArray.push(Math.sqrt(sum / chunk.length));
     }
 
-    if (maxRms < 0.005) {
-        window.v2mRawNotes = [];
-        return;
-    }
-
-    // Применяем чувствительность: искусственно занижаем "пик", 
-    // чтобы пороги срабатывания стали ниже (алгоритм стал более чутким)
-    let adjustedMaxRms = maxRms / ENV_SETTINGS.sensitivityBoost; 
-    
-    // Защита: порог ON не может быть ниже 1% от абсолютной шкалы, чтобы не ловить фоновый шум комнаты
-    const actualThresholdOn = Math.max(0.01, adjustedMaxRms * ENV_SETTINGS.thresholdOn);
-    const actualThresholdOff = Math.max(0.005, adjustedMaxRms * ENV_SETTINGS.thresholdOff);
-
-    let isTriggerArmed = true;     
-    let lastHitSampleIndex = -1;   
     const rawNotes = [];
+    let chunksSinceHit = 9999;
 
-    for (let i = 0; i < channelData.length; i += windowSamples) {
-        const chunk = channelData.slice(i, i + windowSamples);
-        if (chunk.length < windowSamples / 2) break;
+    // 2. Бежим по массиву громкостей и ищем перепады
+    for (let i = 0; i < rmsArray.length; i++) {
+        chunksSinceHit++;
+        let fastRms = rmsArray[i];
 
-        let rms = 0;
-        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
-        rms = Math.sqrt(rms / chunk.length);
+        // Если это тишина комнаты - пропускаем (не тратим силы)
+        if (fastRms < ENV_SETTINGS.noiseFloor) continue;
 
-        const timeNow = i / sampleRate;
+        // Вычисляем "Медленное ухо": среднюю громкость за недавнее прошлое (мычание)
+        let slowRmsSum = 0;
+        let count = 0;
+        for (let j = Math.max(0, i - slowHistoryChunks); j < i; j++) {
+            slowRmsSum += rmsArray[j];
+            count++;
+        }
+        let slowRms = count > 0 ? (slowRmsSum / count) : 0;
 
-        if (isTriggerArmed) {
-            if (rms > actualThresholdOn) {
+        // 3. ЛОГИКА УДАРА: 
+        // Если текущий звук в X раз громче недавнего фона -> ЭТО УДАР!
+        if (fastRms > (slowRms * ENV_SETTINGS.triggerRatio) + (ENV_SETTINGS.noiseFloor * 0.5)) {
+            
+            // Проверяем слепую зону
+            if (chunksSinceHit > holdOffChunks) {
+                const timeNow = (i * chunkSamples) / sampleRate;
+                
+                // Ставим ноту C4 (До)
                 rawNotes.push({ 
                     startTime: timeNow, 
                     duration: stepDuration,
@@ -9670,21 +9672,15 @@ async function analyzeV2mAudio(audioBuffer) {
                     noteName: 'C4', 
                     freq: null 
                 });
-                lastHitSampleIndex = i;
-                isTriggerArmed = false; 
-            }
-        } else {
-            const samplesSinceHit = i - lastHitSampleIndex;
-            if (samplesSinceHit > holdOffSamples) {
-                if (rms < actualThresholdOff) {
-                    isTriggerArmed = true; 
-                }
+                
+                chunksSinceHit = 0; // Уходим в слепую зону
             }
         }
     }
 
+    // Сохраняем результат
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ОГИБАЮЩАЯ): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (АДАПТИВНЫЙ РИТМ): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
