@@ -9593,14 +9593,12 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// VOICE-TO-SYNTH ENGINE: ТОЛЬКО РИТМ (БЕЗ ПИТЧА)
+// VOICE-TO-MIDI ENGINE: АБСОЛЮТНАЯ ЖЕЛЕЗОБЕТОННАЯ ЛОГИКА (БЕЗ ДВОЙНЫХ НОТ)
 // ==========================================
 const V2M_ENGINE = {
-    attackThreshold: 0.15, // Порог старта (15% от макс. громкости записи)
-    releaseThreshold: 0.05, // Порог тишины (5%)
-    spikeRatio: 1.5,       // Ретриггер: новый звук должен скакнуть в 1.5 раза
-    holdOffMs: 120,        // СЛЕПАЯ ЗОНА: 120мс! Убивает пулемет на 100%.
-    chunkMs: 10            // Шаг анализа 10мс
+    attackThreshold: 0.15, // Порог включения (15% от макс. громкости)
+    releaseThreshold: 0.05, // Порог выключения (5% от макс. громкости)
+    smoothingMs: 40        // "Тяжелый утюг": сглаживание микро-зубьев в миллисекундах
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9619,72 +9617,64 @@ async function analyzeV2mAudio(audioBuffer) {
         else if (qSelect.value.includes('1/16')) qDiv = 4;
     }
     const stepDuration = (60.0 / bpm) / qDiv;
-    const chunkSamples = Math.floor(sampleRate * (V2M_ENGINE.chunkMs / 1000));
     
-    // 1. Ищем Максимальную Громкость (калибровка под твой микрофон)
-    let maxRms = 0;
-    for (let i = 0; i < channelData.length; i += chunkSamples) {
-        let sum = 0;
-        const limit = Math.min(i + chunkSamples, channelData.length);
-        for (let j = i; j < limit; j++) sum += channelData[j] * channelData[j];
-        const rms = Math.sqrt(sum / (limit - i));
-        if (rms > maxRms) maxRms = rms;
+    // 1. ПРИМЕНЯЕМ "ТЯЖЕЛЫЙ УТЮГ" (Envelope Follower)
+    // Превращаем пилу в идеально гладкие холмы. Никаких микро-провалов громкости.
+    const alpha = Math.exp(-1.0 / (sampleRate * (V2M_ENGINE.smoothingMs / 1000.0)));
+    let currentEnv = 0;
+    let maxEnv = 0;
+    const envelope = new Float32Array(channelData.length);
+
+    for (let i = 0; i < channelData.length; i++) {
+        const val = Math.abs(channelData[i]);
+        if (val > currentEnv) {
+            currentEnv = val; // Мгновенный взлет (Атака)
+        } else {
+            currentEnv = currentEnv * alpha; // Плавное затухание
+        }
+        envelope[i] = currentEnv;
+        if (currentEnv > maxEnv) maxEnv = currentEnv;
     }
 
-    if (maxRms < 0.01) {
+    if (maxEnv < 0.01) {
         window.v2mRawNotes = [];
         return;
     }
 
-    const attackLevel = maxRms * V2M_ENGINE.attackThreshold;
-    const releaseLevel = maxRms * V2M_ENGINE.releaseThreshold;
-    const holdOffSeconds = V2M_ENGINE.holdOffMs / 1000.0;
+    const attackLevel = maxEnv * V2M_ENGINE.attackThreshold;
+    const releaseLevel = maxEnv * V2M_ENGINE.releaseThreshold;
 
     let isNoteActive = false;
-    let lastHitTime = -999;
-    let previousRms = 0;
     const rawNotes = [];
 
-    // 2. БЕЖИМ ПО АУДИО И ИЩЕМ СЛОГИ
-    for (let i = 0; i < channelData.length; i += chunkSamples) {
-        const limit = Math.min(i + chunkSamples, channelData.length);
-        let sum = 0;
-        for (let j = i; j < limit; j++) sum += channelData[j] * channelData[j];
-        const rms = Math.sqrt(sum / (limit - i));
-        
-        const timeNow = i / sampleRate;
-        const timeSinceLastHit = timeNow - lastHitTime;
+    // 2. СТРОГАЯ ЛОГИКА СОСТОЯНИЙ (БЕЗ РЕТРИГГЕРОВ И ТАЙМЕРОВ)
+    // Нота может начаться только из полной тишины. 
+    // Пока звук не упадет ниже releaseLevel (5%), новые ноты ставить ЗАПРЕЩЕНО.
+    for (let i = 0; i < envelope.length; i++) {
+        const envVal = envelope[i];
 
-        // ПРОВЕРЯЕМ УСЛОВИЯ СТАРТА: 
-        const isSpike = (rms > attackLevel && rms > previousRms * V2M_ENGINE.spikeRatio);
-        const isFromSilence = (rms > attackLevel && !isNoteActive);
-
-        if (isSpike || isFromSilence) {
-            // АНТИ-ПУЛЕМЕТ: проверяем слепую зону (120 мс)
-            if (timeSinceLastHit > holdOffSeconds) {
+        if (!isNoteActive) {
+            // Ждем, когда звук пробьет потолок (Начало слога "Та")
+            if (envVal > attackLevel) {
                 isNoteActive = true;
-                lastHitTime = timeNow;
-                
                 rawNotes.push({
-                    startTime: timeNow,
+                    startTime: i / sampleRate,
                     duration: stepDuration,
                     midi: 60, // Фиксированная нота С4
                     noteName: 'C4', 
                     freq: null
                 });
             }
-        } else if (isNoteActive && rms < releaseLevel) {
-            // Тишина -> снимаем флаг активности
-            if (timeSinceLastHit > holdOffSeconds) {
-                isNoteActive = false;
+        } else {
+            // Ждем, когда звук опустится на самое дно (Конец слога "Та", тишина)
+            if (envVal < releaseLevel) {
+                isNoteActive = false; // Отпускаем защелку, готовы к новому слогу
             }
         }
-
-        previousRms = rms;
     }
 
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (РИТМ): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ЖЕЛЕЗОБЕТОННЫЙ РИТМ): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
