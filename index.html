@@ -9593,14 +9593,15 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// АДАПТИВНЫЙ ДЕТЕКТОР РИТМА (FAST vs SLOW EAR)
+// АДАПТИВНЫЙ ДЕТЕКТОР РИТМА + TRANSIENT СРЕЗ (HPF)
 // ==========================================
 const ENV_SETTINGS = {
-    chunkMs: 10,        // Размер "Быстрого уха" (10 миллисекунд)
-    slowWindowMs: 150,  // Память "Медленного уха" (усредняет последние 150 мс)
-    triggerRatio: 1.9,  // Во сколько раз скачок должен быть громче фона (1.6 = на 60% громче)
-    noiseFloor: 0.015,  // Порог абсолютной тишины (срезаем фоновый шум комнаты)
-    holdOffMs: 100      // Слепая зона после удара (чтобы не дробить хрипотцу в голосе)
+    hpfCutoff: 1000,    // МАГИЯ: Срезаем всё ниже 1000 Гц (убиваем гул, бас и мычание)
+    chunkMs: 10,        // Размер окна (10 миллисекунд)
+    slowWindowMs: 150,  // Усреднение фона
+    triggerRatio: 2.0,  // Перепад громкости (щелчки очень резкие, ставим высокий порог)
+    noiseFloor: 0.005,  // Порог тишины
+    holdOffMs: 80       // Слепая зона
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9608,9 +9609,24 @@ async function analyzeV2mAudio(audioBuffer) {
     if (typeof clearV2mKeyboardHighlight === 'function') clearV2mKeyboardHighlight();
 
     const sampleRate = audioBuffer.sampleRate;
-    const channelData = audioBuffer.getChannelData(0);
+    const rawData = audioBuffer.getChannelData(0);
 
-    // Сетка квантования (для расстановки в секвенсоре)
+    // =========================================================
+    // 1. ВИРТУАЛЬНЫЙ ФИЛЬТР (МАГИЯ)
+    // Математически вырезаем басы и мычание из формы волны.
+    // Оставляем только высокочастотные щелчки от губ и языка.
+    // =========================================================
+    const filteredData = new Float32Array(rawData.length);
+    const dt = 1.0 / sampleRate;
+    const RC = 1.0 / (2.0 * Math.PI * ENV_SETTINGS.hpfCutoff);
+    const alpha = RC / (RC + dt);
+
+    filteredData[0] = rawData[0];
+    for (let i = 1; i < rawData.length; i++) {
+        filteredData[i] = alpha * (filteredData[i-1] + rawData[i] - rawData[i-1]);
+    }
+
+    // Сетка секвенсора
     const bpm = window.v2mSettings.bpm || 130;
     const qSelect = document.getElementById('v2m-quantize');
     let qDiv = 4;
@@ -9622,15 +9638,15 @@ async function analyzeV2mAudio(audioBuffer) {
     }
     const stepDuration = (60.0 / bpm) / qDiv;
 
-    // Перевод миллисекунд в сэмплы и чанки
     const chunkSamples = Math.floor(sampleRate * (ENV_SETTINGS.chunkMs / 1000));
     const slowHistoryChunks = Math.floor(ENV_SETTINGS.slowWindowMs / ENV_SETTINGS.chunkMs);
     const holdOffChunks = Math.floor(ENV_SETTINGS.holdOffMs / ENV_SETTINGS.chunkMs);
 
-    // 1. Разбиваем всю аудиодорожку на мелкие кусочки (по 10 мс) и считаем их громкость
+    // 2. Разбиваем уже ФИЛЬТРОВАННУЮ дорожку на чанки
     const rmsArray = [];
-    for (let i = 0; i < channelData.length; i += chunkSamples) {
-        let chunk = channelData.slice(i, i + chunkSamples);
+    for (let i = 0; i < filteredData.length; i += chunkSamples) {
+        // Используем subarray для скорости (не копирует данные в памяти)
+        let chunk = filteredData.subarray(i, i + chunkSamples);
         let sum = 0;
         for (let j = 0; j < chunk.length; j++) sum += chunk[j] * chunk[j];
         rmsArray.push(Math.sqrt(sum / chunk.length));
@@ -9639,15 +9655,13 @@ async function analyzeV2mAudio(audioBuffer) {
     const rawNotes = [];
     let chunksSinceHit = 9999;
 
-    // 2. Бежим по массиву громкостей и ищем перепады
+    // 3. Ищем удары по очищенным щелчкам
     for (let i = 0; i < rmsArray.length; i++) {
         chunksSinceHit++;
         let fastRms = rmsArray[i];
 
-        // Если это тишина комнаты - пропускаем (не тратим силы)
         if (fastRms < ENV_SETTINGS.noiseFloor) continue;
 
-        // Вычисляем "Медленное ухо": среднюю громкость за недавнее прошлое (мычание)
         let slowRmsSum = 0;
         let count = 0;
         for (let j = Math.max(0, i - slowHistoryChunks); j < i; j++) {
@@ -9656,15 +9670,9 @@ async function analyzeV2mAudio(audioBuffer) {
         }
         let slowRms = count > 0 ? (slowRmsSum / count) : 0;
 
-        // 3. ЛОГИКА УДАРА: 
-        // Если текущий звук в X раз громче недавнего фона -> ЭТО УДАР!
         if (fastRms > (slowRms * ENV_SETTINGS.triggerRatio) + (ENV_SETTINGS.noiseFloor * 0.5)) {
-            
-            // Проверяем слепую зону
             if (chunksSinceHit > holdOffChunks) {
                 const timeNow = (i * chunkSamples) / sampleRate;
-                
-                // Ставим ноту C4 (До)
                 rawNotes.push({ 
                     startTime: timeNow, 
                     duration: stepDuration,
@@ -9672,15 +9680,13 @@ async function analyzeV2mAudio(audioBuffer) {
                     noteName: 'C4', 
                     freq: null 
                 });
-                
-                chunksSinceHit = 0; // Уходим в слепую зону
+                chunksSinceHit = 0; 
             }
         }
     }
 
-    // Сохраняем результат
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (АДАПТИВНЫЙ РИТМ): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ФИЛЬТР + АДАПТИВ): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
