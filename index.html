@@ -9593,13 +9593,43 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// МЕТОД "ТЯЖЕЛОГО УТЮГА" + ГЛОБАЛЬНЫЕ ЛИНИИ
+// VOICE-TO-SYNTH ENGINE: СТРОГАЯ ЛОГИКА "ТА-ТУ-ТИ"
 // ==========================================
-const ENV_SETTINGS = {
-    ironWeightMs: 40,  // ВЕС УТЮГА (Затухание в мс). 50 = идеально замазывает микро-хрипы в сплошной холм.
-    lineOn: 0.20,      // ВЕРХНЯЯ ЛИНИЯ (15% от самого громкого пика во всей записи)
-    lineOff: 0.08      // НИЖНЯЯ ЛИНИЯ (5% от макс. пика). Как только звук упал ниже - алгоритм снова ищет удар.
+const V2M_ENGINE = {
+    attackThreshold: 0.15, // Порог старта (доля от макс. громкости). 0.15 = 15%
+    releaseThreshold: 0.05, // Порог отключения (тишина)
+    spikeRatio: 1.5,       // Ретриггер: новый звук должен быть в 1.5 раза громче текущего фона
+    pitchWaitMs: 30,       // Ждем 30мс, чтобы пропустить шумный плевок буквы "Т" (Hold-off)
+    pitchWindowMs: 40,     // Берем 40мс чистой гласной ("а", "у") для определения ноты
+    minFreq: 80,           // Срез низов: игнорируем бас/гул ниже 80 Гц
+    maxFreq: 1000,         // Срез верхов: игнорируем свист выше 1000 Гц
+    chunkMs: 5             // Анализируем звук очень быстрыми шагами по 5 миллисекунд
 };
+
+// Вспомогательная функция: Вычисляет высоту ноты (Pitch) по кусочку гласной буквы
+function detectPitch(buffer, sampleRate) {
+    let bestPeriod = 0;
+    let maxAc = 0;
+    const minPeriod = Math.floor(sampleRate / V2M_ENGINE.maxFreq);
+    const maxPeriod = Math.floor(sampleRate / V2M_ENGINE.minFreq);
+    
+    for (let period = minPeriod; period <= maxPeriod; period++) {
+        let ac = 0;
+        for (let i = 0; i < buffer.length - period; i++) {
+            ac += buffer[i] * buffer[i + period];
+        }
+        if (ac > maxAc) {
+            maxAc = ac;
+            bestPeriod = period;
+        }
+    }
+    return bestPeriod === 0 ? null : (sampleRate / bestPeriod);
+}
+
+// Перевод частоты в MIDI номер
+function freqToMidi(freq) {
+    return Math.round(69 + 12 * Math.log2(freq / 440));
+}
 
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
@@ -9612,84 +9642,93 @@ async function analyzeV2mAudio(audioBuffer) {
     const qSelect = document.getElementById('v2m-quantize');
     let qDiv = 4;
     if (qSelect) {
-        const qVal = qSelect.value;
-        if (qVal.includes('1/4')) qDiv = 1;
-        else if (qVal.includes('1/8')) qDiv = 2;
-        else if (qVal.includes('1/16')) qDiv = 4;
+        if (qSelect.value.includes('1/4')) qDiv = 1;
+        else if (qSelect.value.includes('1/8')) qDiv = 2;
+        else if (qSelect.value.includes('1/16')) qDiv = 4;
     }
     const stepDuration = (60.0 / bpm) / qDiv;
-
-    // ==========================================
-    // 1. ГЛАДИМ ВОЛНУ УТЮГОМ
-    // ==========================================
-    // Математика утюга: если звук резко пропал, наша "гладкая" волна не падает сразу в 0,
-    // а плавно скатывается вниз. Это убивает "пулемет" на 100%.
-    const decayFactor = Math.exp(-1.0 / (sampleRate * (ENV_SETTINGS.ironWeightMs / 1000.0)));
+    const chunkSamples = Math.floor(sampleRate * (V2M_ENGINE.chunkMs / 1000));
     
-    let currentEnv = 0;
-    let maxEnv = 0;
-    const smoothedWave = new Float32Array(channelData.length);
-
-    for (let i = 0; i < channelData.length; i++) {
-        const val = Math.abs(channelData[i]);
-        // Если звук резко скакнул - утюг мгновенно взлетает на вершину
-        if (val > currentEnv) {
-            currentEnv = val;
-        } else {
-            // Если звук пропал - утюг медленно опускается по склону
-            currentEnv = currentEnv * decayFactor;
-        }
-        smoothedWave[i] = currentEnv;
-        
-        // Запоминаем самую высокую гору в записи
-        if (currentEnv > maxEnv) {
-            maxEnv = currentEnv;
-        }
+    // 1. Ищем Максимальную Громкость записи для калибровки
+    let maxRms = 0;
+    for (let i = 0; i < channelData.length; i += chunkSamples) {
+        let sum = 0;
+        const limit = Math.min(i + chunkSamples, channelData.length);
+        for (let j = i; j < limit; j++) sum += channelData[j] * channelData[j];
+        const rms = Math.sqrt(sum / (limit - i));
+        if (rms > maxRms) maxRms = rms;
     }
 
-    if (maxEnv < 0.01) {
+    if (maxRms < 0.01) {
         window.v2mRawNotes = [];
         return;
     }
 
-    // ==========================================
-    // 2. РАСЧЕТ ВООБРАЖАЕМЫХ ЛИНИЙ
-    // ==========================================
-    const thresholdOn = maxEnv * ENV_SETTINGS.lineOn;
-    const thresholdOff = maxEnv * ENV_SETTINGS.lineOff;
+    const attackLevel = maxRms * V2M_ENGINE.attackThreshold;
+    const releaseLevel = maxRms * V2M_ENGINE.releaseThreshold;
 
-    let isTriggerArmed = true;     
+    let isNoteActive = false;
+    let currentNoteStart = 0;
+    let previousRms = 0;
     const rawNotes = [];
 
-    // ==========================================
-    // 3. ПОИСК ПЕРЕСЕЧЕНИЙ (СТАВИМ НОТЫ)
-    // ==========================================
-    for (let i = 0; i < smoothedWave.length; i++) {
-        const envVal = smoothedWave[i];
+    // 2. БЕЖИМ ПО АУДИО И ИЩЕМ СЛОГИ "ТА"
+    for (let i = 0; i < channelData.length; i += chunkSamples) {
+        const limit = Math.min(i + chunkSamples, channelData.length);
+        let sum = 0;
+        for (let j = i; j < limit; j++) sum += channelData[j] * channelData[j];
+        const rms = Math.sqrt(sum / (limit - i));
+        
         const timeNow = i / sampleRate;
+        const timeSinceStart = timeNow - currentNoteStart;
 
-        if (isTriggerArmed) {
-            // Ждем, когда гладкий холм пробьет ВЕРХНЮЮ линию
-            if (envVal > thresholdOn) {
-                rawNotes.push({ 
-                    startTime: timeNow, 
+        // ПРОВЕРЯЕМ УСЛОВИЯ СТАРТА: 
+        // 1. Ретриггер (звук резко скакнул в 1.5 раза)
+        // 2. Старт из тишины (пересекли базовый порог)
+        const isSpike = (rms > attackLevel && rms > previousRms * V2M_ENGINE.spikeRatio);
+        const isFromSilence = (rms > attackLevel && !isNoteActive);
+
+        if (isSpike || isFromSilence) {
+            // АНТИ-ПУЛЕМЕТ: пропускаем скачки, если после прошлого удара прошло меньше 50мс
+            if (!isNoteActive || timeSinceStart > 0.05) {
+                isNoteActive = true;
+                currentNoteStart = timeNow;
+                
+                // РАСЧЕТ ПИТЧА (ВЫСОТЫ НОТЫ)
+                const pitchStartIndex = i + Math.floor(sampleRate * (V2M_ENGINE.pitchWaitMs / 1000));
+                const pitchWindowLength = Math.floor(sampleRate * (V2M_ENGINE.pitchWindowMs / 1000));
+                let detectedMidi = 60; // Если питч не сработал - ставим C4
+                
+                // Вырезаем кусочек гласной буквы и замеряем частоту
+                if (pitchStartIndex + pitchWindowLength < channelData.length) {
+                    const pitchBuffer = channelData.slice(pitchStartIndex, pitchStartIndex + pitchWindowLength);
+                    const freq = detectPitch(pitchBuffer, sampleRate);
+                    // Проверяем, укладывается ли голос в диапазон 80-1000 Гц
+                    if (freq && freq >= V2M_ENGINE.minFreq && freq <= V2M_ENGINE.maxFreq) {
+                        detectedMidi = freqToMidi(freq);
+                    }
+                }
+                
+                rawNotes.push({
+                    startTime: currentNoteStart,
                     duration: stepDuration,
-                    midi: 60,
+                    midi: detectedMidi,
                     noteName: 'C4', 
-                    freq: null 
+                    freq: null
                 });
-                isTriggerArmed = false; // Запрещаем ставить ноты, пока холм не кончится
             }
-        } else {
-            // Ждем, когда гладкий холм опустится ниже НИЖНЕЙ линии
-            if (envVal < thresholdOff) {
-                isTriggerArmed = true; // Ура, тишина наступила! Снова готовы к удару.
+        } else if (isNoteActive && rms < releaseLevel) {
+            // Пользователь замолчал (тишина) -> закрываем ноту
+            if (timeSinceStart > 0.05) {
+                isNoteActive = false;
             }
         }
+
+        previousRms = rms;
     }
 
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ТЯЖЕЛЫЙ УТЮГ): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ТА-ТУ-ТИ ENGINE): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
