@@ -9593,14 +9593,13 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// КЛАССИЧЕСКИЙ ДЕТЕКТОР ОГИБАЮЩЕЙ (ДВОЙНОЙ ПОРОГ)
+// TRANSIENT (DELTA) DETECTOR - ПО ЗАВЕТАМ ДЖЕМИНИ
 // ==========================================
 const ENV_SETTINGS = {
-    rmsWindowMs: 20,       // Окно сглаживания (20мс - баланс между четкостью и плавностью)
-    thresholdOn: 0.35,     // Верхний порог: 35% от пиковой громкости (для старта удара)
-    thresholdOff: 0.15,    // Нижний порог: 15% от пиковой громкости (для конца удара)
-    holdOffMs: 10,        // СТРОГАЯ СЛЕПАЯ ЗОНА: 120мс. Пулемет физически невозможен.
-    sensitivityBoost: 2.0  // УСИЛИТЕЛЬ: 2.0 делает алгоритм в 2 раза чувствительнее к тихим звукам.
+    rmsWindowMs: 15,       // Короткое окно (15мс) для быстрого отлова скачков (Атака)
+    deltaThreshold: 0.12,  // Насколько резко должна подскочить громкость (доля от Макс. Пика). 0.12 = скачок на 12%
+    holdOffMs: 130,        // Строгая слепая зона (кулдаун 130мс) от пулемета
+    noiseFloor: 0.01       // Порог абсолютной тишины (срезаем фоновый шум комнаты)
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9624,7 +9623,7 @@ async function analyzeV2mAudio(audioBuffer) {
     const windowSamples = Math.floor(sampleRate * (ENV_SETTINGS.rmsWindowMs / 1000));
     const holdOffSamples = Math.floor(sampleRate * (ENV_SETTINGS.holdOffMs / 1000));
 
-    // 1. Ищем Абсолютный Пик (Max RMS)
+    // 1. Ищем Абсолютный Пик (чтобы знать масштаб трагедии)
     let maxRms = 0;
     for (let i = 0; i < channelData.length; i += windowSamples) {
         const chunk = channelData.slice(i, i + windowSamples);
@@ -9639,16 +9638,11 @@ async function analyzeV2mAudio(audioBuffer) {
         return;
     }
 
-    // Применяем чувствительность: искусственно занижаем "пик", 
-    // чтобы пороги срабатывания стали ниже
-    let adjustedMaxRms = maxRms / ENV_SETTINGS.sensitivityBoost; 
-    
-    // Защита от фонового шума
-    const actualThresholdOn = Math.max(0.015, adjustedMaxRms * ENV_SETTINGS.thresholdOn);
-    const actualThresholdOff = Math.max(0.005, adjustedMaxRms * ENV_SETTINGS.thresholdOff);
+    // Порог скачка: звук должен резко прыгнуть минимум на X% от максимальной громкости записи
+    const jumpThreshold = maxRms * ENV_SETTINGS.deltaThreshold;
 
-    let isTriggerArmed = true;     
-    let lastHitSampleIndex = -999999; // Уводим глубоко в минус, чтобы первый удар прошел сразу
+    let lastHitSampleIndex = -999999;
+    let previousRms = 0;
     const rawNotes = [];
 
     for (let i = 0; i < channelData.length; i += windowSamples) {
@@ -9661,37 +9655,34 @@ async function analyzeV2mAudio(audioBuffer) {
 
         const timeNow = i / sampleRate;
 
-        // Если защелка взведена (мы готовы ловить удар)
-        if (isTriggerArmed) {
-            // И звук превысил верхний порог
-            if (rms > actualThresholdOn) {
-                // И при этом прошло достаточно времени с прошлого удара (жесткий анти-пулемет)
-                const samplesSinceHit = i - lastHitSampleIndex;
-                if (samplesSinceHit > holdOffSamples) {
-                    rawNotes.push({ 
-                        startTime: timeNow, 
-                        duration: stepDuration,
-                        midi: 60,
-                        noteName: 'C4', 
-                        freq: null 
-                    });
-                    
-                    lastHitSampleIndex = i;
-                    isTriggerArmed = false; // Захлопываем защелку
-                }
-            }
-        } else {
-            // Если мы ждем отпускания защелки
+        // 2. Считаем Дельту (насколько текущий шаг громче прошлого)
+        const delta = rms - previousRms;
+
+        // 3. ЛОГИКА АТАКИ (TRANSIENT DETECTOR):
+        // Если звук резко подскочил вверх (delta > jumpThreshold) 
+        // И он громче базового шума
+        // И прошел кулдаун (анти-пулемет)
+        if (delta > jumpThreshold && rms > ENV_SETTINGS.noiseFloor) {
             const samplesSinceHit = i - lastHitSampleIndex;
-            // Проверяем: слепая зона прошла? И звук упал ниже нижнего порога?
-            if (samplesSinceHit > holdOffSamples && rms < actualThresholdOff) {
-                isTriggerArmed = true; // Взводим защелку для следующего удара
+            if (samplesSinceHit > holdOffSamples) {
+                // БАМ! Удар! (Принудительный Retrigger)
+                rawNotes.push({ 
+                    startTime: timeNow, 
+                    duration: stepDuration,
+                    midi: 60,
+                    noteName: 'C4', 
+                    freq: null 
+                });
+                lastHitSampleIndex = i;
             }
         }
+
+        // Запоминаем текущий RMS для следующего шага
+        previousRms = rms;
     }
 
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ОГИБАЮЩАЯ + АНТИПУЛЕМЕТ): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ДЕТЕКТОР АТАКИ/ДЕЛЬТА): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
