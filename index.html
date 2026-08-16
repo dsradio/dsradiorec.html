@@ -9592,102 +9592,86 @@ function detectPitchAcoustic(buffer, sampleRate) {
     return { freq: freq, isHarmonic: isHarmonic, rms: rms };
 }
 
-// ИДЕАЛЬНЫЙ ДЕТЕКТОР РИТМА (БAРАБАННЫЙ ТРИГГЕР + ГИСТЕРЕЗИС / ТРИГГЕР ШМИТТА)
+// ==========================================
+// НАСТРОЙКИ ДЕТЕКТОРА ОГИБАЮЩЕЙ (ENVELOPE FOLLOWER)
+// ==========================================
+const ENV_SETTINGS = {
+    rmsWindowMs: 30,    // Окно сглаживания (в миллисекундах). Меньше = резче, Больше = плавнее.
+    thresholdOn: 0.4,   // Порог срабатывания (от 0 до 1). Уровень RMS для старта удара.
+    thresholdOff: 0.2,  // Порог отключения (от 0 до 1). Уровень RMS для завершения удара.
+    holdOffMs: 80       // Период "глухоты" (в миллисекундах) после старта удара.
+};
+
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
-    clearV2mKeyboardHighlight();
+    if (typeof clearV2mKeyboardHighlight === 'function') clearV2mKeyboardHighlight();
 
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    // Читаем сетку для установки длины короткой ноты
-    const bpm = window.v2mSettings.bpm || 130;
-    const qSelect = document.getElementById('v2m-quantize');
-    let qDiv = 4; // 1/16 доли
-    if (qSelect) {
-        const qVal = qSelect.value;
-        if (qVal.includes('1/4')) qDiv = 1;
-        else if (qVal.includes('1/8')) qDiv = 2;
-        else if (qVal.includes('1/16')) qDiv = 4;
-    }
-    const stepDuration = (60.0 / bpm) / qDiv;
+    // Переводим миллисекунды в количество сэмплов
+    const windowSamples = Math.floor(sampleRate * (ENV_SETTINGS.rmsWindowMs / 1000));
+    const holdOffSamples = Math.floor(sampleRate * (ENV_SETTINGS.holdOffMs / 1000));
 
-    // ЖЕЛЕЗОБЕТОННЫЕ НАСТРОЙКИ ДЕТЕКТОРА
-    const windowSize = Math.floor(sampleRate * 0.01); // Окно 10ms
-    const debounceTime = 0.15; // Слепая зона 150ms после удара
-
-    // 1. Нормализация: Находим Абсолютный Пик (максимальную громкость) записи
+    // 1. Предварительный проход: ищем Абсолютный Пик (Max RMS), чтобы пороги работали относительно громкости записи
     let maxRms = 0;
-    for (let i = 0; i < channelData.length; i += windowSize) {
-        const chunk = channelData.slice(i, i + windowSize);
+    for (let i = 0; i < channelData.length; i += windowSamples) {
+        const chunk = channelData.slice(i, i + windowSamples);
         let rms = 0;
         for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
         rms = Math.sqrt(rms / chunk.length);
         if (rms > maxRms) maxRms = rms;
     }
 
-    // Если запись совсем пустая (одна тишина) - выходим
-    if (maxRms < 0.01) {
-        window.v2mRawNotes = [];
+    if (maxRms < 0.005) {
+        console.log("ЗАПИСЬ ПУСТАЯ (ОДНА ТИШИНА)");
         return;
     }
 
-    // 2. Устанавливаем двойной порог (Гистерезис)
-    // 30% от максимума для срабатывания (ON)
-    // 10% от максимума для сброса защелки (OFF)
-    const thresholdON = Math.max(0.015, maxRms * 0.30);
-    const thresholdOFF = Math.max(0.005, maxRms * 0.10);
+    // Вычисляем реальные пороги в зависимости от максимальной громкости записи
+    const actualThresholdOn = maxRms * ENV_SETTINGS.thresholdOn;
+    const actualThresholdOff = maxRms * ENV_SETTINGS.thresholdOff;
 
-    let isTriggerArmed = true; // Защелка взведена (готова к бою)
-    let lastHitTime = -1;
-    const rawNotes = [];
+    let isTriggerArmed = true;     // Защелка взведена (готовы ловить удар)
+    let lastHitSampleIndex = -1;   // Индекс сэмпла, когда произошел последний удар
 
-    for (let i = 0; i < channelData.length; i += windowSize) {
-        const chunk = channelData.slice(i, i + windowSize);
-        if (chunk.length < windowSize / 2) break;
+    console.log("=== НАЧАЛО АНАЛИЗА РИТМА ===");
+    console.log(`Max RMS записи: ${maxRms.toFixed(4)}`);
+    console.log(`Порог ON: ${actualThresholdOn.toFixed(4)}, Порог OFF: ${actualThresholdOff.toFixed(4)}`);
 
-        // Считаем громкость текущих 10 миллисекунд
+    for (let i = 0; i < channelData.length; i += windowSamples) {
+        const chunk = channelData.slice(i, i + windowSamples);
+        if (chunk.length < windowSamples / 2) break;
+
+        // Считаем RMS текущего окна
         let rms = 0;
         for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
         rms = Math.sqrt(rms / chunk.length);
 
-        const timeNow = i / sampleRate;
+        const timeNow = (i / sampleRate).toFixed(3);
 
         if (isTriggerArmed) {
-            // Ждем пробития ВЕРХНЕГО порога (Начало удара)
-            if (rms > thresholdON) {
-                // ЕСТЬ УДАР! Ставим жестко ноту C4 (MIDI 60)
-                rawNotes.push({ 
-                    startTime: timeNow, 
-                    duration: stepDuration, // Коротенький триггер
-                    midi: 60,               // Нота ДО (C4)
-                    noteName: 'C4', 
-                    freq: null 
-                });
-                
-                lastHitTime = timeNow;
-                isTriggerArmed = false; // Захлопываем защелку (глушим триггер)
+            // Ждем пробития порога ON
+            if (rms > actualThresholdOn) {
+                console.log(`[${timeNow}s] 🔴 СТАРТ УДАРА (RMS: ${rms.toFixed(4)})`);
+                lastHitSampleIndex = i;
+                isTriggerArmed = false; // Блокируем триггер
             }
         } else {
             // Триггер заблокирован. 
-            // Ждем, пока пройдет "слепая зона" И юзер замолчит (пробитие НИЖНЕГО порога)
-            if (timeNow - lastHitTime > debounceTime && rms < thresholdOFF) {
-                isTriggerArmed = true; // Снимаем блокировку, готовы к следующему удару
+            // Проверяем, прошло ли время Hold-off (период глухоты)
+            const samplesSinceHit = i - lastHitSampleIndex;
+            
+            if (samplesSinceHit > holdOffSamples) {
+                // Время глухоты прошло, теперь ждем падения громкости ниже порога OFF
+                if (rms < actualThresholdOff) {
+                    console.log(`[${timeNow}s] ⚪ КОНЕЦ УДАРА (RMS: ${rms.toFixed(4)})`);
+                    isTriggerArmed = true; // Снимаем блокировку, готовы ловить следующий удар
+                }
             }
         }
     }
-
-    // Сохраняем в память
-    window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ГРУВ-ДЕТЕКТОР С ГИСТЕРЕЗИСОМ): ", rawNotes);
-
-    // Подсвечиваем клавишу C4 на экране (она будет одна)
-    const activeMidiSet = new Set(rawNotes.map(n => n.midi));
-    activeMidiSet.forEach(midi => { highlightV2mKey(midi); });
-
-    // Центрируем скролл пианино на средних октавах
-    const kb = document.getElementById('v2m-keyboard-scroll');
-    if (kb) kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2;
+    console.log("=== КОНЕЦ АНАЛИЗА РИТМА ===");
 }
 
 function renderV2mNotes(notes) {
