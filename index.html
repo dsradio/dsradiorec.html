@@ -9596,10 +9596,11 @@ function detectPitchAcoustic(buffer, sampleRate) {
 // НАСТРОЙКИ ДЕТЕКТОРА ОГИБАЮЩЕЙ (ENVELOPE FOLLOWER)
 // ==========================================
 const ENV_SETTINGS = {
-    rmsWindowMs: 30,    // Окно сглаживания
-    thresholdOn: 0.4,   // Порог старта удара (от пика)
-    thresholdOff: 0.2,  // Порог конца удара (от пика)
-    holdOffMs: 80       // Слепая зона
+    rmsWindowMs: 30,       // Окно сглаживания
+    thresholdOn: 0.4,      // Порог старта удара (доля от пика)
+    thresholdOff: 0.2,     // Порог конца удара (доля от пика)
+    holdOffMs: 80,         // Слепая зона
+    sensitivityBoost: 1.5  // ЧУВСТВИТЕЛЬНОСТЬ: 1.0 (стандарт), 2.0 (в 2 раза чувствительнее), 3.0 (суперчувствительный)
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9609,10 +9610,9 @@ async function analyzeV2mAudio(audioBuffer) {
     const sampleRate = audioBuffer.sampleRate;
     const channelData = audioBuffer.getChannelData(0);
 
-    // Читаем настройки сетки для квантования длины нот
     const bpm = window.v2mSettings.bpm || 130;
     const qSelect = document.getElementById('v2m-quantize');
-    let qDiv = 4; // 1/16 доли
+    let qDiv = 4;
     if (qSelect) {
         const qVal = qSelect.value;
         if (qVal.includes('1/4')) qDiv = 1;
@@ -9621,11 +9621,10 @@ async function analyzeV2mAudio(audioBuffer) {
     }
     const stepDuration = (60.0 / bpm) / qDiv;
 
-    // Переводим миллисекунды в сэмплы
     const windowSamples = Math.floor(sampleRate * (ENV_SETTINGS.rmsWindowMs / 1000));
     const holdOffSamples = Math.floor(sampleRate * (ENV_SETTINGS.holdOffMs / 1000));
 
-    // 1. Нормализация (ищем пик)
+    // 1. Ищем Абсолютный Пик (Max RMS)
     let maxRms = 0;
     for (let i = 0; i < channelData.length; i += windowSamples) {
         const chunk = channelData.slice(i, i + windowSamples);
@@ -9640,8 +9639,13 @@ async function analyzeV2mAudio(audioBuffer) {
         return;
     }
 
-    const actualThresholdOn = maxRms * ENV_SETTINGS.thresholdOn;
-    const actualThresholdOff = maxRms * ENV_SETTINGS.thresholdOff;
+    // Применяем чувствительность: искусственно занижаем "пик", 
+    // чтобы пороги срабатывания стали ниже (алгоритм стал более чутким)
+    let adjustedMaxRms = maxRms / ENV_SETTINGS.sensitivityBoost; 
+    
+    // Защита: порог ON не может быть ниже 1% от абсолютной шкалы, чтобы не ловить фоновый шум комнаты
+    const actualThresholdOn = Math.max(0.01, adjustedMaxRms * ENV_SETTINGS.thresholdOn);
+    const actualThresholdOff = Math.max(0.005, adjustedMaxRms * ENV_SETTINGS.thresholdOff);
 
     let isTriggerArmed = true;     
     let lastHitSampleIndex = -1;   
@@ -9659,15 +9663,13 @@ async function analyzeV2mAudio(audioBuffer) {
 
         if (isTriggerArmed) {
             if (rms > actualThresholdOn) {
-                // ЕСТЬ УДАР! Ставим короткую ноту C4 (MIDI 60)
                 rawNotes.push({ 
                     startTime: timeNow, 
-                    duration: stepDuration, // Фиксированная короткая длина
-                    midi: 60,               // Фиксированная высота (До)
+                    duration: stepDuration,
+                    midi: 60,
                     noteName: 'C4', 
                     freq: null 
                 });
-                
                 lastHitSampleIndex = i;
                 isTriggerArmed = false; 
             }
@@ -9681,11 +9683,9 @@ async function analyzeV2mAudio(audioBuffer) {
         }
     }
 
-    // Сохраняем в память приложения (теперь кнопка MIDI это увидит)
     window.v2mRawNotes = rawNotes;
     console.log("СЫРЫЕ НОТЫ (ОГИБАЮЩАЯ): ", rawNotes);
 
-    // Подсвечиваем клавишу на пианино
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
         if (typeof highlightV2mKey === 'function') highlightV2mKey(midi); 
