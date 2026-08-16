@@ -9592,7 +9592,7 @@ function detectPitchAcoustic(buffer, sampleRate) {
     return { freq: freq, isHarmonic: isHarmonic, rms: rms };
 }
 
-// ИДЕАЛЬНЫЙ ДЕТЕКТОР РИТМА (ONSET DETECTOR / БАРАБАННЫЙ ТРИГГЕР)
+// ИДЕАЛЬНЫЙ ДЕТЕКТОР РИТМА (БAРАБАННЫЙ ТРИГГЕР + ГИСТЕРЕЗИС / ТРИГГЕР ШМИТТА)
 async function analyzeV2mAudio(audioBuffer) {
     if (!audioBuffer) return;
     clearV2mKeyboardHighlight();
@@ -9613,32 +9613,50 @@ async function analyzeV2mAudio(audioBuffer) {
     const stepDuration = (60.0 / bpm) / qDiv;
 
     // ЖЕЛЕЗОБЕТОННЫЕ НАСТРОЙКИ ДЕТЕКТОРА
-    const windowSize = Math.floor(sampleRate * 0.01); // Окно 10ms (молниеносная реакция на атаку)
-    const minRms = 0.015; // Порог тишины (игнорируем фоновый шум)
-    const debounceTime = 0.15; // Слепая зона 150ms после удара!
+    const windowSize = Math.floor(sampleRate * 0.01); // Окно 10ms
+    const debounceTime = 0.15; // Слепая зона 150ms после удара
 
+    // 1. Нормализация: Находим Абсолютный Пик (максимальную громкость) записи
+    let maxRms = 0;
+    for (let i = 0; i < channelData.length; i += windowSize) {
+        const chunk = channelData.slice(i, i + windowSize);
+        let rms = 0;
+        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
+        rms = Math.sqrt(rms / chunk.length);
+        if (rms > maxRms) maxRms = rms;
+    }
+
+    // Если запись совсем пустая (одна тишина) - выходим
+    if (maxRms < 0.01) {
+        window.v2mRawNotes = [];
+        return;
+    }
+
+    // 2. Устанавливаем двойной порог (Гистерезис)
+    // 30% от максимума для срабатывания (ON)
+    // 10% от максимума для сброса защелки (OFF)
+    const thresholdON = Math.max(0.015, maxRms * 0.30);
+    const thresholdOFF = Math.max(0.005, maxRms * 0.10);
+
+    let isTriggerArmed = true; // Защелка взведена (готова к бою)
     let lastHitTime = -1;
-    let prevRms = 0;
     const rawNotes = [];
 
     for (let i = 0; i < channelData.length; i += windowSize) {
         const chunk = channelData.slice(i, i + windowSize);
         if (chunk.length < windowSize / 2) break;
 
-        // Считаем громкость текущих 10 миллисекунд (RMS)
+        // Считаем громкость текущих 10 миллисекунд
         let rms = 0;
         for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
         rms = Math.sqrt(rms / chunk.length);
 
         const timeNow = i / sampleRate;
 
-        // ЛОГИКА УДАРА: Звук громче тишины И подскочил почти в 2 раза по сравнению с фоном!
-        if (rms > minRms && rms > prevRms * 1.8) {
-            
-            // Проверяем "слепую зону" (Debounce)
-            if (timeNow - lastHitTime > debounceTime) {
-                
-                // ЕСТЬ УДАР! Ставим жестко ноту C4 (MIDI 60) и фиксируем ее длину
+        if (isTriggerArmed) {
+            // Ждем пробития ВЕРХНЕГО порога (Начало удара)
+            if (rms > thresholdON) {
+                // ЕСТЬ УДАР! Ставим жестко ноту C4 (MIDI 60)
                 rawNotes.push({ 
                     startTime: timeNow, 
                     duration: stepDuration, // Коротенький триггер
@@ -9648,16 +9666,20 @@ async function analyzeV2mAudio(audioBuffer) {
                 });
                 
                 lastHitTime = timeNow;
+                isTriggerArmed = false; // Захлопываем защелку (глушим триггер)
+            }
+        } else {
+            // Триггер заблокирован. 
+            // Ждем, пока пройдет "слепая зона" И юзер замолчит (пробитие НИЖНЕГО порога)
+            if (timeNow - lastHitTime > debounceTime && rms < thresholdOFF) {
+                isTriggerArmed = true; // Снимаем блокировку, готовы к следующему удару
             }
         }
-        
-        // Плавная адаптация фона (чтобы ловить только РЕЗКИЕ скачки вверх)
-        prevRms = (prevRms * 0.5) + (rms * 0.5);
     }
 
     // Сохраняем в память
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (РИТМ-ДЕТЕКТОР): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ГРУВ-ДЕТЕКТОР С ГИСТЕРЕЗИСОМ): ", rawNotes);
 
     // Подсвечиваем клавишу C4 на экране (она будет одна)
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
