@@ -9593,13 +9593,12 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// TRANSIENT (DELTA) DETECTOR - ПО ЗАВЕТАМ ДЖЕМИНИ
+// ВИЗУАЛЬНЫЙ ДЕТЕКТОР (ПОИСК ГОРНЫХ ВЕРШИН)
 // ==========================================
 const ENV_SETTINGS = {
-    rmsWindowMs: 15,       // Короткое окно (15мс) для быстрого отлова скачков (Атака)
-    deltaThreshold: 0.20,  // Насколько резко должна подскочить громкость (доля от Макс. Пика). 0.12 = скачок на 12%
-    holdOffMs: 100,        // Строгая слепая зона (кулдаун 130мс) от пулемета
-    noiseFloor: 0.01       // Порог абсолютной тишины (срезаем фоновый шум комнаты)
+    chunkMs: 10,           // "Ширина пикселя" (в миллисекундах). Сжимаем волну для простоты.
+    searchRadiusMs: 80,    // Радиус поиска. Гора должна быть самой высокой в радиусе 80 мс влево и вправо.
+    minPeakVolume: 0.15    // Порог пыли. Гора должна быть не ниже 15% от самого громкого удара в записи.
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9620,69 +9619,67 @@ async function analyzeV2mAudio(audioBuffer) {
     }
     const stepDuration = (60.0 / bpm) / qDiv;
 
-    const windowSamples = Math.floor(sampleRate * (ENV_SETTINGS.rmsWindowMs / 1000));
-    const holdOffSamples = Math.floor(sampleRate * (ENV_SETTINGS.holdOffMs / 1000));
+    // 1. ПИКСЕЛИЗАЦИЯ (Сжимаем 44100 точек в секунду до 100 блоков)
+    const chunkSamples = Math.floor(sampleRate * (ENV_SETTINGS.chunkMs / 1000));
+    const blocks = [];
+    let maxAbsVolume = 0;
 
-    // 1. Ищем Абсолютный Пик (чтобы знать масштаб трагедии)
-    let maxRms = 0;
-    for (let i = 0; i < channelData.length; i += windowSamples) {
-        const chunk = channelData.slice(i, i + windowSamples);
-        let rms = 0;
-        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
-        rms = Math.sqrt(rms / chunk.length);
-        if (rms > maxRms) maxRms = rms;
+    for (let i = 0; i < channelData.length; i += chunkSamples) {
+        let maxInChunk = 0;
+        const limit = Math.min(i + chunkSamples, channelData.length);
+        for (let j = i; j < limit; j++) {
+            const val = Math.abs(channelData[j]);
+            if (val > maxInChunk) maxInChunk = val;
+        }
+        blocks.push(maxInChunk);
+        if (maxInChunk > maxAbsVolume) maxAbsVolume = maxInChunk;
     }
 
-    if (maxRms < 0.005) {
+    if (maxAbsVolume < 0.01) {
         window.v2mRawNotes = [];
         return;
     }
 
-    // Порог скачка: звук должен резко прыгнуть минимум на X% от максимальной громкости записи
-    const jumpThreshold = maxRms * ENV_SETTINGS.deltaThreshold;
-
-    let lastHitSampleIndex = -999999;
-    let previousRms = 0;
+    const dustThreshold = maxAbsVolume * ENV_SETTINGS.minPeakVolume;
+    const searchRadiusChunks = Math.floor(ENV_SETTINGS.searchRadiusMs / ENV_SETTINGS.chunkMs);
     const rawNotes = [];
 
-    for (let i = 0; i < channelData.length; i += windowSamples) {
-        const chunk = channelData.slice(i, i + windowSamples);
-        if (chunk.length < windowSamples / 2) break;
+    // 2. ПОИСК ВЕРШИН (Локальные Максимумы)
+    for (let i = 0; i < blocks.length; i++) {
+        const currentVol = blocks[i];
 
-        let rms = 0;
-        for (let j = 0; j < chunk.length; j++) rms += chunk[j] * chunk[j];
-        rms = Math.sqrt(rms / chunk.length);
+        // Отсеиваем пыль (всё, что ниже линии шума)
+        if (currentVol < dustThreshold) continue;
 
-        const timeNow = i / sampleRate;
+        let isPeak = true;
 
-        // 2. Считаем Дельту (насколько текущий шаг громче прошлого)
-        const delta = rms - previousRms;
-
-        // 3. ЛОГИКА АТАКИ (TRANSIENT DETECTOR):
-        // Если звук резко подскочил вверх (delta > jumpThreshold) 
-        // И он громче базового шума
-        // И прошел кулдаун (анти-пулемет)
-        if (delta > jumpThreshold && rms > ENV_SETTINGS.noiseFloor) {
-            const samplesSinceHit = i - lastHitSampleIndex;
-            if (samplesSinceHit > holdOffSamples) {
-                // БАМ! Удар! (Принудительный Retrigger)
-                rawNotes.push({ 
-                    startTime: timeNow, 
-                    duration: stepDuration,
-                    midi: 60,
-                    noteName: 'C4', 
-                    freq: null 
-                });
-                lastHitSampleIndex = i;
+        // Смотрим влево и вправо по "пикселям"
+        for (let j = 1; j <= searchRadiusChunks; j++) {
+            // Если слева есть кто-то такой же или выше — это не начало горы, пропускаем
+            if (i - j >= 0 && blocks[i - j] >= currentVol) { 
+                isPeak = false; break; 
+            }
+            // Если справа есть кто-то строго выше — мы еще на склоне, а не на вершине
+            if (i + j < blocks.length && blocks[i + j] > currentVol) { 
+                isPeak = false; break; 
             }
         }
 
-        // Запоминаем текущий RMS для следующего шага
-        previousRms = rms;
+        if (isPeak) {
+            // Нашли вершину! Ставим флажок (ноту)
+            const timeNow = (i * chunkSamples) / sampleRate;
+            rawNotes.push({ 
+                startTime: timeNow, 
+                duration: stepDuration,
+                midi: 60,
+                noteName: 'C4', 
+                freq: null 
+            });
+        }
     }
 
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ДЕТЕКТОР АТАКИ/ДЕЛЬТА): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ГОРНЫЕ ВЕРШИНЫ): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
