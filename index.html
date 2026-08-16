@@ -1611,110 +1611,60 @@ top: 2px; }
 </div>
 
                             <div class="set-section">
-    <div class="set-header" onclick="toggleSetSection(this); setTimeout(() => { const kb = document.getElementById('v2m-keyboard-scroll'); if(kb) kb.scrollLeft = (kb.scrollWidth - kb.clientWidth) / 2; }, 50);" style="color: #ff66ff; border-color: #aa00ff;">Voice to MIDI Engine</div>
+    <div class="set-header" onclick="toggleSetSection(this)" style="color: #ff3333; border-color: #ff0000;">🎙️ AUDIO NOTE (IDEAS)</div>
     <div class="set-content" style="padding: 10px;">
         
         <!-- ЭКРАН 1: AUDIO WAVEFORM & PLAYHEAD -->
-        <div class="hw-screen-glass" style="height: 70px; margin-bottom: 8px; position: relative;">
-            <div style="position: absolute; width: 100%; height: 100%; background-image: linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 25% 100%, 6.25% 100%; z-index: 1;"></div>
-            <canvas id="v2m-wave-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;"></canvas>
-            <div id="v2m-playhead" style="position: absolute; top: 0; bottom: 0; left: 0%; width: 2px; background: #ff003c; box-shadow: 0 0 8px #ff003c; z-index: 5; display: none;"></div>
-            <div style="position: absolute; top: 4px; left: 6px; font-size: 9px; color: #ff003c; font-weight: bold; letter-spacing: 1px; z-index: 3;">AUDIO INPUT</div>
-            <div style="position: absolute; top: 4px; right: 6px; font-size: 9px; color: #777; font-weight: bold; letter-spacing: 1px; z-index: 3;" id="v2m-len-display">LEN: 16</div>
+        <div class="hw-screen-glass" id="audio-note-screen" style="height: 140px; margin-bottom: 8px; position: relative; display: flex; flex-direction: column;">
+            <!-- Внутреннее свечение при записи (тень внутрь по периметру) -->
+            <style>
+                #audio-note-screen { transition: box-shadow 0.1s; }
+                #audio-note-screen.is-recording {
+                    box-shadow: inset 0 0 30px rgba(255, 0, 60, 0.8), inset 0 0 10px rgba(255, 0, 60, 0.5), 0 1px 2px rgba(255,255,255,0.08) !important;
+                    animation: anBlink 0.6s infinite alternate;
+                }
+                @keyframes anBlink {
+                    0% { box-shadow: inset 0 0 10px rgba(255, 0, 60, 0.4), inset 0 0 5px rgba(255, 0, 60, 0.2), 0 1px 2px rgba(255,255,255,0.08) !important; }
+                    100% { box-shadow: inset 0 0 40px rgba(255, 0, 60, 1), inset 0 0 15px rgba(255, 0, 60, 0.8), 0 1px 2px rgba(255,255,255,0.08) !important; }
+                }
+            </style>
+            
+            <div id="v2m-scroll-container" style="flex: 1; position: relative; overflow-x: auto; overflow-y: hidden; z-index: 3; -webkit-overflow-scrolling: touch; scroll-behavior: smooth;">
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 64px 100%, 16px 100%; z-index: 1;" id="an-grid-bg"></div>
+                <canvas id="v2m-wave-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;"></canvas>
+                <div id="v2m-playhead" style="position: absolute; top: 0; bottom: 0; left: 0px; width: 2px; background: #ff003c; box-shadow: 0 0 8px #ff003c; z-index: 5; display: none;"></div>
+            </div>
+            
+            <div style="position: absolute; top: 4px; left: 6px; font-size: 9px; color: #ff003c; font-weight: bold; letter-spacing: 1px; z-index: 10; pointer-events: none;">AUDIO NOTE</div>
+            <div style="position: absolute; top: 4px; right: 6px; font-size: 9px; color: #777; font-weight: bold; letter-spacing: 1px; z-index: 10; pointer-events: none;" id="v2m-len-display">LEN: 64</div>
         </div>
 
-        <!-- ЭКРАН 2: LIVE KEYS (5 октав, только названия нот без цифр, строго по центру) -->
-        <style>
-            #v2m-keyboard-scroll::-webkit-scrollbar {
-                height: 5px;
-            }
-            #v2m-keyboard-scroll::-webkit-scrollbar-track {
-                background: #111;
-                border-radius: 0 0 4px 4px;
-            }
-            #v2m-keyboard-scroll::-webkit-scrollbar-thumb {
-                background: #00ffff55;
-                border-radius: 3px;
-            }
-            #v2m-keyboard-scroll::-webkit-scrollbar-thumb:hover {
-                background: #00ffffaa;
-            }
-        </style>
-        <div class="hw-screen-glass" style="height: 95px; margin-bottom: 15px;">
-            <div style="position: absolute; left: 5px; top: 4px; font-size: 9px; color: #00ffff; font-weight: bold; letter-spacing: 1px; z-index: 10; pointer-events: none;">DETECTED NOTES</div>
-            <div id="v2m-keyboard-scroll" style="width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden; position: relative; z-index: 3; -webkit-overflow-scrolling: touch;">
-            <!-- Широкий контейнер на 5 октав -->
-            <div style="width: 500%; height: 74px; display: flex; padding-top: 15px; box-sizing: border-box;">
-                
-                <!-- ОКТАВА 1 -->
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
-
-                <!-- ОКТАВА 2 -->
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
-
-                <!-- ОКТАВА 3 (Центральная) -->
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
-
-                <!-- ОКТАВА 4 -->
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
-
-                <!-- ОКТАВА 5 -->
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">C<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">D<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">E</div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">F<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">G<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">A<div class="v2m-key-b" style="position: absolute; right: -25%; top: 0; width: 50%; height: 60%; background: #050505; border: 1px solid #222; border-radius: 0 0 3px 3px; z-index: 2; box-shadow: 2px 2px 3px rgba(0,0,0,0.8);"></div></div>
-                <div class="v2m-key-w" style="flex: 1; border: 1px solid #333; background: #1a1a1a; border-radius: 0 0 4px 4px; margin: 0 1px; position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; box-sizing: border-box; color: #555; font-size: 9px; font-weight: bold;">B</div>
-
-            </div>
-            </div>
+        <!-- ZOOM SLIDER -->
+        <div style="margin-bottom: 12px; padding: 0 5px;">
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: #888; font-weight: bold; margin-bottom: 4px;"><span>ZOOM (SCALE)</span></div>
+            <input type="range" class="set-range native-slider" id="an-zoom-slider" min="1" max="10" value="1" step="0.1" style="width: 100%;">
         </div>
 
-        <!-- V2M SETTINGS -->
+        <!-- НАСТРОЙКИ -->
         <div class="set-row" style="margin-bottom: 12px;">
             <div style="display: flex; gap: 8px;">
                 <div class="btn-cutout" style="flex: 1; height: 32px; padding: 2px;">
                     <button class="btn-rubber led-purple" id="v2m-metro-btn">METRO: OFF</button>
                 </div>
-                <select class="set-control" id="v2m-quantize" style="flex: 1; height: 32px; padding: 0 5px;">
-                    <option>Q: 1/4</option><option>Q: 1/8</option><option selected>Q: 1/16</option><option>Q: OFF</option>
-                </select>
-                <select class="set-control" id="v2m-length" style="flex: 1; height: 32px; padding: 0 5px;" onchange="document.getElementById('v2m-len-display').textContent = 'LEN: ' + this.value">
-                    <option value="16" selected>LEN: 16</option>
+                <select class="set-control" id="v2m-length" style="flex: 1; height: 32px; padding: 0 5px;" onchange="document.getElementById('v2m-len-display').textContent = 'LEN: ' + this.value; if(typeof drawV2mFinalWave === 'function' && window.v2mAudioBuffer) drawV2mFinalWave(window.v2mAudioBuffer);">
+                    <option value="16">LEN: 16</option>
                     <option value="32">LEN: 32</option>
-                    <option value="64">LEN: 64</option>
+                    <option value="64" selected>LEN: 64</option>
+                    <option value="128">LEN: 128</option>
+                    <option value="256">LEN: 256</option>
                 </select>
             </div>
         </div>
         
-        <div class="set-row" style="margin-bottom: 20px;">
-            <label style="color: #ff66ff; display: block; margin-bottom: 4px; white-space: nowrap;">
-                V2M TEMPO (BPM)&nbsp;&nbsp;&nbsp;<span class="set-range-val" id="v2m-bpm-val" style="color: #ff66ff;">130 BPM</span>
+        <!-- BPM & TAP -->
+        <div class="set-row" style="margin-bottom: 15px;">
+            <label style="color: #ff3333; display: block; margin-bottom: 4px; white-space: nowrap;">
+                TEMPO (BPM)&nbsp;&nbsp;&nbsp;<span class="set-range-val" id="v2m-bpm-val" style="color: #ff3333;">130 BPM</span>
             </label>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="set-range-group" style="flex: 1; margin: 0;">
@@ -1726,40 +1676,16 @@ top: 2px; }
             </div>
         </div>
 
-        <!-- TRANSPORT & ACTIONS -->
-<div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-    <div class="btn-cutout" style="height: 44px;"><button class="btn-rubber led-red" id="v2m-rec-btn">🎙️ REC VOICE</button></div>
-    <div class="btn-cutout" style="height: 44px;"><button class="btn-rubber led-green" id="v2m-play-midi-btn">▶ MIDI</button></div>
-    <div class="btn-cutout" style="height: 44px;"><button class="btn-rubber led-green" id="v2m-play-voice-btn">▶ VOICE</button></div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; position: relative;">
-    <div class="btn-cutout"><button class="btn-rubber led-orange" id="v2m-load-btn" onclick="document.getElementById('v2m-file-input').click(); vibrate(30);">📂 LOAD</button></div>
-    <div class="btn-cutout"><button class="btn-rubber led-purple active-mode" id="v2m-assign-btn" onclick="toggleV2mPadAssign()">📥 PAD</button></div>
-    <div class="btn-cutout"><button class="btn-rubber led-orange">💾 MIDI</button></div>
-    <div class="btn-cutout"><button class="btn-rubber led-orange">💾 WAV</button></div>
-
-    <!-- Скрытый инпут для выбора аудиофайла с телефона/ПК -->
-    <input type="file" id="v2m-file-input" style="display: none;" accept=".mp3, .wav, .m4a, .aac, audio/mpeg, audio/wav">
-
-    <!-- Всплывающая сетка пэдов с выбором банка -->
-    <div id="v2m-pad-popup" style="display: none; position: absolute; bottom: 42px; left: 0; width: 100%; background: #0a0a0a; border: 2px solid #aa00ff; border-radius: 8px; padding: 10px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.95);">
-        <div style="font-size: 10px; color: #ff66ff; text-align: center; margin-bottom: 8px; font-weight: bold; letter-spacing: 1px;">SELECT TARGET PAD</div>
-        
-        <!-- Мини-банки -->
-        <div class="set-tabs" style="margin-bottom: 10px;">
-            <button class="set-tab-btn active-blue" id="v2m-bank-a" onclick="switchV2mBank('A')">A</button>
-            <button class="set-tab-btn" id="v2m-bank-b" onclick="switchV2mBank('B')">B</button>
-            <button class="set-tab-btn" id="v2m-bank-c" onclick="switchV2mBank('C')">C</button>
-            <button class="set-tab-btn" id="v2m-bank-d" onclick="switchV2mBank('D')">D</button>
+        <!-- TRANSPORT ACTIONS -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+            <div class="btn-cutout" style="height: 44px;"><button class="btn-rubber led-red" id="v2m-rec-btn">🎙️ REC NOTE</button></div>
+            <div class="btn-cutout" style="height: 44px;"><button class="btn-rubber led-green" id="v2m-play-voice-btn">▶ PLAY</button></div>
         </div>
 
-        <div class="set-pad-selector" id="v2m-popup-grid" style="margin-bottom: 0;">
-            <!-- JS генерирует 12 пэдов -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="btn-cutout" style="height: 38px;"><button class="btn-rubber led-orange" id="v2m-clear-btn">🗑 CLEAR</button></div>
+            <div class="btn-cutout" style="height: 38px;"><button class="btn-rubber led-blue" id="v2m-save-btn">💾 TO RECORDS</button></div>
         </div>
-    </div>
-</div>
-
     </div>
 </div>
 
