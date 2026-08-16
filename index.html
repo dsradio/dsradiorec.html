@@ -9593,12 +9593,12 @@ function detectPitchAcoustic(buffer, sampleRate) {
 }
 
 // ==========================================
-// ВИЗУАЛЬНЫЙ ДЕТЕКТОР (ПОИСК ГОРНЫХ ВЕРШИН)
+// МЕТОД "ТЯЖЕЛОГО УТЮГА" + ГЛОБАЛЬНЫЕ ЛИНИИ
 // ==========================================
 const ENV_SETTINGS = {
-    chunkMs: 10,           // "Ширина пикселя" (в миллисекундах). Сжимаем волну для простоты.
-    searchRadiusMs: 80,    // Радиус поиска. Гора должна быть самой высокой в радиусе 80 мс влево и вправо.
-    minPeakVolume: 0.15    // Порог пыли. Гора должна быть не ниже 15% от самого громкого удара в записи.
+    ironWeightMs: 50,  // ВЕС УТЮГА (Затухание в мс). 50 = идеально замазывает микро-хрипы в сплошной холм.
+    lineOn: 0.15,      // ВЕРХНЯЯ ЛИНИЯ (15% от самого громкого пика во всей записи)
+    lineOff: 0.05      // НИЖНЯЯ ЛИНИЯ (5% от макс. пика). Как только звук упал ниже - алгоритм снова ищет удар.
 };
 
 async function analyzeV2mAudio(audioBuffer) {
@@ -9619,67 +9619,77 @@ async function analyzeV2mAudio(audioBuffer) {
     }
     const stepDuration = (60.0 / bpm) / qDiv;
 
-    // 1. ПИКСЕЛИЗАЦИЯ (Сжимаем 44100 точек в секунду до 100 блоков)
-    const chunkSamples = Math.floor(sampleRate * (ENV_SETTINGS.chunkMs / 1000));
-    const blocks = [];
-    let maxAbsVolume = 0;
+    // ==========================================
+    // 1. ГЛАДИМ ВОЛНУ УТЮГОМ
+    // ==========================================
+    // Математика утюга: если звук резко пропал, наша "гладкая" волна не падает сразу в 0,
+    // а плавно скатывается вниз. Это убивает "пулемет" на 100%.
+    const decayFactor = Math.exp(-1.0 / (sampleRate * (ENV_SETTINGS.ironWeightMs / 1000.0)));
+    
+    let currentEnv = 0;
+    let maxEnv = 0;
+    const smoothedWave = new Float32Array(channelData.length);
 
-    for (let i = 0; i < channelData.length; i += chunkSamples) {
-        let maxInChunk = 0;
-        const limit = Math.min(i + chunkSamples, channelData.length);
-        for (let j = i; j < limit; j++) {
-            const val = Math.abs(channelData[j]);
-            if (val > maxInChunk) maxInChunk = val;
+    for (let i = 0; i < channelData.length; i++) {
+        const val = Math.abs(channelData[i]);
+        // Если звук резко скакнул - утюг мгновенно взлетает на вершину
+        if (val > currentEnv) {
+            currentEnv = val;
+        } else {
+            // Если звук пропал - утюг медленно опускается по склону
+            currentEnv = currentEnv * decayFactor;
         }
-        blocks.push(maxInChunk);
-        if (maxInChunk > maxAbsVolume) maxAbsVolume = maxInChunk;
+        smoothedWave[i] = currentEnv;
+        
+        // Запоминаем самую высокую гору в записи
+        if (currentEnv > maxEnv) {
+            maxEnv = currentEnv;
+        }
     }
 
-    if (maxAbsVolume < 0.01) {
+    if (maxEnv < 0.01) {
         window.v2mRawNotes = [];
         return;
     }
 
-    const dustThreshold = maxAbsVolume * ENV_SETTINGS.minPeakVolume;
-    const searchRadiusChunks = Math.floor(ENV_SETTINGS.searchRadiusMs / ENV_SETTINGS.chunkMs);
+    // ==========================================
+    // 2. РАСЧЕТ ВООБРАЖАЕМЫХ ЛИНИЙ
+    // ==========================================
+    const thresholdOn = maxEnv * ENV_SETTINGS.lineOn;
+    const thresholdOff = maxEnv * ENV_SETTINGS.lineOff;
+
+    let isTriggerArmed = true;     
     const rawNotes = [];
 
-    // 2. ПОИСК ВЕРШИН (Локальные Максимумы)
-    for (let i = 0; i < blocks.length; i++) {
-        const currentVol = blocks[i];
+    // ==========================================
+    // 3. ПОИСК ПЕРЕСЕЧЕНИЙ (СТАВИМ НОТЫ)
+    // ==========================================
+    for (let i = 0; i < smoothedWave.length; i++) {
+        const envVal = smoothedWave[i];
+        const timeNow = i / sampleRate;
 
-        // Отсеиваем пыль (всё, что ниже линии шума)
-        if (currentVol < dustThreshold) continue;
-
-        let isPeak = true;
-
-        // Смотрим влево и вправо по "пикселям"
-        for (let j = 1; j <= searchRadiusChunks; j++) {
-            // Если слева есть кто-то такой же или выше — это не начало горы, пропускаем
-            if (i - j >= 0 && blocks[i - j] >= currentVol) { 
-                isPeak = false; break; 
+        if (isTriggerArmed) {
+            // Ждем, когда гладкий холм пробьет ВЕРХНЮЮ линию
+            if (envVal > thresholdOn) {
+                rawNotes.push({ 
+                    startTime: timeNow, 
+                    duration: stepDuration,
+                    midi: 60,
+                    noteName: 'C4', 
+                    freq: null 
+                });
+                isTriggerArmed = false; // Запрещаем ставить ноты, пока холм не кончится
             }
-            // Если справа есть кто-то строго выше — мы еще на склоне, а не на вершине
-            if (i + j < blocks.length && blocks[i + j] > currentVol) { 
-                isPeak = false; break; 
+        } else {
+            // Ждем, когда гладкий холм опустится ниже НИЖНЕЙ линии
+            if (envVal < thresholdOff) {
+                isTriggerArmed = true; // Ура, тишина наступила! Снова готовы к удару.
             }
-        }
-
-        if (isPeak) {
-            // Нашли вершину! Ставим флажок (ноту)
-            const timeNow = (i * chunkSamples) / sampleRate;
-            rawNotes.push({ 
-                startTime: timeNow, 
-                duration: stepDuration,
-                midi: 60,
-                noteName: 'C4', 
-                freq: null 
-            });
         }
     }
 
     window.v2mRawNotes = rawNotes;
-    console.log("СЫРЫЕ НОТЫ (ГОРНЫЕ ВЕРШИНЫ): ", rawNotes);
+    console.log("СЫРЫЕ НОТЫ (ТЯЖЕЛЫЙ УТЮГ): ", rawNotes);
 
     const activeMidiSet = new Set(rawNotes.map(n => n.midi));
     activeMidiSet.forEach(midi => { 
