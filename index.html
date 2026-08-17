@@ -10217,35 +10217,137 @@ function sbAnalyzeAudio(buffer) {
     sbDrawAnalysis(smoothedRmsArray, maxRms, sbDetectedNotes, chunkMs);
 }
 
-// 3. Воспроизведение MIDI (Пищалка)
+// ==========================================
+// 3. ЗАГРУЗКА И ВОСПРОИЗВЕДЕНИЕ СЭМПЛОВ
+// ==========================================
+let sbSamples = { c3: null, c4: null, c5: null };
+let sbSamplesLoaded = false;
+let sbMidiSources = [];
+let sbPlayTimeout = null;
+
+// Функция для загрузки файлов (вызовем её при открытии лаборатории)
+async function sbLoadSamples() {
+    if (sbSamplesLoaded) return;
+    try {
+        const load = async (url) => {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            return await audioCtx.decodeAudioData(arrayBuffer);
+        };
+        // Грузим твои файлы из корня проекта
+        sbSamples.c3 = await load('key_c3.wav');
+        sbSamples.c4 = await load('key_c4.wav');
+        sbSamples.c5 = await load('key_c5.wav');
+        sbSamplesLoaded = true;
+        sbLog('Сэмплы клавиш загружены!');
+    } catch (e) {
+        sbLog('Ошибка загрузки сэмплов: ' + e);
+    }
+}
+
+// ВОСПРОИЗВЕДЕНИЕ MIDI
 async function sandboxPlayMidi() {
+    const btn = document.getElementById('sb-play-btn');
+    
+    // ЛОГИКА ОСТАНОВКИ
+    if (btn.dataset.state === 'playing') {
+        sbMidiSources.forEach(src => { try { src.stop(); } catch(e){} });
+        sbMidiSources = [];
+        clearTimeout(sbPlayTimeout);
+        
+        btn.dataset.state = 'idle';
+        btn.innerHTML = '▶ PLAY MIDI';
+        btn.style.borderColor = '#00ff00';
+        btn.style.color = '#00ff00';
+        btn.style.background = '#002200';
+        sbLog('■ Воспроизведение остановлено.');
+        return;
+    }
+
     if (sbDetectedNotes.length === 0) {
         sbLog('Нет нот для воспроизведения!');
         return;
     }
     
-    // ПРИНУДИТЕЛЬНОЕ ПРОБУЖДЕНИЕ АУДИО (ЧИНИТ КНОПКУ PLAY)
     if (audioCtx.state === 'suspended') await audioCtx.resume();
     
-    sbLog('▶ Играем MIDI...');
+    // Если сэмплы еще не загружены - грузим сейчас
+    if (!sbSamplesLoaded) {
+        sbLog('Гружу файлы клавиш...');
+        await sbLoadSamples();
+    }
+    
+    sbLog('▶ Играем MIDI (Клавиши)...');
+    
+    // Включаем визуал кнопки "STOP"
+    btn.dataset.state = 'playing';
+    btn.innerHTML = '■ STOP MIDI';
+    btn.style.borderColor = '#ff0000';
+    btn.style.color = '#ff3333';
+    btn.style.background = '#330000';
+    
     const now = audioCtx.currentTime;
+    let maxEndTime = 0;
     
     sbDetectedNotes.forEach(note => {
-        const osc = audioCtx.createOscillator();
-        osc.type = 'triangle'; 
-        osc.frequency.value = 440 * Math.pow(2, (note.midi - 69) / 12);
+        let sample = sbSamples.c4; // По умолчанию берем центральную C4
+        let baseMidi = 60; 
         
-        const gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(0, now + note.startTime);
-        gain.gain.linearRampToValueAtTime(0.8, now + note.startTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + note.startTime + note.duration);
+        // Умный подбор октавы: берем тот файл, который ближе по высоте
+        if (note.midi < 54 && sbSamples.c3) { sample = sbSamples.c3; baseMidi = 48; }
+        else if (note.midi > 66 && sbSamples.c5) { sample = sbSamples.c5; baseMidi = 72; }
         
-        osc.connect(gain);
-        gain.connect(audioCtx.destination); // Играем прямо в мастер выход
+        if (sample) {
+            // ИГРАЕМ СЭМПЛ
+            const src = audioCtx.createBufferSource();
+            src.buffer = sample;
+            // Подгоняем высоту (pitch) в зависимости от найденной ноты
+            src.playbackRate.value = Math.pow(2, (note.midi - baseMidi) / 12);
+            
+            const gain = audioCtx.createGain();
+            // Делаем мягкий Fade Out (убираем щелчки в конце)
+            gain.gain.setValueAtTime(1.0, now + note.startTime + note.duration - 0.05);
+            gain.gain.linearRampToValueAtTime(0, now + note.startTime + note.duration);
+
+            src.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            src.start(now + note.startTime);
+            src.stop(now + note.startTime + note.duration);
+            sbMidiSources.push(src);
+        } else {
+            // ФОЛБЭК: Если файл почему-то не скачался (например, 404 ошибка)
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = 440 * Math.pow(2, (note.midi - 69) / 12);
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0, now + note.startTime);
+            gain.gain.linearRampToValueAtTime(0.5, now + note.startTime + 0.01);
+            gain.gain.setValueAtTime(0.5, now + note.startTime + note.duration - 0.05);
+            gain.gain.linearRampToValueAtTime(0, now + note.startTime + note.duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + note.startTime);
+            osc.stop(now + note.startTime + note.duration);
+            sbMidiSources.push(osc);
+        }
         
-        osc.start(now + note.startTime);
-        osc.stop(now + note.startTime + note.duration);
+        if (note.startTime + note.duration > maxEndTime) {
+            maxEndTime = note.startTime + note.duration;
+        }
     });
+    
+    // Сброс кнопки
+    sbPlayTimeout = setTimeout(() => {
+        if (btn.dataset.state === 'playing') {
+            btn.dataset.state = 'idle';
+            btn.innerHTML = '▶ PLAY MIDI';
+            btn.style.borderColor = '#00ff00';
+            btn.style.color = '#00ff00';
+            btn.style.background = '#002200';
+            sbMidiSources = [];
+        }
+    }, maxEndTime * 1000 + 100);
 }
 
 // 4. Запись звука
