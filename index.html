@@ -2148,26 +2148,32 @@ top: 2px; }
 </div>
 <!-- === SANDBOX MODAL (ПЕСОЧНИЦА) === -->
 <div id="sandbox-modal" class="modal-overlay" style="z-index: 9999999;">
-    <div class="modal-window" style="background: #050505; border-color: #ff00ff;">
+    <div class="modal-window" style="background: #050505; border-color: #ff00ff; padding: 10px;">
         <div class="menu-header">
             <div class="menu-header-bar" onclick="closeSandbox()"></div>
-            <span style="color: #ff00ff; margin-top: 15px;">🧪 LAB: ХОЛМИК АЛГОРИТМ</span>
+            <span style="color: #ff00ff; margin-top: 15px; font-size: 14px;">🧪 LAB: ХОЛМИК АЛГОРИТМ</span>
         </div>
         
-        <div class="modal-body" style="display: flex; flex-direction: column;">
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button id="sb-rec-btn" class="pad-action-btn red-mode" style="flex: 1; height: 50px; font-size: 14px;" onclick="sandboxToggleRec()">🎙️ REC VOICE</button>
-                <button id="sb-play-btn" class="pad-action-btn" style="flex: 1; height: 50px; font-size: 14px; border-color:#00ff00; color:#00ff00; background:#002200;" onclick="sandboxPlayMidi()">▶ PLAY MIDI</button>
+        <div class="modal-body" style="display: flex; flex-direction: column; padding: 0;">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <button id="sb-rec-btn" class="pad-action-btn red-mode" style="flex: 1; height: 45px; font-size: 12px;" onclick="sandboxToggleRec()">🎙️ REC VOICE</button>
+                <button id="sb-play-btn" class="pad-action-btn" style="flex: 1; height: 45px; font-size: 12px; border-color:#00ff00; color:#00ff00; background:#002200;" onclick="sandboxPlayMidi()">▶ PLAY MIDI</button>
             </div>
             
-            <div style="color: #888; font-size: 10px; margin-bottom: 5px;">ТЕРМИНАЛ ЛОГОВ:</div>
-            <div id="sb-terminal" style="flex: 1; background: #000; border: 1px solid #333; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 10px; color: #00ffcc; overflow-y: auto; white-space: pre-wrap; line-height: 1.4;">
+            <!-- НОВЫЙ ЭКРАН ВИЗУАЛИЗАЦИИ -->
+            <div style="color: #888; font-size: 9px; margin-bottom: 2px;">ОКНО ВИДЕНИЯ АЛГОРИТМА (ENVELOPE):</div>
+            <div style="width: 100%; height: 120px; background: #111; border: 1px solid #333; border-radius: 4px; margin-bottom: 8px; position: relative;">
+                <canvas id="sb-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+            </div>
+            
+            <div style="color: #888; font-size: 9px; margin-bottom: 2px;">ТЕРМИНАЛ ЛОГОВ:</div>
+            <div id="sb-terminal" style="flex: 1; background: #000; border: 1px solid #333; border-radius: 4px; padding: 6px; font-family: monospace; font-size: 10px; color: #00ffcc; overflow-y: auto; white-space: pre-wrap; line-height: 1.4; min-height: 80px;">
 Система готова. Ожидание записи...
             </div>
         </div>
         
-        <div style="padding-top: 10px;">
-            <button class="fs-btn" style="margin: 0; background: #220022; color: #ff00ff; border-color: #ff00ff;" onclick="closeSandbox()">❌ CLOSE LAB</button>
+        <div style="padding-top: 8px; flex-shrink: 0;">
+            <button class="fs-btn" style="margin: 0; background: #220022; color: #ff00ff; border-color: #ff00ff; padding: 10px;" onclick="closeSandbox()">❌ CLOSE LAB</button>
         </div>
     </div>
 </div>
@@ -9946,8 +9952,14 @@ let sbAudioBuffer = null;
 let sbDetectedNotes = [];
 
 function openSandbox() {
-    closeMenu(); // Закрываем главное меню
+    closeMenu(); 
     document.getElementById('sandbox-modal').style.display = 'flex';
+    // На всякий случай чистим холст
+    const canvas = document.getElementById('sb-canvas');
+    if(canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
 function closeSandbox() {
@@ -9957,18 +9969,18 @@ function closeSandbox() {
 function sbLog(msg) {
     const term = document.getElementById('sb-terminal');
     term.innerHTML += '\n' + msg;
-    term.scrollTop = term.scrollHeight; // Автоскролл вниз
+    term.scrollTop = term.scrollHeight;
 }
 
-// 1. Акустический детектор ноты (из старого кода, изолированный)
+// 1. Акустический детектор ноты
 function sbDetectPitch(buffer, sampleRate) {
     let rms = 0;
     for (let i = 0; i < buffer.length; i++) rms += buffer[i]*buffer[i];
     rms = Math.sqrt(rms / buffer.length);
-    if (rms < 0.01) return null; // Слишком тихо
+    if (rms < 0.01) return null; 
 
-    const maxSamples = Math.floor(sampleRate / 80);  // 80 Hz
-    const minSamples = Math.floor(sampleRate / 1000); // 1000 Hz
+    const maxSamples = Math.floor(sampleRate / 80);  
+    const minSamples = Math.floor(sampleRate / 1000); 
     if (buffer.length < maxSamples * 2) return null;
 
     let bestOffset = -1;
@@ -9987,15 +9999,71 @@ function sbDetectPitch(buffer, sampleRate) {
     }
     
     if (bestCorrelation > 0.8) {
-        return sampleRate / bestOffset; // Возвращаем частоту
+        return sampleRate / bestOffset; 
     }
-    return null; // Это просто шум, ноты нет
+    return null; 
 }
 
-// Перевод частоты в MIDI
 function sbFreqToMidi(freq) {
     if (!freq || freq < 20) return null;
     return Math.round(69 + 12 * Math.log2(freq / 440));
+}
+
+// === ОТРИСОВКА ВИДЕНИЯ АЛГОРИТМА ===
+function sbDrawAnalysis(rmsArray, maxRms, notes, chunkMs) {
+    const canvas = document.getElementById('sb-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.parentElement.clientWidth;
+    const h = canvas.height = canvas.parentElement.clientHeight;
+    
+    ctx.clearRect(0, 0, w, h);
+    
+    // Рисуем сетку (шаг 100 мс)
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    const chunksPer100ms = 100 / chunkMs;
+    const step = w / rmsArray.length;
+    for(let i=0; i<rmsArray.length; i+=chunksPer100ms) {
+        ctx.beginPath(); ctx.moveTo(i*step, 0); ctx.lineTo(i*step, h); ctx.stroke();
+    }
+    
+    // Рисуем сглаженные "Холмики"
+    ctx.fillStyle = '#ffaa00';
+    for(let i=0; i<rmsArray.length; i++) {
+        const val = rmsArray[i] / maxRms;
+        const barH = val * h;
+        ctx.fillRect(i*step, h - barH, Math.max(1, step), barH);
+    }
+    
+    // Порог старта (15%)
+    const attackThresh = 0.15 * h;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath(); ctx.moveTo(0, h - attackThresh); ctx.lineTo(w, h - attackThresh); ctx.stroke();
+    
+    // Рисуем линии найденных нот
+    notes.forEach(note => {
+        const startX = (note.startTime * 1000 / chunkMs) * step;
+        const peakX = (note.peakTime * 1000 / chunkMs) * step;
+        const pitchX = (note.pitchTime * 1000 / chunkMs) * step;
+        
+        // 🟩 ЗЕЛЕНАЯ - Старт звука (превышение порога)
+        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, h); ctx.stroke();
+        
+        // 🟥 КРАСНАЯ - Пик холма
+        ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(peakX, 0); ctx.lineTo(peakX, h); ctx.stroke();
+        
+        // 🟦 СИНЯЯ - Точка замера ноты (+20 мс)
+        ctx.strokeStyle = '#0088ff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(pitchX, 0); ctx.lineTo(pitchX, h); ctx.stroke();
+        
+        // Текст
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText(note.midi, startX + 2, 12);
+    });
 }
 
 // 2. ГЛАВНАЯ МАТЕМАТИКА: АЛГОРИТМ ХОЛМИКА
@@ -10004,29 +10072,44 @@ function sbAnalyzeAudio(buffer) {
     const sampleRate = buffer.sampleRate;
     const data = buffer.getChannelData(0);
     
-    const chunkMs = 10; // Шаг анализа = 10 мс
+    const chunkMs = 10; 
     const chunkSamples = Math.floor(sampleRate * (chunkMs / 1000));
     
-    // Шаг А: Считаем громкость (RMS) для каждых 10 мс
-    let rmsArray = [];
+    let rawRmsArray = [];
     let maxRms = 0;
     
+    // 1. Собираем сырой RMS
     for (let i = 0; i < data.length; i += chunkSamples) {
         let sum = 0;
         let limit = Math.min(i + chunkSamples, data.length);
         for (let j = i; j < limit; j++) sum += data[j] * data[j];
         let rms = Math.sqrt(sum / (limit - i));
-        rmsArray.push(rms);
-        if (rms > maxRms) maxRms = rms;
+        rawRmsArray.push(rms);
+    }
+    
+    // 2. ПРЕВРАЩАЕМ В ПЛАВНЫЕ ХОЛМЫ (Moving Average Window = 50ms)
+    let smoothedRmsArray = [];
+    const windowSize = 5; // 5 чанков по 10мс = 50мс сглаживания
+    for (let i = 0; i < rawRmsArray.length; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let w = -Math.floor(windowSize/2); w <= Math.floor(windowSize/2); w++) {
+            if (i + w >= 0 && i + w < rawRmsArray.length) {
+                sum += rawRmsArray[i + w];
+                count++;
+            }
+        }
+        let avg = sum / count;
+        smoothedRmsArray.push(avg);
+        if (avg > maxRms) maxRms = avg;
     }
     
     if (maxRms < 0.01) {
-        sbLog('ОШИБКА: Запись слишком тихая или пустая.');
+        sbLog('ОШИБКА: Запись слишком тихая.');
         return;
     }
 
-    // Шаг Б: Поиск холмиков
-    const threshold = maxRms * 0.15; // Порог начала звука (15% от максимума)
+    const threshold = maxRms * 0.15; // Порог начала звука (15%)
     const releaseThreshold = maxRms * 0.05; // Порог конца звука
     
     let inHill = false;
@@ -10036,11 +10119,10 @@ function sbAnalyzeAudio(buffer) {
     
     sbDetectedNotes = [];
 
-    for (let i = 0; i < rmsArray.length; i++) {
-        let val = rmsArray[i];
+    for (let i = 0; i < smoothedRmsArray.length; i++) {
+        let val = smoothedRmsArray[i];
         
         if (!inHill) {
-            // Начинаем холмик
             if (val > threshold) {
                 inHill = true;
                 hillStartIdx = i;
@@ -10048,26 +10130,25 @@ function sbAnalyzeAudio(buffer) {
                 hillPeakIdx = i;
             }
         } else {
-            // Ищем пик внутри холмика
             if (val > hillPeakVal) {
                 hillPeakVal = val;
                 hillPeakIdx = i;
             }
             
-            // Заканчиваем холмик (звук упал)
+            // Заканчиваем холмик
             if (val < releaseThreshold) {
                 inHill = false;
                 
-                // === ОБРАБАТЫВАЕМ НАЙДЕННЫЙ ХОЛМИК ===
                 const startTimeSec = (hillStartIdx * chunkSamples) / sampleRate;
                 const peakTimeSec = (hillPeakIdx * chunkSamples) / sampleRate;
                 
-                // Отступаем 20 мс вправо от пика для замера ноты
+                // ТВОЯ МАТЕМАТИКА: Отступаем 20 мс вправо от пика
                 const pitchOffsetChunks = Math.floor(20 / chunkMs); 
                 let pitchAnalysisIdx = hillPeakIdx + pitchOffsetChunks;
-                if (pitchAnalysisIdx >= rmsArray.length) pitchAnalysisIdx = rmsArray.length - 1;
+                if (pitchAnalysisIdx >= smoothedRmsArray.length) pitchAnalysisIdx = smoothedRmsArray.length - 1;
+                const pitchTimeSec = (pitchAnalysisIdx * chunkSamples) / sampleRate;
                 
-                // Вырезаем кусок звука (2048 сэмплов) для детектора высоты
+                // Вырезаем кусок звука (2048 сэмплов)
                 const pitchStartSample = pitchAnalysisIdx * chunkSamples;
                 const pitchBuffer = new Float32Array(Math.min(2048, data.length - pitchStartSample));
                 for(let k = 0; k < pitchBuffer.length; k++) {
@@ -10075,46 +10156,53 @@ function sbAnalyzeAudio(buffer) {
                 }
                 
                 let freq = sbDetectPitch(pitchBuffer, sampleRate);
-                let midi = freq ? sbFreqToMidi(freq) : 60; // Если нота не ясна, ставим C4 (60)
+                let midi = freq ? sbFreqToMidi(freq) : 60; 
                 
                 sbDetectedNotes.push({
                     startTime: startTimeSec,
-                    duration: 0.15, // Фиксируем длину "пика" для прослушки (150 мс)
+                    peakTime: peakTimeSec,
+                    pitchTime: pitchTimeSec,
+                    duration: 0.15, 
                     midi: midi,
                     freq: freq
                 });
                 
-                sbLog(`> Звук: Старт ${startTimeSec.toFixed(2)}s | Пик: ${peakTimeSec.toFixed(2)}s | MIDI: ${midi} ${freq ? '('+freq.toFixed(0)+'Hz)' : '(шум)'}`);
+                sbLog(`> Старт: ${startTimeSec.toFixed(2)}s | Замер: ${pitchTimeSec.toFixed(2)}s | MIDI: ${midi} ${freq ? '('+freq.toFixed(0)+'Hz)' : ''}`);
             }
         }
     }
     
     sbLog(`ИТОГО: Найдено нот: ${sbDetectedNotes.length}`);
+    
+    // Вызываем отрисовку холстов
+    sbDrawAnalysis(smoothedRmsArray, maxRms, sbDetectedNotes, chunkMs);
 }
 
 // 3. Воспроизведение MIDI (Пищалка)
-function sbPlayMidi() {
+async function sandboxPlayMidi() {
     if (sbDetectedNotes.length === 0) {
         sbLog('Нет нот для воспроизведения!');
         return;
     }
+    
+    // ПРИНУДИТЕЛЬНОЕ ПРОБУЖДЕНИЕ АУДИО (ЧИНИТ КНОПКУ PLAY)
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
     
     sbLog('▶ Играем MIDI...');
     const now = audioCtx.currentTime;
     
     sbDetectedNotes.forEach(note => {
         const osc = audioCtx.createOscillator();
-        osc.type = 'triangle'; // Простой синтезатор
+        osc.type = 'triangle'; 
         osc.frequency.value = 440 * Math.pow(2, (note.midi - 69) / 12);
         
         const gain = audioCtx.createGain();
-        // Резкая атака, быстрый спад
         gain.gain.setValueAtTime(0, now + note.startTime);
         gain.gain.linearRampToValueAtTime(0.8, now + note.startTime + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.01, now + note.startTime + note.duration);
         
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(audioCtx.destination); // Играем прямо в мастер выход
         
         osc.start(now + note.startTime);
         osc.stop(now + note.startTime + note.duration);
@@ -10143,6 +10231,13 @@ async function sandboxToggleRec() {
         btn.innerHTML = '■ STOP REC';
         btn.style.backgroundColor = '#ff0000';
         
+        // Очищаем экран графика
+        const canvas = document.getElementById('sb-canvas');
+        if(canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
         sbMediaRecorder.ondataavailable = e => { if (e.data.size > 0) sbAudioChunks.push(e.data); };
         
         sbMediaRecorder.onstop = async () => {
@@ -10152,7 +10247,6 @@ async function sandboxToggleRec() {
             sbAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
             sbLog('Запись завершена. Длина: ' + sbAudioBuffer.duration.toFixed(2) + 's');
             
-            // Запускаем алгоритм "Холмика"
             sbAnalyzeAudio(sbAudioBuffer);
         };
         
