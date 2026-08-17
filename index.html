@@ -2160,10 +2160,16 @@ top: 2px; }
                 <button id="sb-play-btn" class="pad-action-btn" style="flex: 1; height: 45px; font-size: 12px; border-color:#00ff00; color:#00ff00; background:#002200;" onclick="sandboxPlayMidi()">▶ PLAY MIDI</button>
             </div>
             
-            <!-- НОВЫЙ ЭКРАН ВИЗУАЛИЗАЦИИ -->
-            <div style="color: #888; font-size: 9px; margin-bottom: 2px;">ОКНО ВИДЕНИЯ АЛГОРИТМА (ENVELOPE):</div>
-            <div style="width: 100%; height: 120px; background: #111; border: 1px solid #333; border-radius: 4px; margin-bottom: 8px; position: relative;">
-                <canvas id="sb-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+            <!-- НОВЫЙ ЭКРАН ВИЗУАЛИЗАЦИИ С ЗУМОМ -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <div style="color: #888; font-size: 9px;">ОКНО ВИДЕНИЯ АЛГОРИТМА:</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #ff00ff; font-size: 9px; font-weight: bold;">ZOOM:</span>
+                    <input type="range" id="sb-zoom-slider" min="1" max="10" step="0.1" value="1" style="width: 100px; accent-color: #ff00ff;">
+                </div>
+            </div>
+            <div id="sb-canvas-container" style="width: 100%; height: 120px; background: #111; border: 1px solid #333; border-radius: 4px; margin-bottom: 8px; position: relative; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;">
+                <canvas id="sb-canvas" style="height: 100%; display: block;"></canvas>
             </div>
             
             <div style="color: #888; font-size: 9px; margin-bottom: 2px;">ТЕРМИНАЛ ЛОГОВ:</div>
@@ -10009,13 +10015,33 @@ function sbFreqToMidi(freq) {
     return Math.round(69 + 12 * Math.log2(freq / 440));
 }
 
-// === ОТРИСОВКА ВИДЕНИЯ АЛГОРИТМА ===
+// === ОТРИСОВКА ВИДЕНИЯ АЛГОРИТМА (С ЗУМОМ) ===
+window.sbLastAnalysis = null; // Память для перерисовки при зуме
+
 function sbDrawAnalysis(rmsArray, maxRms, notes, chunkMs) {
     const canvas = document.getElementById('sb-canvas');
-    if (!canvas) return;
+    const container = document.getElementById('sb-canvas-container');
+    if (!canvas || !container) return;
+    
+    // Запоминаем данные, чтобы ползунок мог их перерисовать
+    if (rmsArray) {
+        window.sbLastAnalysis = { rmsArray, maxRms, notes, chunkMs };
+    } else if (window.sbLastAnalysis) {
+        // Если вызвали без данных (двинули ползунок), берем из памяти
+        ({ rmsArray, maxRms, notes, chunkMs } = window.sbLastAnalysis);
+    } else {
+        return; // Нет данных для отрисовки
+    }
+
     const ctx = canvas.getContext('2d');
-    const w = canvas.width = canvas.parentElement.clientWidth;
-    const h = canvas.height = canvas.parentElement.clientHeight;
+    const zoomSlider = document.getElementById('sb-zoom-slider');
+    const zoom = zoomSlider ? parseFloat(zoomSlider.value) : 1;
+    
+    // Растягиваем холст
+    const parentW = container.clientWidth;
+    const w = canvas.width = Math.max(parentW, parentW * zoom);
+    canvas.style.width = w + 'px';
+    const h = canvas.height = container.clientHeight;
     
     ctx.clearRect(0, 0, w, h);
     
@@ -10047,7 +10073,7 @@ function sbDrawAnalysis(rmsArray, maxRms, notes, chunkMs) {
         const peakX = (note.peakTime * 1000 / chunkMs) * step;
         const pitchX = (note.pitchTime * 1000 / chunkMs) * step;
         
-        // 🟩 ЗЕЛЕНАЯ - Старт звука (превышение порога)
+        // 🟩 ЗЕЛЕНАЯ - Старт звука
         ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, h); ctx.stroke();
         
@@ -10055,16 +10081,28 @@ function sbDrawAnalysis(rmsArray, maxRms, notes, chunkMs) {
         ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(peakX, 0); ctx.lineTo(peakX, h); ctx.stroke();
         
-        // 🟦 СИНЯЯ - Точка замера ноты (+20 мс)
+        // 🟦 СИНЯЯ - Точка замера ноты
         ctx.strokeStyle = '#0088ff'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(pitchX, 0); ctx.lineTo(pitchX, h); ctx.stroke();
         
-        // Текст
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText(note.midi, startX + 2, 12);
+        // Текст (Скрываем текст, если холст не увеличен, чтобы не было каши)
+        if (zoom > 1.5) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText(note.midi, startX + 4, 12);
+        }
     });
 }
+
+// Слушатель для ползунка ЗУМА
+document.addEventListener('DOMContentLoaded', () => {
+    const sbZoomSlider = document.getElementById('sb-zoom-slider');
+    if (sbZoomSlider) {
+        sbZoomSlider.addEventListener('input', () => {
+            sbDrawAnalysis(); // Вызываем без аргументов, она возьмет из памяти
+        });
+    }
+});
 
 // 2. ГЛАВНАЯ МАТЕМАТИКА: АЛГОРИТМ ХОЛМИКА
 function sbAnalyzeAudio(buffer) {
