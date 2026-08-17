@@ -10127,7 +10127,7 @@ function sbAnalyzeAudio(buffer) {
     
     // 2. ПРЕВРАЩАЕМ В ПЛАВНЫЕ ХОЛМЫ (Moving Average Window = 50ms)
     let smoothedRmsArray = [];
-    const windowSize = 5; // 5 чанков по 10мс = 50мс сглаживания
+    const windowSize = 5; 
     for (let i = 0; i < rawRmsArray.length; i++) {
         let sum = 0;
         let count = 0;
@@ -10147,8 +10147,8 @@ function sbAnalyzeAudio(buffer) {
         return;
     }
 
-    const threshold = maxRms * 0.15; // Порог начала звука (15%)
-    const releaseThreshold = maxRms * 0.05; // Порог конца звука
+    const threshold = maxRms * 0.10; // Порог старта (чуть понизили до 10%)
+    const absoluteRelease = maxRms * 0.05; // Абсолютная тишина (5%)
     
     let inHill = false;
     let hillStartIdx = 0;
@@ -10159,28 +10159,31 @@ function sbAnalyzeAudio(buffer) {
 
     for (let i = 0; i < smoothedRmsArray.length; i++) {
         let val = smoothedRmsArray[i];
+        let prevVal = i > 0 ? smoothedRmsArray[i-1] : 0;
         
         if (!inHill) {
-            if (val > threshold) {
+            // ПРАВИЛО СТАРТА: Звук выше порога И график идет ВВЕРХ (мы не скатываемся в яму)
+            if (val > threshold && val > prevVal) {
                 inHill = true;
                 hillStartIdx = i;
                 hillPeakVal = val;
                 hillPeakIdx = i;
             }
         } else {
+            // Ищем пик
             if (val > hillPeakVal) {
                 hillPeakVal = val;
                 hillPeakIdx = i;
             }
             
-            // Заканчиваем холмик
-            if (val < releaseThreshold) {
+            // ПРАВИЛО ФИНИША: Абсолютная тишина ИЛИ звук упал в ямку (до 40% от высоты своего пика)
+            if (val < absoluteRelease || val < hillPeakVal * 0.4) {
                 inHill = false;
                 
                 const startTimeSec = (hillStartIdx * chunkSamples) / sampleRate;
                 const peakTimeSec = (hillPeakIdx * chunkSamples) / sampleRate;
                 
-                // ТВОЯ МАТЕМАТИКА: Отступаем 20 мс вправо от пика
+                // Отступаем 20 мс вправо от пика
                 const pitchOffsetChunks = Math.floor(20 / chunkMs); 
                 let pitchAnalysisIdx = hillPeakIdx + pitchOffsetChunks;
                 if (pitchAnalysisIdx >= smoothedRmsArray.length) pitchAnalysisIdx = smoothedRmsArray.length - 1;
@@ -10211,8 +10214,6 @@ function sbAnalyzeAudio(buffer) {
     }
     
     sbLog(`ИТОГО: Найдено нот: ${sbDetectedNotes.length}`);
-    
-    // Вызываем отрисовку холстов
     sbDrawAnalysis(smoothedRmsArray, maxRms, sbDetectedNotes, chunkMs);
 }
 
